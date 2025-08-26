@@ -112,3 +112,7 @@ quality-reports/
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+
+# Generated test data (created by CI)
+tests/generated/*.json
+tests/generated/*.csv
