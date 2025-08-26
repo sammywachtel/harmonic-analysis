@@ -136,14 +136,16 @@ class BidirectionalSuggestionEngine:
 
         parent_key_suggestions = []
         for bidirectional_suggestion in suggestions[:3]:
-            key_suggestion = KeySuggestion(
-                suggested_key=bidirectional_suggestion.suggested_key,
-                confidence=bidirectional_suggestion.confidence,
-                reason=bidirectional_suggestion.reason,
-                detected_pattern=bidirectional_suggestion.detected_pattern,
-                potential_improvement=bidirectional_suggestion.potential_improvement,
-            )
-            parent_key_suggestions.append(key_suggestion)
+            # Only create KeySuggestion for suggestions that have a suggested_key
+            if bidirectional_suggestion.suggested_key is not None:
+                key_suggestion = KeySuggestion(
+                    suggested_key=bidirectional_suggestion.suggested_key,
+                    confidence=bidirectional_suggestion.confidence,
+                    reason=bidirectional_suggestion.reason,
+                    detected_pattern=bidirectional_suggestion.detected_pattern,
+                    potential_improvement=bidirectional_suggestion.potential_improvement,
+                )
+                parent_key_suggestions.append(key_suggestion)
 
         return AnalysisSuggestions(
             parent_key_suggestions=parent_key_suggestions, general_suggestions=[]
