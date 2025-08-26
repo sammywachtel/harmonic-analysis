@@ -262,6 +262,8 @@ jobs:
 
           if [[ "${{ needs.frontend-quality.result }}" == "success" ]]; then
             echo "✅ Frontend Quality: PASSED"
+          elif [[ "${{ needs.frontend-quality.result }}" == "skipped" ]]; then
+            echo "⏭️  Frontend Quality: SKIPPED (backend-only project)"
           else
             echo "❌ Frontend Quality: FAILED"
           fi
@@ -287,7 +289,7 @@ jobs:
 
           # Check if critical jobs failed
           FAILED=false
-          [[ "${{ needs.frontend-quality.result }}" != "success" ]] && FAILED=true
+          [[ "${{ needs.frontend-quality.result }}" != "success" && "${{ needs.frontend-quality.result }}" != "skipped" ]] && FAILED=true
           [[ "${{ needs.backend-quality.result }}" != "success" ]] && FAILED=true
 
           if [[ "$FAILED" == "true" ]]; then
