@@ -37,10 +37,11 @@ jobs:
       run: black --check src/ tests/
 
     - name: Run tests
-      run: pytest --cov=harmonic_analysis --cov-report=xml
+      run: pytest --cov=harmonic_analysis --cov-report=xml -v
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       with:
         file: ./coverage.xml
         fail_ci_if_error: false
