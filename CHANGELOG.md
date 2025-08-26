@@ -127,7 +127,7 @@ result = await analyze_progression_multiple(['C', 'F', 'G', 'C'])
 ### Changed
 - Edge case tests now use warning-based assertions with colorful icons (🟠⚠️📊💭🔍) instead of hard failures
 - Pre-commit hooks enhanced with better naming and comprehensive quality checks
-- Python version support clarified as 3.9-3.12 with proper constraints
+- Python version support clarified as 3.10-3.12 with proper constraints
 - Development workflow improved with structured quality gates
 
 ### Fixed
