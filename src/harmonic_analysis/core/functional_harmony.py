@@ -141,8 +141,12 @@ class FunctionalHarmonyAnalyzer:
     """Main functional harmony analyzer class with comprehensive Roman
     numeral generation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.last_analysis_ambiguity: List[str] = []
+        # Mapping of chromatic scale degrees to common secondary dominant labels
+        # Used as a fallback in _calculate_roman_numeral when detecting
+        # chromatic degrees
+        self.secondary_dominants: Dict[int, str] = {}
 
     async def analyze_functionally(
         self, chord_symbols: List[str], parent_key: Optional[str] = None
@@ -229,8 +233,12 @@ class FunctionalHarmonyAnalyzer:
 
         # Assume first/last chord suggests key (simple heuristic for now)
         suggested_root = first_chord["root"] if first_chord else 0
-        is_minor = first_chord and (
-            "m" in first_chord["chord_name"] and "M" not in first_chord["chord_name"]
+        is_minor = bool(
+            first_chord
+            and (
+                "m" in first_chord["chord_name"]
+                and "M" not in first_chord["chord_name"]
+            )
         )
         root_name = next(
             (
@@ -427,8 +435,10 @@ class FunctionalHarmonyAnalyzer:
         """Parse chord quality from chord name."""
         chord_lower = chord_name.lower()
 
-        if "maj7" in chord_lower or "M7" in chord_lower:
+        if "maj7" in chord_lower or "M7" in chord_name:
             return "major7"
+        elif "dom7" in chord_lower:
+            return "dominant7"
         elif "m7" in chord_lower or "min7" in chord_lower:
             return "minor7"
         elif "7" in chord_lower and "maj" not in chord_lower and "m" not in chord_lower:
@@ -481,7 +491,9 @@ class FunctionalHarmonyAnalyzer:
         """
         Get Roman numeral with chromatic chord support - comprehensive implementation.
         """
-        templates = FUNCTIONAL_ROMAN_NUMERALS["minor" if is_minor else "major"]
+        templates: Dict[str, Any] = FUNCTIONAL_ROMAN_NUMERALS[
+            "minor" if is_minor else "major"
+        ]
 
         if not is_chromatic:
             # Use diatonic Roman numerals
@@ -490,7 +502,7 @@ class FunctionalHarmonyAnalyzer:
             )
             try:
                 scale_index = diatonic_intervals.index(interval_from_key)
-                numeral = templates["diatonic"][scale_index]
+                numeral: str = str(templates["diatonic"][scale_index])
 
                 # Add chord extensions and modifications
                 if "7" in chord_name:

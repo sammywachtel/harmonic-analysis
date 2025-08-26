@@ -13,20 +13,16 @@ Usage:
     python scripts/music_expert_review.py --all
 """
 
+
 import argparse
 import asyncio
 import json
-
-# Add src to path
-import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from harmonic_analysis import AnalysisOptions, analyze_progression_multiple
+from harmonic_analysis import analyze_progression_multiple
 
 
 class Severity(Enum):
@@ -188,7 +184,7 @@ class MusicExpertReviewer:
         print("🎵 Reviewing chromatic harmony detection...")
 
         for progression in self.test_progressions["chromatic"]:
-            result = await analyze_progression_multiple(progression)
+            _ = await analyze_progression_multiple(progression)
 
             # Check chromatic element detection
             # Add validation logic here
@@ -277,7 +273,7 @@ class MusicExpertReviewer:
             print(f"   Findings: {len(report.findings)}")
 
             if report.findings:
-                print(f"\n   Issues by Severity:")
+                print("\n   Issues by Severity:")
                 severity_counts = {}
                 for finding in report.findings:
                     severity_counts[finding.severity] = (

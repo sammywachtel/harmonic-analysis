@@ -123,7 +123,7 @@ def print_edge_case_summary(warnings_summary: dict, category: str) -> None:
     print(f"⚠️  With Warnings: {warning}/{total}")
 
     if warning > 0:
-        print(f"\n📊 Warning Breakdown:")
+        print("\n📊 Warning Breakdown:")
         print(f"  🔴 High: {warnings_summary['high_severity']}")
         print(f"  🟠 Medium: {warnings_summary['medium_severity']}")
         print(f"  🟡 Low: {warnings_summary['low_severity']}")

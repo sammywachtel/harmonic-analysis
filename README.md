@@ -1,10 +1,12 @@
 # Harmonic Analysis Library 🎵
 
-A comprehensive Python library that analyzes music the way musicians think about it - identifying chord progressions, scales, modes, and harmonic relationships with detailed explanations of *why* it hears what it hears.
+A comprehensive Python library that analyzes music the way musicians think about it - identifying chord progressions,
+scales, modes, and harmonic relationships with detailed explanations of *why* it hears what it hears.
 
 ## What This Library Does (For Musicians)
 
 This library listens to your chord progressions, scales, and melodies and tells you:
+
 - **What key you're in** and how confident it is about that
 - **The function of each chord** (tonic, dominant, subdominant, etc.)
 - **What mode you might be using** (Dorian, Mixolydian, Phrygian, etc.)
@@ -93,17 +95,22 @@ asyncio.run(analyze_my_melody())
 ## How the Analysis Works (The Musical Logic)
 
 ### Stage 1: Chord Parsing 🎸
+
 First, the library understands what you typed:
+
 - `"Cmaj7"` → C major 7th chord (C-E-G-B)
 - `"Dm"` → D minor chord (D-F-A)
 - `"G7"` → G dominant 7th (G-B-D-F)
 - Handles slash chords (`"C/E"`), extensions (`"Am9"`), alterations (`"F#dim"`)
 
 ### Stage 2: Parallel Analysis 🔍
+
 Three specialized "musicians" analyze your progression simultaneously:
 
 #### The Functional Harmony Analyst
+
 Thinks in Roman numerals and classical harmony:
+
 ```python
 # Example: ['C', 'Am', 'F', 'G']
 # Sees: I - vi - IV - V in C major
@@ -112,7 +119,9 @@ Thinks in Roman numerals and classical harmony:
 ```
 
 #### The Modal Analyst
+
 Looks for modal characteristics and color tones:
+
 ```python
 # Example: ['G', 'F', 'C', 'G']
 # Sees: I - bVII - IV - I in G Mixolydian
@@ -121,7 +130,9 @@ Looks for modal characteristics and color tones:
 ```
 
 #### The Chromatic Analyst
+
 Spots advanced harmonic techniques:
+
 ```python
 # Example: ['C', 'A7', 'Dm', 'G7', 'C']
 # Sees: I - V7/ii - ii - V7 - I
@@ -130,6 +141,7 @@ Spots advanced harmonic techniques:
 ```
 
 ### Stage 3: Evidence Collection 📊
+
 Each analyst gathers evidence for their interpretation:
 
 ```python
@@ -142,6 +154,7 @@ CONTEXTUAL:  "Modal characteristics present" - strength: 0.65
 ```
 
 ### Stage 4: Confidence Calculation 🎯
+
 The library weighs all evidence to determine confidence:
 
 ```python
@@ -156,6 +169,7 @@ The library weighs all evidence to determine confidence:
 ```
 
 ### Stage 5: Generating Results 📝
+
 The library explains its reasoning in musical terms:
 
 ```python
@@ -207,24 +221,28 @@ melody_result.confidence       # 0.85 - how sure about the tonic
 ### When You Get `suggested_tonic` (and When You Don't)
 
 **You GET a suggested tonic when:**
+
 - Analyzing a **melody** (sequence of single notes meant to be heard in order)
 - The library detects emphasis on particular notes through:
-  - Frequency (how often a note appears)
-  - Position (especially the final note)
-  - Melodic patterns (like returning to a note after leaps)
+    - Frequency (how often a note appears)
+    - Position (especially the final note)
+    - Melodic patterns (like returning to a note after leaps)
 
 **You DON'T get a suggested tonic when:**
+
 - Analyzing a **scale** (just a collection of notes without melodic context)
 - Analyzing **chord progressions** (the tonic is determined differently)
 - The melody is too ambiguous or short
 
 ## 💡 Intelligent Bidirectional Key Suggestions
 
-**New Feature**: The library intelligently suggests when to **add**, **remove**, or **change** parent keys to optimize your analysis results. This breakthrough bidirectional system helps you get the best possible harmonic analysis.
+**New Feature**: The library intelligently suggests when to **add**, **remove**, or **change** parent keys to optimize
+your analysis results. This breakthrough bidirectional system helps you get the best possible harmonic analysis.
 
 ### How the Suggestion System Works
 
-The library analyzes your progression **with** and **without** key context, then uses algorithmic scoring to determine if a parent key would help or hurt your analysis:
+The library analyzes your progression **with** and **without** key context, then uses algorithmic scoring to determine
+if a parent key would help or hurt your analysis:
 
 ```python
 # Key Relevance Scoring (0.0 - 1.0):
@@ -400,18 +418,21 @@ elif parent_key_provided:
 ### What Triggers Each Suggestion Type
 
 **ADD KEY suggestions triggered by:**
+
 - ii-V-I patterns without Roman numeral analysis
 - vi-IV-I-V progressions defaulting to modal analysis
 - Modal primary analysis when functional would provide Roman numerals
 - Common jazz/pop patterns that benefit from key context
 
 **REMOVE KEY suggestions triggered by:**
+
 - Parent key forcing modal analysis when functional works better without it
 - Key providing no confidence improvement (<5%)
 - Key eliminating Roman numerals that were available without it
 - Wrong key making analysis less accurate
 
 **CHANGE KEY suggestions triggered by:**
+
 - Related keys scoring significantly higher (>15% confidence improvement)
 - Alternative keys unlocking Roman numeral analysis
 - Better pattern recognition with different tonal centers
@@ -434,6 +455,7 @@ print(f"Suggestion confidence: {suggestion.confidence:.0%}")
 ### No Suggestions = Good Analysis
 
 When you see no suggestions, it means:
+
 - Your current analysis is already optimal
 - Adding/removing/changing keys wouldn't improve results
 - The system is confident in the current interpretation
@@ -505,25 +527,33 @@ mixo = await analyze_chord_progression(['G', 'F', 'C', 'G'])
 The library's confidence reflects how clearly your music fits established patterns:
 
 ### High Confidence (80-100%)
+
 ```python
 ['C', 'F', 'G', 'C']  # Textbook I-IV-V-I
 ```
+
 **Why:** Clear tonal center, strong cadence, no ambiguity
 
 ### Medium Confidence (60-80%)
+
 ```python
 ['Am', 'F', 'C', 'G']  # vi-IV-I-V? Or i-VI-III-VII?
 ```
+
 **Why:** Could be C major or A minor, both make sense
 
 ### Lower Confidence (40-60%)
+
 ```python
 ['Cmaj7', 'Fmaj7#11', 'Bm7b5', 'E7alt']  # Complex jazz
 ```
+
 **Why:** Highly chromatic, multiple valid interpretations
 
 ### Multiple Interpretations
+
 When confidence levels are close, you get alternatives:
+
 ```python
 result = await analyze_chord_progression(['Dm', 'G', 'C'])
 # Primary: "ii-V-I in C major" (confidence: 75%)
@@ -551,6 +581,7 @@ result2 = await analyze_chord_progression(chords, options_minor)
 ### It Recognizes Musical Idioms
 
 The library knows common patterns:
+
 - **Cadences**: Perfect authentic, plagal, deceptive, half
 - **Progressions**: Circle of fifths, descending thirds, chromatic bass lines
 - **Modal characteristics**: bVII in Mixolydian, #IV in Lydian, etc.
@@ -645,13 +676,17 @@ pytest tests/test_edge_case_behavior.py -v
 ## Common Questions
 
 ### "Why doesn't it recognize my progression?"
+
 The library focuses on Western tonal and modal harmony. It might struggle with:
+
 - Highly chromatic or atonal music
 - Non-Western musical systems
 - Very ambiguous progressions
 
 ### "Why are there multiple interpretations?"
+
 Music is often ambiguous! The same progression can function different ways:
+
 - `Am - F - C - G` could be vi-IV-I-V in C major
 - Or i-VI-III-VII in A natural minor
 - Or even have modal implications
@@ -659,13 +694,16 @@ Music is often ambiguous! The same progression can function different ways:
 The library shows you the most likely interpretations with confidence scores.
 
 ### "What's the difference between a scale and a melody?"
+
 - **Scale**: A collection of notes (unordered, no rhythm)
-  - Returns: What scales contain these notes
+    - Returns: What scales contain these notes
 - **Melody**: A sequence of notes (ordered, implies rhythm)
-  - Returns: Same as scale PLUS suggested tonic and confidence
+    - Returns: Same as scale PLUS suggested tonic and confidence
 
 ### "How accurate is the confidence score?"
+
 Confidence reflects:
+
 - **90-100%**: Textbook clear (rare in real music)
 - **70-90%**: Strong interpretation (common for clear progressions)
 - **50-70%**: Valid but with alternatives (normal for interesting music)
@@ -694,4 +732,6 @@ If you use this library in academic work:
 
 ## Acknowledgments
 
-This library was extracted from the [Music Modes App](https://github.com/sammywachtel/music_modes_app), a comprehensive music theory toolkit. Special thanks to the music theory community for invaluable feedback on modal analysis and harmonic interpretation.
+This library was extracted from the [Music Modes App](https://github.com/sammywachtel/music_modes_app), a comprehensive
+music theory toolkit. Special thanks to the music theory community for invaluable feedback on modal analysis and
+harmonic interpretation.

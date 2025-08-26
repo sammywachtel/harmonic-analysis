@@ -11,14 +11,17 @@ Key Features:
 4. Bidirectional feedback for optimal user experience
 """
 
-import asyncio
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from ..core.enhanced_modal_analyzer import EnhancedModalAnalyzer
 from ..core.functional_harmony import FunctionalHarmonyAnalyzer
-from ..types import AnalysisOptions, KeySuggestion
+from ..types import AnalysisOptions, AnalysisSuggestions
+
+if TYPE_CHECKING:
+    pass
+
 from .algorithmic_suggestion_engine import AlgorithmicSuggestionEngine
 
 
@@ -66,6 +69,7 @@ class BidirectionalSuggestion:
     # Enhanced details
     improvement_summary: List[str]  # What specifically improves
     trade_offs: List[str]  # What might be lost (if any)
+    detected_pattern: str = "algorithmic analysis"  # Default value
 
 
 class BidirectionalSuggestionEngine:
@@ -76,7 +80,7 @@ class BidirectionalSuggestionEngine:
     algorithmic analysis of musical improvement potential.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.add_key_engine = AlgorithmicSuggestionEngine()
         self.functional_analyzer = FunctionalHarmonyAnalyzer()
         self.modal_analyzer = EnhancedModalAnalyzer()
@@ -84,16 +88,16 @@ class BidirectionalSuggestionEngine:
     async def generate_bidirectional_suggestions(
         self,
         chords: List[str],
-        current_key: Optional[str] = None,
-        current_analysis_confidence: float = 0.0,
-        current_roman_numerals: List[str] = None,
-    ) -> List[BidirectionalSuggestion]:
+        options: AnalysisOptions,
+        current_analysis_confidence: float = 0.4,
+        current_roman_numerals: Optional[List[str]] = None,
+    ) -> AnalysisSuggestions:
         """
         Generate intelligent bidirectional suggestions.
 
         Args:
             chords: The chord progression to analyze
-            current_key: Currently provided parent key (if any)
+            options: Analysis options including parent key
             current_analysis_confidence: Current analysis confidence
             current_roman_numerals: Current roman numerals (if any)
 
@@ -102,6 +106,7 @@ class BidirectionalSuggestionEngine:
         """
         suggestions = []
         current_roman_numerals = current_roman_numerals or []
+        current_key = options.parent_key
 
         if current_key:
             # Key is provided - check if it's beneficial or should be removed/changed
@@ -124,7 +129,25 @@ class BidirectionalSuggestionEngine:
         # Sort by relevance score
         suggestions.sort(key=lambda s: s.relevance_score.total_score, reverse=True)
 
-        return suggestions[:3]  # Top 3 suggestions
+        # Convert BidirectionalSuggestion list to AnalysisSuggestions format
+        # For now, we'll put all suggestions in parent_key_suggestions
+        # TODO: Implement proper categorization based on suggestion type
+        from ..types import KeySuggestion
+
+        parent_key_suggestions = []
+        for bidirectional_suggestion in suggestions[:3]:
+            key_suggestion = KeySuggestion(
+                suggested_key=bidirectional_suggestion.suggested_key,
+                confidence=bidirectional_suggestion.confidence,
+                reason=bidirectional_suggestion.reason,
+                detected_pattern=bidirectional_suggestion.detected_pattern,
+                potential_improvement=bidirectional_suggestion.potential_improvement,
+            )
+            parent_key_suggestions.append(key_suggestion)
+
+        return AnalysisSuggestions(
+            parent_key_suggestions=parent_key_suggestions, general_suggestions=[]
+        )
 
     async def _evaluate_provided_key(
         self,
@@ -159,7 +182,9 @@ class BidirectionalSuggestionEngine:
                     - relevance.total_score,  # High confidence in removal
                     relevance_score=relevance,
                     reason=self._generate_remove_key_reason(relevance),
-                    potential_improvement="Simplifies analysis without losing information",
+                    potential_improvement=(
+                        "Simplifies analysis without losing information"
+                    ),
                     improvement_summary=self._generate_remove_improvements(relevance),
                     trade_offs=self._generate_remove_tradeoffs(relevance),
                 )
@@ -180,7 +205,10 @@ class BidirectionalSuggestionEngine:
                             current_key=provided_key,
                             confidence=alt_suggestion.confidence,
                             relevance_score=alt_suggestion.relevance_score,
-                            reason=f"Alternative key provides better analysis than {provided_key}",
+                            reason=(
+                                "Alternative key provides better analysis than "
+                                f"{provided_key}"
+                            ),
                             potential_improvement=alt_suggestion.potential_improvement,
                             improvement_summary=alt_suggestion.improvement_summary,
                             trade_offs=[
@@ -227,6 +255,7 @@ class BidirectionalSuggestionEngine:
                         relevance_score=relevance,
                         reason=suggestion.reason,
                         potential_improvement=suggestion.potential_improvement,
+                        detected_pattern=suggestion.detected_pattern,
                         improvement_summary=self._generate_add_improvements(relevance),
                         trade_offs=self._generate_add_tradeoffs(relevance),
                     )
@@ -237,7 +266,7 @@ class BidirectionalSuggestionEngine:
     async def _analyze_with_key(self, chords: List[str], key: Optional[str]) -> Dict:
         """Analyze progression with or without a key context."""
         # Use the direct analyzers to avoid circular import
-        options = AnalysisOptions(parent_key=key) if key else AnalysisOptions()
+        # Options object not needed here for direct analyzer calls
 
         # Run both functional and modal analysis
         functional_result = await self.functional_analyzer.analyze_functionally(
@@ -366,7 +395,6 @@ class BidirectionalSuggestionEngine:
         score = 0.0
 
         # Check for common patterns that become clearer
-        chord_str = "-".join(chords)
 
         # ii-V-I patterns
         if self._contains_ii_v_i_pattern(with_key.get("roman_numerals", [])):
@@ -467,8 +495,12 @@ class BidirectionalSuggestionEngine:
                         current_key=current_key,
                         confidence=0.7 + relevance.total_score * 0.3,
                         relevance_score=relevance,
-                        reason=f"{test_key} provides clearer analysis than {current_key}",
-                        potential_improvement="Improved pattern recognition and harmonic clarity",
+                        reason=(
+                            f"{test_key} provides clearer analysis than {current_key}"
+                        ),
+                        potential_improvement=(
+                            "Improved pattern recognition and harmonic clarity"
+                        ),
                         improvement_summary=self._generate_change_improvements(
                             relevance
                         ),

@@ -17,7 +17,6 @@ from .music_theory_constants import (
     ALL_MODES,
     MODAL_CHARACTERISTICS,
     get_interval_name,
-    get_modal_characteristics,
 )
 
 

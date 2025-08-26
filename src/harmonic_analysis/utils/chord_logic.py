@@ -23,7 +23,7 @@ class ChordMatch:
     extensions: Optional[List[str]] = None
     inversion: int = 0  # 0 = root position
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.extensions is None:
             self.extensions = []
 
@@ -40,7 +40,7 @@ class ChordParser:
         + r"(?:/([A-G][#b]?))?$"  # Slash bass
     )
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.quality_mappings = {
             "": "major",
             "maj": "major",

@@ -12,7 +12,7 @@ Comprehensive chord detection and analysis including:
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # Pitch class to note name mapping
 NOTE_NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"]
@@ -77,7 +77,7 @@ class ChordMatch:
 class ChordParser:
     """Comprehensive chord parsing and detection"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Define chord templates
         self.chord_templates = {
             # Basic triads
@@ -462,7 +462,7 @@ class ChordParser:
 
         return is_partial, missing_notes, completion_suggestion, pedagogical_note
 
-    def parse_chord_symbol(self, symbol: str) -> Optional[Dict[str, any]]:
+    def parse_chord_symbol(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
         Parse a chord symbol into its components
 
@@ -538,6 +538,8 @@ class ChordParser:
             return "minor_major7"
         elif "maj7" in suffix_lower or "M7" in suffix:
             return "major7"
+        elif "dom7" in suffix_lower:
+            return "dominant7"
         elif "m7" in suffix_lower:
             return "minor7"
         elif "7" in suffix:
@@ -669,7 +671,7 @@ def find_chords_from_midi(midi_notes: List[int]) -> List[ChordMatch]:
     return parser.find_chord_matches(midi_notes)
 
 
-def parse_chord(symbol: str) -> Optional[Dict[str, any]]:
+def parse_chord(symbol: str) -> Optional[Dict[str, Any]]:
     """Parse a chord symbol"""
     parser = ChordParser()
     return parser.parse_chord_symbol(symbol)

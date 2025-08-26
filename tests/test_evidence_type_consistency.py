@@ -5,12 +5,7 @@ This test validates that evidence.type matches the actual type of evidence
 being described, particularly for modal analysis evidence.
 """
 
-import os
-import sys
-
 import pytest
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from harmonic_analysis import analyze_chord_progression
 from harmonic_analysis.services.multiple_interpretation_service import EvidenceType
@@ -72,9 +67,9 @@ class TestEvidenceTypeConsistency:
                         f"  ❌ TYPE MISMATCH: Outer={evidence.type.value}, Embedded={embedded_type.value}"
                     )
                 else:
-                    print(f"  ✅ Types match")
+                    print("  ✅ Types match")
             else:
-                print(f"  ✅ No embedded evidence detected")
+                print("  ✅ No embedded evidence detected")
 
         # Report all inconsistencies
         if inconsistencies:
@@ -92,7 +87,7 @@ class TestEvidenceTypeConsistency:
                 False
             ), f"Evidence type inconsistencies detected: {len(inconsistencies)} mismatches found"
         else:
-            print(f"\n✅ All evidence types are consistent!")
+            print("\n✅ All evidence types are consistent!")
 
     @pytest.mark.asyncio
     async def test_specific_modal_progression_evidence_types(self):

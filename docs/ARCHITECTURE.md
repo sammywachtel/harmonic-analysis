@@ -184,7 +184,7 @@ result = await analyze_progression_multiple(['C', 'F', 'G', 'C'])
 # Extract key information
 analysis_summary = {
     "type": result.primary_analysis.type,
-    "analysis": result.primary_analysis.analysis, 
+    "analysis": result.primary_analysis.analysis,
     "confidence": result.primary_analysis.confidence,
     "key_signature": result.primary_analysis.key_signature,
     "evidence_count": len(result.primary_analysis.evidence)

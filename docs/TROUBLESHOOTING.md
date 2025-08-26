@@ -238,7 +238,7 @@ async def test_api_wrapper():
     """Test API wrapper function for web services"""
     progression = ["C", "F", "G", "C"]
     result = await analyze_progression_multiple(progression)
-    
+
     # Verify API response structure
     assert hasattr(result, 'primary_analysis')
     assert hasattr(result, 'alternative_analyses')

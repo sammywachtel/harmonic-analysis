@@ -234,7 +234,7 @@ Consider reviewing confidence thresholds and behavioral expectations.
                     print(f"  ⚠️  Issue: {str(e)}")
 
         total_cases = len(edge_cases)
-        print(f"\n🎯 EDGE CASES BEHAVIORAL RESULTS:")
+        print("\n🎯 EDGE CASES BEHAVIORAL RESULTS:")
         print(f"✅ Passing: {passed}/{total_cases}")
         print(f"⚠️  With Warnings: {warnings_issued}/{total_cases}")
 
@@ -809,7 +809,7 @@ Consider reviewing confidence thresholds and behavioral expectations.
 
         # Show some harmonic minor examples that need fixing
         if harmonic_minor_failures:
-            print(f"\n🔍 Sample harmonic minor detection problems:")
+            print("\n🔍 Sample harmonic minor detection problems:")
             for case in harmonic_minor_failures[:3]:
                 print(f"  {case['id']}")
                 print(f"    Notes: {case['notes']}")
@@ -828,7 +828,8 @@ Consider reviewing confidence thresholds and behavioral expectations.
         ), f"Scale/melody analysis too unstable: {success_rate:.1%} success rate"
 
         print(
-            f"✅ Scale/melody analysis validation complete - ready to fix harmonic minor detection!"
+            "✅ Scale/melody analysis validation complete - ready to fix "
+            "harmonic minor detection!"
         )
 
     @pytest.mark.asyncio

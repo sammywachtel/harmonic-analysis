@@ -1,0 +1,177 @@
+# Adaptive Quality Gate Configuration
+# This file controls which quality checks run for your project
+# Automatically generated based on detected project structure
+
+# Project Information (auto-detected)
+project:
+  type: "backend-python" # fullstack, frontend-typescript, backend-python, etc.
+  name: "harmonic-analysis" # Derived from package.json or directory name
+  # Auto-detected paths and technologies
+  structure:
+    has_frontend: false
+    has_backend: true
+    has_typescript: true
+    has_python: true
+    has_tests: true
+    frontend_path: ""
+    backend_path: "."
+  # Detected frameworks and tools
+  technologies:
+    languages: ["typescript", "javascript", "python"]
+    frameworks: []
+# Quality Gate Configuration (user-customizable)
+quality_gates:
+  # Current phase (0=Baseline, 1=Changed-only, 2=Ratchet, 3=Strict)
+  current_phase: 1
+  # Auto-progression settings
+  auto_progression:
+    enabled: false # Set to true for automatic phase advancement
+    timeline_weeks: [1, 2, 4] # Weeks to spend in each phase
+  # Phase-specific settings
+  phases:
+    # Phase 0: Baseline & Stabilization
+    phase_0:
+      description: "Establish baseline, prevent regressions"
+      enforce_baseline: true
+      allow_legacy_issues: true
+      block_regressions: true
+      mandatory_hooks: true
+    # Phase 1: Changed-Code-Only Enforcement
+    phase_1:
+      description: "Strict enforcement for new/modified code only"
+      changed_files_only: true
+      new_code_strict: true
+      legacy_warnings: true
+      typing_new_files: true
+    # Phase 2: Ratchet & Expand Scope
+    phase_2:
+      description: "Progressive improvement with ratcheting"
+      coverage_ratchet: true
+      repo_wide_enforcement: true
+      tighten_rules: true
+      module_campaigns: true
+    # Phase 3: Normalize & Harden
+    phase_3:
+      description: "Full strict enforcement"
+      all_gates_blocking: true
+      no_bypasses: true
+      full_enforcement: true
+      branch_protection: true
+# Tool Configuration (automatically enabled based on detected languages)
+tools:
+  # Frontend Tools (enabled if frontend detected)
+  frontend:
+    enabled: false
+    eslint:
+      enabled: auto # auto, true, false
+      config: "/eslint.config.js"
+      auto_fix: true
+    typescript:
+      enabled: true
+      strict_mode: false # Enable in Phase 2+
+      config: "/tsconfig.json"
+    testing:
+      unit_tests: true
+      e2e_tests: auto # auto-enable if frontend detected
+      coverage_threshold: 80 # Percentage
+  # Backend Tools (enabled if backend detected)
+  backend:
+    enabled: true
+    python:
+      enabled: true
+      black:
+        enabled: true
+        line_length: 88
+      isort:
+        enabled: true
+        profile: "black"
+      flake8:
+        enabled: true
+        max_line_length: 88
+      mypy:
+        enabled: false # Enable gradually in Phase 1+
+        strict_mode: false
+    testing:
+      unit_tests: true
+      integration_tests: auto
+      coverage_threshold: 80
+  # Security Tools
+  security:
+    enabled: true
+    dependency_scanning: true # npm audit, pip-audit
+    secret_detection: true # detect-secrets
+    vulnerability_scanning: auto # Enable in Phase 2+
+  # Quality Assurance
+  quality:
+    pre_commit_hooks: true
+    commit_msg_validation: false # Enable for conventional commits
+    performance_budgets: false
+    anti_pattern_detection: false # Enable in Phase 3+
+# Testing Configuration
+testing:
+  # Unit Testing
+  unit:
+    enabled: true
+    coverage_required: false # Enforce in Phase 2+
+    parallel_execution: true
+  # Integration Testing
+  integration:
+    enabled: auto # Auto-enable for fullstack projects
+    api_testing: true
+    browser_testing: false
+  # End-to-End Testing
+  e2e:
+    enabled: auto # Auto-enable if frontend detected
+    browsers: ["chromium"] # chromium, firefox, webkit
+    mobile_testing: false
+    accessibility_testing: false
+# Coverage and Metrics
+metrics:
+  # Coverage Tracking
+  coverage:
+    enabled: true
+    ratchet_enabled: false # Enable in Phase 2
+    target_improvement: 2 # Percentage increase per sprint
+    minimum_threshold: 70
+  # Quality Metrics
+  quality_score:
+    enabled: false # Enable for tracking progress
+    components:
+      - linting_compliance
+      - type_coverage
+      - test_coverage
+      - security_score
+  # Performance Metrics
+  performance:
+    build_time_budget: 300 # Seconds
+    bundle_size_budget: 1024 # KB (frontend)
+    startup_time_budget: 5 # Seconds (backend)
+# Notification and Reporting
+notifications:
+  # Quality Gate Status
+  status_reporting: false
+  phase_transitions: false
+  regression_alerts: true
+  # Integration Options
+  slack_webhook: "" # Optional Slack integration
+  github_status_checks: true
+# Advanced Features (for specialized projects)
+specialized:
+  # Music/Audio Applications
+  midi_support: false
+  audio_testing: false
+  # Data Science Projects
+  notebook_testing: false
+  data_validation: false
+  # Machine Learning Projects
+  model_testing: false
+  experiment_tracking: false
+# Emergency and Maintenance
+emergency:
+  # Bypass Options (use sparingly)
+  hotfix_bypass_allowed: true # Allow --no-verify in emergencies
+  bypass_requires_justification: true
+  bypass_followup_required: true
+  # Maintenance Windows
+  maintenance_mode: false # Temporarily disable quality gates
+  tool_updates_allowed: true # Allow tool version updates

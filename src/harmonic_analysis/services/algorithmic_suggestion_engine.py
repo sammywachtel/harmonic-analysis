@@ -11,15 +11,13 @@ Key Design Principles:
 4. No hardcoded chord names or key-specific patterns
 """
 
-import asyncio
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, List, Optional
 
 from ..core.chromatic_analysis import ChromaticAnalyzer
 from ..core.enhanced_modal_analyzer import EnhancedModalAnalyzer
 from ..core.functional_harmony import FunctionalHarmonyAnalyzer
-from ..types import AnalysisOptions, KeySuggestion
-from ..utils.chord_parser import NOTE_TO_PITCH_CLASS, parse_chord_progression
+from ..types import KeySuggestion
 
 
 @dataclass
@@ -73,7 +71,7 @@ class AlgorithmicSuggestionEngine:
         "D minor",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.functional_analyzer = FunctionalHarmonyAnalyzer()
         self.modal_analyzer = EnhancedModalAnalyzer()
         self.chromatic_analyzer = ChromaticAnalyzer()
@@ -141,9 +139,9 @@ class AlgorithmicSuggestionEngine:
     ) -> Optional[KeyAnalysisResult]:
         """Analyze progression in a specific key using existing analyzers."""
 
-        # Parse key to determine if major/minor
-        is_minor = "minor" in key.lower()
-        key_root = key.replace(" major", "").replace(" minor", "")
+        # Parse key to determine if major/minor (currently unused)
+        # is_minor = "minor" in key.lower()
+        # key_root = key.replace(" major", "").replace(" minor", "")
 
         try:
             # Try functional analysis first (most common)
@@ -199,7 +197,6 @@ class AlgorithmicSuggestionEngine:
             return []
 
         patterns = []
-        rn_str = "-".join(roman_numerals)
 
         # ii-V-I patterns (any key)
         if len(roman_numerals) >= 3:
@@ -284,25 +281,24 @@ class AlgorithmicSuggestionEngine:
 
         return patterns
 
-    def _calculate_improvement_score(self, analysis_result) -> float:
+    def _calculate_improvement_score(self, analysis_result: Any) -> float:
         """Calculate how much this key analysis improves upon no-key analysis."""
-        score = 0.0
+        score: float = 0.0
 
         # Base confidence contribution
-        score += analysis_result.confidence * 0.6
+        confidence = float(getattr(analysis_result, "confidence", 0.0))
+        score += confidence * 0.6
 
         # Roman numerals provide structural clarity
-        if (
-            hasattr(analysis_result, "roman_numerals")
-            and analysis_result.roman_numerals
-        ):
+        romans = getattr(analysis_result, "roman_numerals", [])
+        if isinstance(romans, list) and romans:
             score += 0.3
 
         # More roman numerals = better structural understanding
-        if hasattr(analysis_result, "roman_numerals"):
-            score += min(len(analysis_result.roman_numerals) * 0.05, 0.2)
+        if isinstance(romans, list):
+            score += min(len(romans) * 0.05, 0.2)
 
-        return min(score, 1.0)
+        return float(min(score, 1.0))
 
     def _identify_improvements(
         self,
@@ -351,9 +347,13 @@ class AlgorithmicSuggestionEngine:
                             else f"{result.analysis_type} analysis"
                         ),
                         potential_improvement=(
-                            "Provides Roman numeral analysis and clear harmonic function"
+                            "Provides Roman numeral analysis and clear harmonic "
+                            "function"
                             if structural_improvement
-                            else f"Improves analysis confidence from {current_confidence:.1f} to {result.confidence:.1f}"
+                            else (
+                                "Improves analysis confidence from "
+                                f"{current_confidence:.1f} to {result.confidence:.1f}"
+                            )
                         ),
                     )
                 )
@@ -375,7 +375,7 @@ class AlgorithmicSuggestionEngine:
 
         elif result.has_roman_numerals and not current_has_romans:
             # Structural improvement reason
-            return f"Provides clear harmonic structure with Roman numeral analysis"
+            return "Provides clear harmonic structure with Roman numeral analysis"
 
         elif result.confidence > current_confidence + 0.2:
             # Confidence improvement reason

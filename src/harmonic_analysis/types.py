@@ -108,8 +108,12 @@ class AnalysisSuggestions:
     general_suggestions: List[str]  # Other helpful suggestions
 
     # Enhanced bidirectional suggestions
-    unnecessary_key_suggestions: List[KeySuggestion] = None  # Suggest removing keys
-    key_change_suggestions: List[KeySuggestion] = None  # Suggest different keys
+    unnecessary_key_suggestions: Optional[List[KeySuggestion]] = (
+        None  # Suggest removing keys
+    )
+    key_change_suggestions: Optional[List[KeySuggestion]] = (
+        None  # Suggest different keys
+    )
 
 
 @dataclass

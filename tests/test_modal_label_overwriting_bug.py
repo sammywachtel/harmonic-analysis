@@ -6,13 +6,6 @@ processing multiple parent scales, ensuring the most musically appropriate
 modal interpretation is preserved.
 """
 
-import os
-import sys
-
-import pytest
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 from harmonic_analysis.scale_melody_analysis import analyze_scale_melody
 
 
@@ -186,7 +179,7 @@ class TestModalLabelOverwriting:
         partial_result = analyze_scale_melody(partial, melody=False)
         partial_a_label = partial_result.modal_labels.get("A", "NOT_FOUND")
 
-        print(f"\nTesting complete vs partial consistency:")
+        print("\nTesting complete vs partial consistency:")
         print(f"Complete A minor ({complete}): A = {complete_a_label}")
         print(f"Partial A minor ({partial}): A = {partial_a_label}")
         print(f"Complete parents: {complete_result.parent_scales}")

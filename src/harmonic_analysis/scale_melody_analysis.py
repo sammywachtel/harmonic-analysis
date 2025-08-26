@@ -51,7 +51,7 @@ class ScaleMelodyAnalyzer:
     including parent scale detection, modal analysis, and contextual classification.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Note to pitch class mapping (enharmonic aware)
         self.note_map = {
             "C": 0,
@@ -312,7 +312,9 @@ class ScaleMelodyAnalyzer:
         note_roots = {self._extract_root(note) for note in notes}
 
         # Build all possible modal interpretations with priorities
-        modal_candidates = {}  # note_root -> [(priority, label), ...]
+        modal_candidates: Dict[str, List[Tuple[float, str]]] = (
+            {}
+        )  # note_root -> [(priority, label), ...]
 
         for parent_scale in parent_scales:
             if not parent_scale.endswith(" major"):
@@ -366,7 +368,7 @@ class ScaleMelodyAnalyzer:
 
     def _calculate_modal_priority(
         self, tonic_note: str, parent_root: str, mode_name: str
-    ) -> int:
+    ) -> float:
         """
         Calculate priority for modal interpretations to prevent overwriting bug.
 
@@ -398,10 +400,11 @@ class ScaleMelodyAnalyzer:
         if tonic_note == parent_root:
             return 1  # Highest priority - direct relationship (Ionian)
 
-        # Rule 2: Contextual modal relationships - only boost when it's the clear best choice
-        # Be more selective about when to apply strong boosts
+        # Rule 2: Contextual modal relationships - only boost when it's the
+        # clear best choice. Be more selective about when to apply strong boosts.
 
-        # Only boost modal relationships when they're from common, fundamental parent scales
+        # Only boost modal relationships when they're from common, fundamental
+        # parent scales
         if parent_root == "C":  # C major is the most fundamental reference
             if scale_degree == 2 and mode_name == "Dorian":
                 return 1.1  # D Dorian from C major is canonical
@@ -421,7 +424,8 @@ class ScaleMelodyAnalyzer:
             "Phrygian": 4,  # Less common (iii)
             "Lydian": 4,  # Less common (IV)
             "Mixolydian": 3,  # Popular in rock/folk (V)
-            "Aeolian": 4,  # Natural minor (vi) - only high priority for relative relationships
+            # Natural minor (vi) - only high priority for relative relationships
+            "Aeolian": 4,
             "Locrian": 5,  # Rare (vii)
         }
 
@@ -447,17 +451,19 @@ class ScaleMelodyAnalyzer:
             return None, None
 
         # Extract root notes only
-        roots = [self._extract_root(note) for note in notes if self._extract_root(note)]
+        roots: List[str] = [
+            r for r in (self._extract_root(note) for note in notes) if r
+        ]
         if not roots:
             return None, None
 
         # Count frequency of each root
-        root_counts = {}
+        root_counts: Dict[str, int] = {}
         for root in roots:
             root_counts[root] = root_counts.get(root, 0) + 1
 
         # Emphasize the final note
-        final_root = roots[-1]
+        final_root: str = roots[-1]
 
         # Calculate confidence based on final note + frequency
         base_confidence = 0.6

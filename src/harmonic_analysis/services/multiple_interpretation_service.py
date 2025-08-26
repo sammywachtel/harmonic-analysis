@@ -19,18 +19,14 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 from ..core.enhanced_modal_analyzer import EnhancedModalAnalyzer, ModalAnalysisResult
 from ..core.functional_harmony import (
     FunctionalAnalysisResult,
     FunctionalHarmonyAnalyzer,
 )
-from ..types import (
-    AnalysisOptions,
-    AnalysisSuggestions,
-    KeySuggestion,
-)
+from ..types import AnalysisOptions, AnalysisSuggestions
 from .algorithmic_suggestion_engine import AlgorithmicSuggestionEngine
 from .bidirectional_suggestion_engine import BidirectionalSuggestionEngine
 
@@ -221,7 +217,7 @@ class AnalysisCache:
 class MultipleInterpretationService:
     """Service for multiple interpretation analysis"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.cache = AnalysisCache()
         self.functional_analyzer = FunctionalHarmonyAnalyzer()
         self.modal_analyzer = EnhancedModalAnalyzer()
@@ -284,6 +280,12 @@ class MultipleInterpretationService:
                 functional_result = None
             if isinstance(modal_result, Exception):
                 modal_result = None
+
+            # Narrow types for MyPy
+            functional_result = cast(
+                Optional[FunctionalAnalysisResult], functional_result
+            )
+            modal_result = cast(Optional[ModalAnalysisResult], modal_result)
 
             # Calculate interpretations with confidence scoring
             interpretations = await self._calculate_interpretations(
@@ -1102,7 +1104,7 @@ class MultipleInterpretationService:
         self, chords: List[str], key: Optional[str] = None
     ) -> Dict[str, List[Dict[str, str]]]:
         """Detect chromatic elements like secondary dominants, borrowed chords, etc."""
-        elements = {
+        elements: Dict[str, List[Dict[str, str]]] = {
             "secondary_dominants": [],
             "borrowed_chords": [],
             "chromatic_mediants": [],
@@ -1136,7 +1138,7 @@ class MultipleInterpretationService:
     async def _generate_analysis_suggestions(
         self,
         chords: List[str],
-        interpretations: List["Interpretation"],
+        interpretations: List[InterpretationAnalysis],
         functional_result: Optional[FunctionalAnalysisResult],
         options: AnalysisOptions,
     ) -> Optional[AnalysisSuggestions]:

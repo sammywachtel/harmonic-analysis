@@ -10,14 +10,12 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
-
-# Add src to path for imports
-sys.path.append(str(Path(__file__).parent.parent / "src"))
+from typing import Dict, List
 
 from harmonic_analysis import analyze_progression_multiple
-from harmonic_analysis.multiple_interpretation_service import \
-    InterpretationType
+from harmonic_analysis.services.multiple_interpretation_service import (
+    InterpretationType,
+)
 from harmonic_analysis.types import AnalysisOptions
 
 
@@ -300,7 +298,7 @@ class TestFailureExporter:
         for i in range(0, len(test_cases), batch_size):
             batch = test_cases[i : i + batch_size]
             print(
-                f"  Processing batch {i//batch_size + 1}/{(len(test_cases) + batch_size - 1)//batch_size}"
+                f"  Processing batch {i // batch_size + 1}/{(len(test_cases) + batch_size - 1) // batch_size}"
             )
 
             # Analyze batch
@@ -315,7 +313,7 @@ class TestFailureExporter:
                 if failure:
                     failed_results.append(failure)
 
-        print(f"\n📊 ANALYSIS COMPLETE:")
+        print("\n📊 ANALYSIS COMPLETE:")
         print(f"  Total tests: {len(all_results)}")
         print(f"  Failed tests: {len(failed_results)}")
         print(
@@ -431,7 +429,7 @@ class TestFailureExporter:
                 if len(failures) > 10:
                     f.write(f"... and {len(failures) - 10} more {category} failures\n")
 
-        print(f"\n📁 RESULTS EXPORTED:")
+        print("\n📁 RESULTS EXPORTED:")
         print(f"  📄 Detailed JSON: {failures_json}")
         print(f"  📊 Summary CSV: {failures_csv}")
         print(f"  📖 Human-readable: {summary_txt}")

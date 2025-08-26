@@ -5,15 +5,11 @@ This module provides high-level functions that build on the constants
 and mappings to perform common analytical tasks.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 from .music_theory_constants import (
-    MODAL_CHARACTERISTICS,
-    MotionType,
     analyze_melodic_motion,
     classify_phrase_length,
-    describe_step_pattern,
-    get_harmonic_implications,
     get_interval_name,
     get_modal_characteristics,
 )
@@ -65,7 +61,10 @@ def describe_contour(contour_pattern: List[str]) -> str:
 
     # Check for terraced patterns
     if repeat_count > pattern_length * 0.3:
-        return f"terraced {overall_shape} contour with plateaus ({pattern_length} movements)"
+        return (
+            f"terraced {overall_shape} contour with plateaus "
+            f"({pattern_length} movements)"
+        )
 
     # Standard descriptions
     if overall_shape == "undulating":
@@ -177,7 +176,11 @@ def analyze_phrase_structure(
         "cadential_points": (
             cadential_points if cadential_points else ["No strong cadential points"]
         ),
-        "motivic_content": f"{'Predominantly varied' if motivic_content == 'varied' else 'Motivically repetitive'} content",
+        "motivic_content": (
+            "Predominantly varied content"
+            if motivic_content == "varied"
+            else "Motivically repetitive content"
+        ),
         "contour_description": contour_description,
         "phrase_balance": _analyze_phrase_balance(contour),
     }
@@ -275,7 +278,7 @@ def format_analysis_for_display(analysis_data: Dict[str, Any]) -> Dict[str, Any]
     Returns:
         Formatted data suitable for display
     """
-    formatted = {}
+    formatted: Dict[str, Any] = {}
 
     # Format confidence as percentage
     if "confidence" in analysis_data:

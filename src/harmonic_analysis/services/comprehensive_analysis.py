@@ -3,13 +3,14 @@ Comprehensive analysis engine coordinating functional, modal, and chromatic anal
 """
 
 from dataclasses import dataclass
-from typing import Any, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
-from ..core.functional_harmony import (FunctionalAnalysisResult,
-                                       FunctionalHarmonyAnalyzer)
+from ..core.functional_harmony import (
+    FunctionalAnalysisResult,
+    FunctionalHarmonyAnalyzer,
+)
 from ..core.modal_analysis import EnhancedModalAnalyzer, ModalAnalysisResult
-from ..types import (AnalysisOptions, MultipleInterpretationResult,
-                     UserInputContext)
+from ..types import AnalysisOptions, MultipleInterpretationResult, UserInputContext
 from ..utils.chord_logic import parse_chord_progression
 
 
@@ -58,7 +59,7 @@ class ComprehensiveAnalysisResult:
 class ComprehensiveAnalysisEngine:
     """Main comprehensive analysis engine."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.functional_analyzer = FunctionalHarmonyAnalyzer()
         self.modal_analyzer = EnhancedModalAnalyzer()
 
@@ -127,7 +128,7 @@ class ComprehensiveAnalysisEngine:
         )
 
     async def analyze_with_multiple_interpretations(
-        self, progression_input: str, options: AnalysisOptions = None
+        self, progression_input: str, options: Optional[AnalysisOptions] = None
     ) -> MultipleInterpretationResult:
         """
         Analyze with multiple interpretation approach.
@@ -405,10 +406,10 @@ class ComprehensiveAnalysisEngine:
         if not functional_analysis.chromatic_elements:
             return None
 
-        secondary_dominants = []
-        borrowed_chords = []
-        chromatic_mediants = []
-        resolution_patterns = []
+        secondary_dominants: List[Dict[str, Any]] = []
+        borrowed_chords: List[Dict[str, Any]] = []
+        chromatic_mediants: List[Dict[str, Any]] = []
+        resolution_patterns: List[Dict[str, Any]] = []
 
         for element in functional_analysis.chromatic_elements:
             if element.type.value == "secondary_dominant":
@@ -564,11 +565,6 @@ class ComprehensiveAnalysisEngine:
             return (
                 "This progression uses chromatic harmony (non-diatonic chords) "
                 "that requires understanding secondary dominants and borrowed chords."
-            )
-        else:
-            return (
-                "This progression can be analyzed from multiple theoretical "
-                "perspectives."
             )
 
     def _parse_chord_progression(self, input_str: str) -> List[str]:

@@ -7,7 +7,6 @@ development best practices. Integrates with IDE and pre-commit workflows.
 """
 
 import argparse
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -191,9 +190,8 @@ class CodeQualityChecker:
 
         print("\n📋 Next Steps:")
         if not results.get("pre_commit", True):
-            print(
-                "  1. 🔧 Install pre-commit: pip install pre-commit && pre-commit install"
-            )
+            print("  1. 🔧 Install pre-commit: pip install pre-commit")
+            print("     and then run: pre-commit install")
         if not results.get("formatting", True):
             print("  2. ⚫ Fix formatting: python scripts/quality_check.py --fix")
         if not results.get("imports", True):

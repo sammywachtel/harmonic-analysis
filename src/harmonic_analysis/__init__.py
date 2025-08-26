@@ -66,7 +66,7 @@ from .services.multiple_interpretation_service import (
 from .types import AnalysisOptions, AnalysisSuggestions, KeySuggestion, UserInputContext
 
 # Music theory utilities and constants (NEW)
-from .utils import (  # Core utility functions; Reference data and constants; API helpers for external applications
+from .utils import (  # noqa: F401
     ALL_MAJOR_KEYS,
     ALL_MINOR_KEYS,
     ALL_MODES,
@@ -84,7 +84,7 @@ from .utils import (  # Core utility functions; Reference data and constants; AP
 )
 
 # Utilities (for advanced users)
-from .utils.chord_parser import (
+from .utils.chord_parser import (  # noqa: F401
     NOTE_NAMES,
     NOTE_NAMES_FLAT,
     NOTE_NAMES_SHARP,
@@ -96,7 +96,7 @@ from .utils.chord_parser import (
     parse_chord,
     parse_chord_progression,
 )
-from .utils.scales import (
+from .utils.scales import (  # noqa: F401
     MAJOR_SCALE_MODES,
     MODAL_PARENT_KEYS,
     PITCH_CLASS_NAMES,

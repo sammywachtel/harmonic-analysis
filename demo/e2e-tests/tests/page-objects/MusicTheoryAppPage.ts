@@ -231,7 +231,7 @@ export class MusicTheoryAppPage {
   async expectSecondaryDominants(expectedDominants: Array<{chord: string, target: string, roman?: string}>) {
     await expect(this.secondaryDominants).toBeVisible();
     const dominantsText = await this.secondaryDominants.textContent();
-    
+
     for (const dominant of expectedDominants) {
       expect(dominantsText).toContain(dominant.chord);
       expect(dominantsText).toContain(dominant.target);
@@ -244,7 +244,7 @@ export class MusicTheoryAppPage {
   async expectBorrowedChords(expectedBorrowed: Array<{chord: string, origin?: string}>) {
     await expect(this.borrowedChords).toBeVisible();
     const borrowedText = await this.borrowedChords.textContent();
-    
+
     for (const borrowed of expectedBorrowed) {
       expect(borrowedText).toContain(borrowed.chord);
     }
@@ -253,7 +253,7 @@ export class MusicTheoryAppPage {
   async expectCadences(expectedCadences: Array<{type: string, chords?: string}>) {
     await expect(this.cadences).toBeVisible();
     const cadencesText = await this.cadences.textContent();
-    
+
     for (const cadence of expectedCadences) {
       expect(cadencesText?.toLowerCase()).toContain(cadence.type.toLowerCase());
     }
@@ -262,7 +262,7 @@ export class MusicTheoryAppPage {
   async expectChordFunctions(expectedFunctions: string[]) {
     await expect(this.chordFunctions).toBeVisible();
     const functionsText = await this.chordFunctions.textContent();
-    
+
     for (const func of expectedFunctions) {
       expect(functionsText?.toLowerCase()).toContain(func.toLowerCase());
     }
@@ -278,7 +278,7 @@ export class MusicTheoryAppPage {
   async expectConfidenceBreakdown(expectedConfidences: {functional?: number, modal?: number, chromatic?: number}) {
     await expect(this.confidenceBreakdown).toBeVisible();
     const breakdownText = await this.confidenceBreakdown.textContent();
-    
+
     if (expectedConfidences.functional !== undefined) {
       expect(breakdownText).toContain('Functional');
       // Extract functional confidence and verify it's in reasonable range

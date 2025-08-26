@@ -7,7 +7,11 @@ scale analysis, and melody analysis.
 
 from typing import List, Optional
 
+from .scale_melody_analysis import ScaleMelodyAnalysisResult
 from .scale_melody_analysis import analyze_scale_melody as _analyze_scale_melody
+from .services.multiple_interpretation_service import (
+    MultipleInterpretationResult,
+)
 from .services.multiple_interpretation_service import (
     analyze_progression_multiple as _analyze_progression_multiple,
 )
@@ -16,7 +20,7 @@ from .types import AnalysisOptions
 
 async def analyze_chord_progression(
     chords: List[str], options: Optional[AnalysisOptions] = None
-):
+) -> MultipleInterpretationResult:
     """
     Analyze a chord progression with multiple interpretations.
 
@@ -38,7 +42,9 @@ async def analyze_chord_progression(
     return await _analyze_progression_multiple(chords, options)
 
 
-async def analyze_scale(notes: List[str], key: Optional[str] = None):
+async def analyze_scale(
+    notes: List[str], key: Optional[str] = None
+) -> ScaleMelodyAnalysisResult:
     """
     Analyze a scale to identify modes and harmonic implications.
 
@@ -57,7 +63,9 @@ async def analyze_scale(notes: List[str], key: Optional[str] = None):
     return _analyze_scale_melody(notes, key, melody=False)
 
 
-async def analyze_melody(notes: List[str], key: Optional[str] = None):
+async def analyze_melody(
+    notes: List[str], key: Optional[str] = None
+) -> ScaleMelodyAnalysisResult:
     """
     Analyze a melodic sequence with tonic inference.
 
