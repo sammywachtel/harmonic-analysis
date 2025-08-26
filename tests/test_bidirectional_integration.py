@@ -81,9 +81,9 @@ class TestBidirectionalIntegration:
         """Test that suggestion system handles edge cases without crashing"""
         # Test with various edge cases that might trigger different code paths
         test_cases = [
-            ["C", "F", "G"],           # Simple progression
-            ["C", "C", "C", "C"],      # Repetitive
-            ["Am", "F", "C", "G"],     # vi-IV-I-V (needs parent key context)
+            ["C", "F", "G"],  # Simple progression
+            ["C", "C", "C", "C"],  # Repetitive
+            ["Am", "F", "C", "G"],  # vi-IV-I-V (needs parent key context)
         ]
 
         for progression in test_cases:
