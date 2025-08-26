@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="15" fill="#3498db" stroke="#2c3e50" stroke-width="2"/>
+
+  <!-- Musical staff lines -->
+  <line x1="6" y1="10" x2="26" y1="10" stroke="white" stroke-width="1"/>
+  <line x1="6" y1="13" x2="26" y1="13" stroke="white" stroke-width="1"/>
+  <line x1="6" y1="16" x2="26" y1="16" stroke="white" stroke-width="1"/>
+  <line x1="6" y1="19" x2="26" y1="19" stroke="white" stroke-width="1"/>
+  <line x1="6" y1="22" x2="26" y1="22" stroke="white" stroke-width="1"/>
+
+  <!-- Treble clef -->
+  <path d="M10 18C10 16 11 14 12 14C13 14 14 15 14 16C14 17 13 18 12 18C11 18 10 17 10 16M12 14V22M12 22C12 23 13 24 14 24C15 24 16 23 16 22"
+        stroke="white" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+
+  <!-- Roman numerals for harmonic analysis -->
+  <text x="18" y="15" fill="white" font-family="serif" font-size="6" font-weight="bold">I</text>
+  <text x="21" y="15" fill="white" font-family="serif" font-size="6" font-weight="bold">V</text>
+  <text x="18" y="21" fill="white" font-family="serif" font-size="6" font-weight="bold">vi</text>
+  <text x="21" y="21" fill="white" font-family="serif" font-size="6" font-weight="bold">IV</text>
+</svg>

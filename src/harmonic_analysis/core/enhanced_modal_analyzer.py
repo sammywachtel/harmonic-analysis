@@ -13,7 +13,7 @@ Key Improvements:
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 class EvidenceType(Enum):
@@ -94,7 +94,7 @@ class EnhancedModalAnalyzer:
         "B": 11,
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Functional patterns that should NOT be detected as modal
         self.functional_patterns = [
             {"pattern": "I-V-I", "strength": 0.95, "type": "authentic_cadence"},
@@ -249,7 +249,7 @@ class EnhancedModalAnalyzer:
         self, chord_analyses: List[ChordAnalysis], parent_key: Optional[str] = None
     ) -> List[Dict[str, str]]:
         """Detect potential tonal centers based on structural analysis"""
-        candidates = {}
+        candidates: Dict[str, float] = {}
 
         # Heavily weight first and last chords (structural importance)
         first_chord = chord_analyses[0]
@@ -400,10 +400,10 @@ class EnhancedModalAnalyzer:
             # Default to major/minor based on interval position
             return roman_options["major"] if interval == 0 else roman_options["minor"]
 
-    def _detect_modal_patterns(self, roman_numerals: List[str]) -> List[Dict]:
+    def _detect_modal_patterns(self, roman_numerals: List[str]) -> List[Dict[str, Any]]:
         """Detect known modal patterns in Roman numeral sequence"""
         roman_string = "-".join(roman_numerals)
-        results = []
+        results: List[Dict[str, Any]] = []
 
         for pattern in self.modal_patterns:
             if pattern.pattern in roman_string:
@@ -648,7 +648,7 @@ class EnhancedModalAnalyzer:
         progression = "-".join(roman_numerals)
 
         # Only detect PURE functional patterns without modal characteristics
-        pure_functional_patterns = [
+        pure_functional_patterns: List[Dict[str, Any]] = [
             {"pattern": "I-V-I", "strength": 0.95},
             {"pattern": "I-IV-V-I", "strength": 0.95},
             {"pattern": "ii-V-I", "strength": 0.85},
@@ -672,7 +672,7 @@ class EnhancedModalAnalyzer:
         # Only flag exact matches of pure functional progressions
         for pattern in pure_functional_patterns:
             if progression == pattern["pattern"]:
-                return pattern["strength"]
+                return float(pattern["strength"])
 
         return 0  # No pure functional patterns detected
 
@@ -717,7 +717,7 @@ class EnhancedModalAnalyzer:
             return 0.0
 
         # Check for functional patterns first
-        functional_strength = 0
+        functional_strength = 0.0
         if roman_numerals:
             functional_strength = self._detect_functional_patterns(roman_numerals)
 
@@ -855,7 +855,6 @@ class EnhancedModalAnalyzer:
         has_half_diminished7_tonic = any(
             chord.quality == "half_diminished" for chord in tonic_chords
         )
-        has_major7_tonic = any(chord.quality == "major7" for chord in tonic_chords)
 
         has_flat7_chord = "bVII" in roman_numerals
         has_flat2_chord = "bII" in roman_numerals
@@ -922,23 +921,9 @@ class EnhancedModalAnalyzer:
             mode_name = mode_map.get(interval)
             if mode_name:
                 # For ambiguous cases, prioritize parent key context
-                if (
-                    has_major_tonic
-                    and not has_flat7_chord
-                    and not has_flat2_chord
-                    and not has_sharp4
-                    and not has_dominant7_tonic
-                    and not has_major7_tonic
-                ):
-                    return f"{tonic} {mode_name}"
-                if (
-                    has_minor_tonic
-                    and not has_major_iv
-                    and not has_minor_iv
-                    and not has_flat7_chord
-                    and not has_flat6_chord
-                ):
-                    return f"{tonic} {mode_name}"
+                # Default to that mode with parent key context and
+                # a resolvable interval
+                return f"{tonic} {mode_name}"
 
         # PRIORITY 4: Major mode discrimination (fallback)
         if has_major_tonic:

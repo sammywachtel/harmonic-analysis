@@ -3,7 +3,7 @@ Scale data and constants for music theory analysis.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Any, Dict, List
 
 
 @dataclass
@@ -70,7 +70,7 @@ MAJOR_SCALE_MODES: Dict[str, List[int]] = {
 }
 
 # Modal parent key relationships
-MODAL_PARENT_KEYS: Dict[str, Dict[str, any]] = {
+MODAL_PARENT_KEYS: Dict[str, Dict[str, Any]] = {
     "Ionian": {"offset": 0, "mode": "major"},
     "Dorian": {"offset": -2, "mode": "major"},
     "Phrygian": {"offset": -4, "mode": "major"},

@@ -1,0 +1,55 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0, v0.2.0rc1, etc.
+  release:
+    types: [published]  # Also trigger when GitHub release is published
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for trusted publishing
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check package
+        run: python -m twine check dist/*
+
+      - name: Publish to Test PyPI
+        if: contains(github.ref, 'rc') || contains(github.ref, 'beta') || contains(github.ref, 'alpha')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          skip-existing: true
+
+      - name: Publish to PyPI
+        if: "!contains(github.ref, 'rc') && !contains(github.ref, 'beta') && !contains(github.ref, 'alpha')"
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Create package verification comment
+        run: |
+          echo "📦 Package published successfully!"
+          echo "🔗 Install with: pip install harmonic-analysis==$(echo ${GITHUB_REF#refs/tags/v})"
+          echo "📖 View on PyPI: https://pypi.org/project/harmonic-analysis/"

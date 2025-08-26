@@ -10,11 +10,17 @@ Tests the chromatic harmony analysis capabilities including:
 
 import pytest
 
-from harmonic_analysis import (BorrowedChord, ChromaticAnalysisResult,
-                               ChromaticAnalyzer, ChromaticMediant,
-                               FunctionalHarmonyAnalyzer, ResolutionPattern,
-                               ResolutionType, SecondaryDominant,
-                               analyze_chromatic_harmony)
+from harmonic_analysis import (
+    BorrowedChord,
+    ChromaticAnalysisResult,
+    ChromaticAnalyzer,
+    ChromaticMediant,
+    FunctionalHarmonyAnalyzer,
+    ResolutionPattern,
+    ResolutionType,
+    SecondaryDominant,
+    analyze_chromatic_harmony,
+)
 
 
 class TestChromaticAnalysis:

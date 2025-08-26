@@ -8,7 +8,6 @@ pre-commit hooks, and IDE integration for optimal code quality workflow.
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -93,7 +92,7 @@ def setup_development_environment():
         success_count += 1
 
     # Summary
-    print(f"\n📊 SETUP SUMMARY:")
+    print("\n📊 SETUP SUMMARY:")
     print(f"✅ Completed: {success_count}/{total_steps} steps")
 
     if success_count == total_steps:
@@ -111,28 +110,51 @@ def create_ide_config():
     # PyCharm/IntelliJ configuration
     idea_dir = Path(".idea")
     if idea_dir.exists() or Path("*.iml").glob():
-        pycharm_config = """
-<!-- Add to .idea/inspectionProfiles/profiles_settings.xml -->
-<profile version="1.0">
-  <option name="myName" value="Harmonic Analysis Quality" />
-  <inspection_tool class="PyPep8Inspection" enabled="true" level="WARNING" enabled_by_default="true">
-    <option name="ignoreErrors">
-      <list>
-        <option value="E203" />
-        <option value="W503" />
-      </list>
-    </option>
-  </inspection_tool>
-</profile>
-        """
+        # Suggested PyCharm inspection profile snippet (for reference):
+        # <!-- Add to .idea/inspectionProfiles/profiles_settings.xml -->
+        # <profile version="1.0">
+        #   <option name="myName" value="Harmonic Analysis Quality" />
+        #   <inspection_tool class="PyPep8Inspection" enabled="true"
+        #                    level="WARNING" enabled_by_default="true">
+        #     <option name="ignoreErrors">
+        #       <list>
+        #         <option value="E203" />
+        #         <option value="W503" />
+        #       </list>
+        #     </option>
+        #   </inspection_tool>
+        # </profile>
 
-        print("   💡 PyCharm detected - configure:")
-        print("      1. File → Settings → Tools → External Tools")
-        print("      2. Add 'Black Format' tool: python scripts/quality_check.py --fix")
-        print("      3. Add 'Quality Check' tool: python scripts/quality_check.py")
-        print("      4. Enable real-time code inspection")
+        print("   💡 PyCharm detected - configure real-time inspection:")
+        print("      📋 STEP-BY-STEP PYCHARM SETUP:")
+        print("      1️⃣ File → Settings → Editor → Inspections")
+        print("         ✅ Enable 'Python' → 'PEP 8 coding style violation'")
+        print("         ✅ Enable 'Python' → 'Type checker compatibility'")
+        print("")
+        print("      2️⃣ File → Settings → Tools → External Tools → Add:")
+        print("         🔧 Name: 'Quality Check Fix'")
+        print("         🔧 Program: python")
+        print("         🔧 Arguments: scripts/quality_check.py --fix")
+        print("         🔧 Working Directory: $ProjectFileDir$")
+        print("")
+        print(
+            "      💡 SHORTCUT: Use keyboard shortcut ⌘, (Ctrl+Alt+S on Windows/Linux)"
+        )
+        print("          to quickly open Settings dialog")
+        print("")
+        print("      3️⃣ File → Settings → Tools → File Watchers (Optional):")
+        print("         👁️ Add Black formatter for auto-format on save")
+        print("         👁️ Add isort for auto-import organization")
+        print("")
+        print("      4️⃣ Enable real-time highlighting:")
+        print("         ⚙️ Settings → Editor → General → Code Completion")
+        print("         ✅ 'Show suggestions as you type'")
+        print("         ✅ 'Add unambiguous imports on the fly'")
+        print("")
+        print("      🎯 Result: Real-time red/yellow underlines for issues!")
+        print("      📖 Full details in scripts/README.md")
 
-    # VS Code configuration
+    # VS Code configuration`
     vscode_dir = Path(".vscode")
     if vscode_dir.exists():
         vscode_config = {
@@ -153,7 +175,8 @@ def create_ide_config():
             print("   ✅ VS Code settings.json created")
         else:
             print(
-                "   💡 VS Code detected - verify settings.json includes formatting config"
+                "   💡 VS Code detected - verify settings.json includes "
+                "formatting config"
             )
 
     return True
@@ -198,33 +221,33 @@ def create_quality_shortcuts():
 .PHONY: help format lint test quality setup clean
 
 help:  ## Show this help
-	@echo "🎯 Harmonic Analysis Development Commands:"
-	@echo "make setup     - Setup development environment"
-	@echo "make format    - Auto-fix code formatting and imports"
-	@echo "make lint      - Run all quality checks"
-	@echo "make test      - Run test suite"
-	@echo "make quality   - Run comprehensive quality check"
-	@echo "make clean     - Clean build artifacts"
+\t@echo "🎯 Harmonic Analysis Development Commands:"
+\t@echo "make setup     - Setup development environment"
+\t@echo "make format    - Auto-fix code formatting and imports"
+\t@echo "make lint      - Run all quality checks"
+\t@echo "make test      - Run test suite"
+\t@echo "make quality   - Run comprehensive quality check"
+\t@echo "make clean     - Clean build artifacts"
 
 setup:  ## Setup development environment
-	python scripts/setup_dev_env.py
+\tpython scripts/setup_dev_env.py
 
 format:  ## Auto-fix formatting and imports
-	python scripts/quality_check.py --fix
+\tpython scripts/quality_check.py --fix
 
 lint:  ## Run linting checks
-	python scripts/quality_check.py
+\tpython scripts/quality_check.py
 
 test:  ## Run test suite
-	pytest tests/ -v
+\tpytest tests/ -v
 
 quality:  ## Run comprehensive quality check
-	python scripts/quality_check.py
+\tpython scripts/quality_check.py
 
 clean:  ## Clean build artifacts
-	rm -rf build/ dist/ *.egg-info/
-	find . -type d -name __pycache__ -delete
-	find . -type f -name "*.pyc" -delete
+\trm -rf build/ dist/ *.egg-info/
+\tfind . -type d -name __pycache__ -delete
+\tfind . -type f -name "*.pyc" -delete
 """
 
     try:

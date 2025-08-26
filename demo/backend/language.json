@@ -1,0 +1,67 @@
+{
+  "classifications": {
+    "diatonic": "Diatonic within provided key context",
+    "modal_borrowing": "Modal borrowing from parent scale",
+    "modal_candidate": "Modal characteristics without clear parent key"
+  },
+  "harmonic_implications": {
+    "diatonic": [
+      "Fits naturally within the provided key context",
+      "Standard diatonic harmonic relationships apply",
+      "Compatible with traditional harmony"
+    ],
+    "modal_borrowing": [
+      "Uses notes from parent scale but with different tonal center",
+      "Creates modal harmonic relationships",
+      "Suggests modal interchange possibilities"
+    ],
+    "modal_candidate": [
+      "Independent modal character without clear parent key",
+      "Establishes own harmonic framework",
+      "May suggest exotic or contemporary harmonic approaches"
+    ]
+  },
+  "analysis_templates": {
+    "non_diatonic_notes": "Non-diatonic: {notes}",
+    "non_diatonic_implications": "Non-diatonic elements: {notes} create harmonic tension",
+    "parent_scale_compatibility": "Compatible with {scales} harmonic frameworks",
+    "scale_degrees_separator": ", ",
+    "analysis_parts_separator": " - "
+  },
+  "scale_degrees": {
+    "0": "1",
+    "1": "♭2",
+    "2": "2",
+    "3": "♭3",
+    "4": "3",
+    "5": "4",
+    "6": "#4/♭5",
+    "7": "5",
+    "8": "♭6",
+    "9": "6",
+    "10": "♭7",
+    "11": "7"
+  },
+  "contour_descriptions": {
+    "static": "Static",
+    "strong_ascending": "Strong ascending contour",
+    "strong_descending": "Strong descending contour",
+    "balanced_arch": "Balanced arch contour",
+    "static_repeated": "Static with repeated notes",
+    "mixed_directional": "Mixed directional contour"
+  },
+  "confidence_levels": {
+    "very_low": "Very Low",
+    "low": "Low",
+    "moderate": "Moderate",
+    "high": "High",
+    "very_high": "Very High"
+  },
+  "confidence_thresholds": {
+    "very_low": 0.3,
+    "low": 0.5,
+    "moderate": 0.7,
+    "high": 0.85,
+    "very_high": 1.0
+  }
+}

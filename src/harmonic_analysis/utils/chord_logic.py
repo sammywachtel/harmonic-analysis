@@ -6,8 +6,8 @@ import re
 from dataclasses import dataclass
 from typing import List, Optional
 
+from ..types import ChordFunction
 from .scales import NOTE_TO_PITCH_CLASS
-from .types import ChordFunction
 
 
 @dataclass
@@ -20,10 +20,10 @@ class ChordMatch:
     quality: str
     bass_note: Optional[str] = None
     bass_pitch: Optional[int] = None
-    extensions: List[str] = None
+    extensions: Optional[List[str]] = None
     inversion: int = 0  # 0 = root position
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.extensions is None:
             self.extensions = []
 
@@ -40,7 +40,7 @@ class ChordParser:
         + r"(?:/([A-G][#b]?))?$"  # Slash bass
     )
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.quality_mappings = {
             "": "major",
             "maj": "major",

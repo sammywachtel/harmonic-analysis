@@ -11,10 +11,14 @@ Tests comprehensive multi-perspective analysis including:
 
 import pytest
 
-from harmonic_analysis import (AnalysisOptions, EvidenceType,
-                               InterpretationType,
-                               MultipleInterpretationService, PedagogicalLevel,
-                               analyze_progression_multiple)
+from harmonic_analysis import (
+    AnalysisOptions,
+    EvidenceType,
+    InterpretationType,
+    MultipleInterpretationService,
+    PedagogicalLevel,
+    analyze_progression_multiple,
+)
 
 
 class TestMultipleInterpretationService:

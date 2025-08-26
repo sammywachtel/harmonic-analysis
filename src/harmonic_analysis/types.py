@@ -90,6 +90,33 @@ class Interpretation:
 
 
 @dataclass
+class KeySuggestion:
+    """Suggestion for parent key that could improve analysis."""
+
+    suggested_key: str  # e.g., "C major"
+    confidence: float  # How confident we are this would help (0.0-1.0)
+    reason: str  # Why this key would be beneficial
+    detected_pattern: str  # What pattern suggests this key (e.g., "ii-V-I progression")
+    potential_improvement: str  # What would improve (e.g., "Roman numerals available")
+
+
+@dataclass
+class AnalysisSuggestions:
+    """Suggestions for improving analysis quality."""
+
+    parent_key_suggestions: List[KeySuggestion]
+    general_suggestions: List[str]  # Other helpful suggestions
+
+    # Enhanced bidirectional suggestions
+    unnecessary_key_suggestions: Optional[List[KeySuggestion]] = (
+        None  # Suggest removing keys
+    )
+    key_change_suggestions: Optional[List[KeySuggestion]] = (
+        None  # Suggest different keys
+    )
+
+
+@dataclass
 class MultipleInterpretationResult:
     """Result containing multiple analytical interpretations."""
 
@@ -97,3 +124,4 @@ class MultipleInterpretationResult:
     alternative_analyses: List[Interpretation]
     metadata: Dict[str, Any]
     input: Dict[str, Any]
+    suggestions: Optional[AnalysisSuggestions] = None

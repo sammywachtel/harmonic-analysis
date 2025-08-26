@@ -27,14 +27,14 @@ jobs:
           # Get current version from main branch
           git checkout origin/main -- src/harmonic_analysis/__init__.py
           MAIN_VERSION=$(grep -oP '__version__ = "\K[^"]+' src/harmonic_analysis/__init__.py)
-          
+
           # Get version from merged PR
-          git checkout HEAD -- src/harmonic_analysis/__init__.py  
+          git checkout HEAD -- src/harmonic_analysis/__init__.py
           PR_VERSION=$(grep -oP '__version__ = "\K[^"]+' src/harmonic_analysis/__init__.py)
-          
+
           echo "Main version: $MAIN_VERSION"
           echo "PR version: $PR_VERSION"
-          
+
           if [ "$MAIN_VERSION" != "$PR_VERSION" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "version=$PR_VERSION" >> $GITHUB_OUTPUT
@@ -68,7 +68,7 @@ jobs:
             echo "❌ CHANGELOG.md missing - required for release"
             exit 1
           fi
-          
+
           VERSION="${{ needs.check-version-increment.outputs.new-version }}"
           if ! grep -q "## \[${VERSION}\]" CHANGELOG.md; then
             echo "❌ CHANGELOG.md missing entry for version ${VERSION}"
@@ -136,14 +136,14 @@ jobs:
         id: release-notes
         run: |
           VERSION="${{ needs.check-version-increment.outputs.new-version }}"
-          
+
           # Extract release notes from CHANGELOG.md
           awk "/## \[${VERSION}\]/{flag=1; next} /## \[/{flag=0} flag" CHANGELOG.md > release_notes.txt
-          
+
           if [ ! -s release_notes.txt ]; then
             echo "Auto-generated release for version ${VERSION}" > release_notes.txt
           fi
-          
+
           echo "release-notes<<EOF" >> $GITHUB_OUTPUT
           cat release_notes.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT

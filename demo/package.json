@@ -1,0 +1,24 @@
+{
+  "name": "harmonic-analysis-demo",
+  "version": "1.0.0",
+  "description": "Independent demo for harmonic analysis library",
+  "private": true,
+  "scripts": {
+    "start": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "frontend": "cd frontend && npm start",
+    "backend": "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port 8010 --reload --access-log --log-level info",
+    "setup": "./setup.sh",
+    "stop": "npm run backend:stop && npm run frontend:stop",
+    "backend:stop": "pkill -f \"uvicorn main:app\" || true",
+    "frontend:stop": "lsof -ti:3010 | xargs kill -9 2>/dev/null || pkill -f \"node.*start\" || pkill -f \"webpack\" || true"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "harmonic-analysis",
+    "demo",
+    "music-theory"
+  ],
+  "license": "MIT"
+}

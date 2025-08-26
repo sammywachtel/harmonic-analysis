@@ -1,0 +1,27 @@
+{
+  "name": "music-theory-demo-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end tests for music theory demo application",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:progressions": "playwright test --grep 'Chord Progression'",
+    "test:scales": "playwright test --grep 'Scale Analysis'",
+    "test:melodies": "playwright test --grep 'Melody Analysis'",
+    "test:ui": "playwright test --grep 'UI Interactions'",
+    "test:validation": "playwright test --grep 'Library Results'",
+    "test:enhanced": "playwright test enhanced-analysis-validation.spec.ts",
+    "test:modal": "playwright test --grep 'Modal Characteristics'",
+    "test:chromatic": "playwright test --grep 'Secondary Dominants'",
+    "test:functional": "playwright test --grep 'Functional Analysis'",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "install:browsers": "playwright install",
+    "setup": "npm install && npm run install:browsers"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

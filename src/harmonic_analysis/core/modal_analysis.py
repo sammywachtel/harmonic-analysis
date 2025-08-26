@@ -5,8 +5,8 @@ Enhanced modal analysis engine with evidence-based confidence scoring.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from .chord_logic import ChordMatch, find_chord_matches
-from .scales import NOTE_TO_PITCH_CLASS, get_parent_key
+from ..utils.chord_logic import ChordMatch, find_chord_matches
+from ..utils.scales import NOTE_TO_PITCH_CLASS, get_parent_key
 
 
 @dataclass
@@ -44,7 +44,7 @@ class ModalPattern:
 class EnhancedModalAnalyzer:
     """Enhanced modal analyzer with pattern recognition and evidence scoring."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Functional patterns that should NOT be detected as modal
         self.functional_patterns = [
             {"pattern": "I-V-I", "strength": 0.95, "type": "authentic_cadence"},
@@ -140,7 +140,7 @@ class EnhancedModalAnalyzer:
                 candidates.append(last_root)
 
         # Most frequent chord root
-        root_counts = {}
+        root_counts: Dict[str, int] = {}
         for chord in chord_matches:
             root_counts[chord.root] = root_counts.get(chord.root, 0) + 1
 
@@ -168,8 +168,8 @@ class EnhancedModalAnalyzer:
             return None
 
         # Determine most likely mode
-        mode_scores = {}
-        evidence = []
+        mode_scores: Dict[str, float] = {}
+        evidence: List[ModalEvidence] = []
 
         for pattern_match in pattern_matches:
             for mode in pattern_match["pattern"].modes:
@@ -286,9 +286,10 @@ class EnhancedModalAnalyzer:
             return 0.0
 
         # Base confidence from pattern strength
-        pattern_confidence = sum(
-            pm["pattern"].strength for pm in pattern_matches
-        ) / len(pattern_matches)
+        strengths: List[float] = [
+            float(pm["pattern"].strength) for pm in pattern_matches
+        ]
+        pattern_confidence: float = sum(strengths) / len(strengths)
 
         # Boost for structural emphasis on tonic
         tonic_emphasis = self._calculate_tonic_emphasis(chord_matches, tonic)

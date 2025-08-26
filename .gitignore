@@ -84,6 +84,7 @@ Thumbs.db
 # Generated test cases and outputs
 tests/generated/*.json
 tests/generated/*.csv
+bandit*.json
 
 # Documentation builds
 docs/_build/
@@ -94,3 +95,24 @@ docs/build/
 node_modules/
 .env.local
 /.local_docs/
+
+# Local development files (Claude Code, etc.)
+.claude/
+.claude-*
+.local*/
+*.local
+.vscode/settings.json
+.vscode/launch.json
+
+# Quality gate files
+.quality-config.yaml.bak
+.quality-baseline.json
+quality-reports/
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Generated test data (created by CI)
+tests/generated/*.json
+tests/generated/*.csv

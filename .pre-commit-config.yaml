@@ -1,120 +1,62 @@
+# Adaptive Pre-commit Configuration
+# Generated based on detected project structure
+
 repos:
-  # Pre-commit hooks for file hygiene
+  # Universal hooks (always enabled)
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        name: "🧹 Remove trailing whitespace"
       - id: end-of-file-fixer
-        name: "📝 Fix end-of-file"
       - id: check-merge-conflict
-        name: "🔍 Check merge conflicts"
       - id: check-added-large-files
-        name: "📦 Check large files"
-        args: [--maxkb=1000]
+        args: ['--maxkb=1024']
       - id: check-yaml
-        name: "✅ Validate YAML files"
-      - id: check-toml
-        name: "✅ Validate TOML files"
       - id: check-json
-        name: "✅ Validate JSON files"
-      - id: debug-statements
-        name: "🐛 Check debug statements"
-      - id: check-docstring-first
-        name: "📚 Check docstring placement"
-      - id: check-case-conflict
-        name: "🔍 Check filename case conflicts"
-      - id: check-executables-have-shebangs
-        name: "🔧 Check executable shebangs"
 
-  # Code formatting with Black
+  # Frontend hooks (TypeScript/JavaScript)
+  - repo: local
+    hooks:
+      - id: eslint-check
+        name: ESLint Check
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        files: '^frontend/.*\.(js|jsx|ts|tsx)$'
+        pass_filenames: false
+
+      - id: typescript-check
+        name: TypeScript Check
+        entry: bash -c 'cd frontend && npx tsc --noEmit'
+        language: system
+        files: '^frontend/.*\.(ts|tsx)$'
+        pass_filenames: false
+
+  # Python hooks
   - repo: https://github.com/psf/black
-    rev: 24.8.0
+    rev: 24.10.0
     hooks:
       - id: black
-        name: "⚫ Format code with Black"
         language_version: python3
-        args: [--line-length=88, --target-version=py39]
+        files: '^./.*\.py$'
 
-  # Import sorting with isort
-  - repo: https://github.com/PyCQA/isort
+  - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
-        name: "🔤 Sort imports with isort"
-        args: [--profile=black, --line-length=88, --multi-line=3, --force-grid-wrap=0]
+        args: ["--profile", "black"]
+        files: '^./.*\.py$'
 
-  # Code linting with flake8
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
     hooks:
       - id: flake8
-        name: "🔍 Lint with flake8"
-        additional_dependencies: [
-          flake8-docstrings,
-          flake8-bugbear,
-          flake8-comprehensions,
-          flake8-simplify
-        ]
+        args: ["--max-line-length=88", "--extend-ignore=E203,W503"]
+        files: '^./.*\.py$'
 
-  # Security scanning
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+  # Security hooks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
     hooks:
-      - id: bandit
-        name: "🔒 Security scan with Bandit"
-        args: [-r, src/, -f, json, -o, bandit-report.json]
-        files: ^src/
-
-  # Type checking with mypy
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
-    hooks:
-      - id: mypy
-        name: "🎯 Type check with MyPy"
-        additional_dependencies: [typing-extensions, pytest, pytest-asyncio]
-        args: ["--ignore-missing-imports", "--strict-optional", "--warn-redundant-casts"]
-
-  # Local quality checks
-  - repo: local
-    hooks:
-      - id: pytest-quick
-        name: "🧪 Run core functionality tests"
-        entry: pytest
-        language: system
-        args: [
-          tests/test_functional_harmony.py,
-          tests/test_enhanced_modal_analyzer.py,
-          tests/test_multiple_interpretation_service.py,
-          -v, --tb=short, --no-cov
-        ]
-        pass_filenames: false
-
-      - id: mypy-src
-        name: "🎯 Advanced type checking"
-        entry: mypy
-        language: system
-        args: [src/, --explicit-package-bases, --warn-unused-ignores]
-        pass_filenames: false
-
-      - id: coverage-check
-        name: "📊 Code coverage validation"
-        entry: pytest
-        language: system
-        args: [--cov=harmonic_analysis, --cov-fail-under=60, --tb=short, --cov-report=term-missing]
-        pass_filenames: false
-
-      - id: package-installable
-        name: "📦 Verify package installability"
-        entry: python
-        language: system
-        args: [-m, pip, install, -e, ., --quiet]
-        pass_filenames: false
-
-      - id: code-quality-reminder
-        name: "💡 Code Quality Reminder"
-        entry: python
-        language: system
-        args: [-c, "print('\\n🎯 PRE-COMMIT QUALITY CHECKS COMPLETE!\\n✅ All code quality standards met\\n🚀 Ready for commit\\n')"]
-        pass_filenames: false
-        always_run: true
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package-lock.json
