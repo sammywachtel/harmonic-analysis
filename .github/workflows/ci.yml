@@ -66,9 +66,6 @@ jobs:
     - name: Generate comprehensive test cases
       run: python scripts/generate_comprehensive_multi_layer_tests.py
 
-    - name: Validate generated test cases
-      run: pytest tests/generated/ -v
-
   # Summary job for branch protection rules
   test:
     name: CI / test

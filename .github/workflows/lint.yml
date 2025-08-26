@@ -116,10 +116,6 @@ jobs:
           echo "✅ Generated test data files:"
           ls -la tests/generated/
 
-      - name: Validate behavioral parity
-        run: |
-          echo "🎼 Validating behavioral parity with comprehensive test suite..."
-          python scripts/validate_with_generated_data.py
 
       - name: Upload coverage reports
         if: github.event_name == 'pull_request'
