@@ -226,6 +226,74 @@ class CustomMultipleInterpretationService(MultipleInterpretationService):
         return any(indicator in e.description.lower() for e in evidence for indicator in jazz_indicators)
 ```
 
+## CI/CD Pipeline Issues
+
+### Quality Gate Failures for Backend-Only Projects
+**Symptoms**: Quality Gate Summary fails with "❌ Frontend Quality: FAILED" on backend-only projects
+**Root Cause**: Quality gate logic incorrectly treats "skipped" jobs as failures
+**Solution Applied**: Updated `.github/workflows/quality-adaptive.yml` to handle skipped jobs:
+```yaml
+# Fixed logic to treat skipped frontend jobs as non-failures
+[[ "${{ needs.frontend-quality.result }}" != "success" && "${{ needs.frontend-quality.result }}" != "skipped" ]] && FAILED=true
+```
+
+### Claude Code Review Workflow Validation Errors
+**Symptoms**: `Workflow validation failed. The workflow file must exist and have identical content to the version on the repository's default branch`
+**Root Cause**: Claude Code Review action requires workflow file to exist on main branch
+**Solution**: Temporarily disable with `if: false` until workflow is merged to main:
+```yaml
+jobs:
+  claude-review:
+    if: false  # Temporarily skip all runs
+```
+
+### Test Data Generation Issues
+**Symptoms**: Tests fail with missing test data files in CI
+**Root Cause**: Generated test data not available to test jobs
+**Solution Applied**: Restructured CI workflow dependency chain:
+1. `test-generation` job runs first and uploads artifacts
+2. `test-matrix` jobs depend on `test-generation` and download artifacts
+3. Generated files in `tests/generated/` are gitignored (never committed)
+
+**Debugging Test Data Issues**:
+```bash
+# Check if test generation is working locally
+python scripts/generate_comprehensive_multi_layer_tests.py
+ls tests/generated/  # Should show *.json and *.csv files
+
+# Verify test data is being used by tests
+python -m pytest tests/test_comprehensive_multi_layer_validation.py -v
+```
+
+### MyPy Type Errors Not Caught Locally
+**Symptoms**: CI fails with MyPy errors that don't appear in local runs
+**Root Cause**: Different MyPy configurations or missing dependencies between local and CI
+**Debugging Steps**:
+```bash
+# Run the exact same MyPy command as CI
+mypy src/ --ignore-missing-imports
+
+# Check for differences in Python/package versions
+python --version
+pip list | grep mypy
+
+# Ensure all dependencies are installed
+pip install -r requirements-dev.txt
+```
+
+### Codecov Upload Rate Limiting
+**Symptoms**: CI shows 429 errors when uploading coverage to Codecov
+**Current Status**: Upload restricted to main branch only with `fail_ci_if_error: false`
+**To Enable Coverage on PRs**: Remove branch restriction from `.github/workflows/ci.yml`:
+```yaml
+- name: Upload coverage to Codecov
+  uses: codecov/codecov-action@v3
+  # Remove: if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  with:
+    file: ./coverage.xml
+    fail_ci_if_error: false
+```
+
 ## Integration Testing Strategies
 
 ### Web API Integration Validation

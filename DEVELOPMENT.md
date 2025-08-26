@@ -103,8 +103,37 @@ git push origin feature-branch
 The CI pipeline validates:
 - ✅ ESLint compliance (no auto-fixing)
 - ✅ TypeScript compilation
-- ✅ All tests pass
+- ✅ All tests pass with dynamically generated test data
 - ✅ Code quality standards
+- ✅ Backend Python formatting (Black, isort, flake8)
+- ✅ MyPy type checking
+- ✅ Security scanning (Bandit)
+
+## Test Data Generation in CI
+
+**Important**: Test data is now generated dynamically in CI, not committed to the repository.
+
+### How It Works
+1. **Test Generation Job**: Runs first in CI pipeline
+   - Executes `scripts/generate_comprehensive_multi_layer_tests.py`
+   - Creates test files in `tests/generated/`
+   - Uploads as GitHub Actions artifact
+
+2. **Test Jobs**: Download and use generated data
+   - All test matrix jobs depend on test-generation
+   - Download test data via GitHub Actions artifacts
+   - Run tests against fresh, generated data
+
+### Local Development
+```bash
+# Generate test data locally (if needed)
+python scripts/generate_comprehensive_multi_layer_tests.py
+
+# Run tests (they will use generated data)
+python -m pytest tests/ -v
+```
+
+**Note**: `tests/generated/*.json` and `tests/generated/*.csv` are gitignored - never commit generated test files.
 
 ## Code Quality Commands
 
