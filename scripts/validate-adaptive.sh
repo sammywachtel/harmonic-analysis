@@ -338,7 +338,13 @@ validate_frontend() {
 
     # Build check
     if [[ -f "package.json" ]] && npm run build --dry-run >/dev/null 2>&1; then
-        run_validation "Frontend build" "npm run build" "frontend-build" "npm run build" || frontend_failed=true
+        if ! run_validation "Frontend build" "npm run build" "frontend-build" "npm run lint:fix && npm run build"; then
+            frontend_failed=true
+            print_status "💡 Build failed. Try these steps:"
+            print_status "   1. 🔧 Fix linting issues: npm run lint:fix"
+            print_status "   2. 🏗️ Retry build: npm run build"
+            print_status "   3. 📝 Check build output above for specific errors"
+        fi
     fi
 
     cd "$original_dir"
@@ -374,34 +380,51 @@ validate_backend() {
     local python_enabled=$(read_config "tools.backend.python.enabled")
     if [[ "$python_enabled" == "true" ]]; then
 
-        # Black formatting check
-        local black_enabled=$(read_config "tools.backend.python.black.enabled")
-        if [[ "$black_enabled" == "true" ]] && command -v black >/dev/null 2>&1; then
-            run_phase_validation "Black formatting" "black --check ." "black" "black ." "\.py$" || backend_failed=true
-        fi
+        # Check if we have the comprehensive quality_check.py script
+        cd "$original_dir"  # Go back to root to check for quality_check.py
+        if [[ -f "scripts/quality_check.py" ]]; then
+            print_status "Using comprehensive Python quality checker..."
+            if ! run_validation "Python Quality Check" "python scripts/quality_check.py --quick-tests" "python-quality" "python scripts/quality_check.py --fix"; then
+                backend_failed=true
+                print_status "💡 Quality check failed. Try these steps:"
+                print_status "   1. 🔧 Auto-fix formatting: python scripts/quality_check.py --fix"
+                print_status "   2. 🔍 View detailed results: python scripts/quality_check.py --quick-tests"
+                print_status "   3. 🎯 Manual fixes may be needed for type errors and security issues"
+                print_status "   4. ✅ Re-run validation: ./scripts/validate-adaptive.sh"
+            fi
+        else
+            # Fallback to individual checks
+            cd "$backend_path" || return 1
 
-        # isort import sorting check
-        local isort_enabled=$(read_config "tools.backend.python.isort.enabled")
-        if [[ "$isort_enabled" == "true" ]] && command -v isort >/dev/null 2>&1; then
-            run_phase_validation "Import sorting" "isort --check-only ." "isort" "isort ." "\.py$" || backend_failed=true
-        fi
+            # Black formatting check
+            local black_enabled=$(read_config "tools.backend.python.black.enabled")
+            if [[ "$black_enabled" == "true" ]] && command -v black >/dev/null 2>&1; then
+                run_phase_validation "Black formatting" "black --check ." "black" "black ." "\.py$" || backend_failed=true
+            fi
 
-        # flake8 linting check
-        local flake8_enabled=$(read_config "tools.backend.python.flake8.enabled")
-        if [[ "$flake8_enabled" == "true" ]] && command -v flake8 >/dev/null 2>&1; then
-            run_phase_validation "Flake8 linting" "flake8 ." "flake8" "flake8 . --show-source" "\.py$" || backend_failed=true
-        fi
+            # isort import sorting check
+            local isort_enabled=$(read_config "tools.backend.python.isort.enabled")
+            if [[ "$isort_enabled" == "true" ]] && command -v isort >/dev/null 2>&1; then
+                run_phase_validation "Import sorting" "isort --check-only ." "isort" "isort ." "\.py$" || backend_failed=true
+            fi
 
-        # MyPy type checking (if enabled)
-        local mypy_enabled=$(read_config "tools.backend.python.mypy.enabled")
-        if [[ "$mypy_enabled" == "true" ]] && command -v mypy >/dev/null 2>&1; then
-            run_validation "MyPy type checking" "mypy ." "mypy" "mypy . --show-error-codes" || backend_failed=true
-        fi
+            # flake8 linting check
+            local flake8_enabled=$(read_config "tools.backend.python.flake8.enabled")
+            if [[ "$flake8_enabled" == "true" ]] && command -v flake8 >/dev/null 2>&1; then
+                run_phase_validation "Flake8 linting" "flake8 ." "flake8" "flake8 . --show-source" "\.py$" || backend_failed=true
+            fi
 
-        # Backend tests
-        local testing_enabled=$(read_config "tools.backend.testing.unit_tests")
-        if [[ "$testing_enabled" == "true" ]] && command -v pytest >/dev/null 2>&1; then
-            run_validation "Backend tests" "python -m pytest" "backend-tests" "python -m pytest -v" || backend_failed=true
+            # MyPy type checking (if enabled)
+            local mypy_enabled=$(read_config "tools.backend.python.mypy.enabled")
+            if [[ "$mypy_enabled" == "true" ]] && command -v mypy >/dev/null 2>&1; then
+                run_validation "MyPy type checking" "mypy ." "mypy" "mypy . --show-error-codes" || backend_failed=true
+            fi
+
+            # Backend tests
+            local testing_enabled=$(read_config "tools.backend.testing.unit_tests")
+            if [[ "$testing_enabled" == "true" ]] && command -v pytest >/dev/null 2>&1; then
+                run_validation "Backend tests" "python -m pytest" "backend-tests" "python -m pytest -v" || backend_failed=true
+            fi
         fi
     fi
 
@@ -501,7 +524,14 @@ validate_precommit() {
     fi
 
     # Run pre-commit validation
-    run_validation "Pre-commit hooks" "pre-commit run --all-files" "pre-commit" "pre-commit run --all-files" || precommit_failed=true
+    if ! run_validation "Pre-commit hooks" "pre-commit run --all-files" "pre-commit" "python scripts/quality_check.py --fix"; then
+        precommit_failed=true
+        print_status "💡 Pre-commit hooks failed. Try these steps:"
+        print_status "   1. 🔧 Auto-fix most issues: python scripts/quality_check.py --fix"
+        print_status "   2. 🔄 Re-run hooks to verify: pre-commit run --all-files"
+        print_status "   3. 📝 Check output above for any remaining manual fixes needed"
+        print_status "   4. ✅ Re-run validation: ./scripts/validate-adaptive.sh"
+    fi
 
     return $([ "$precommit_failed" == "false" ] && echo 0 || echo 1)
 }

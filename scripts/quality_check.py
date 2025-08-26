@@ -112,7 +112,7 @@ class CodeQualityChecker:
         """Run Bandit security scanning"""
         self.print_header("Security Scanning with Bandit", "🔒")
 
-        cmd = ["bandit", "-r", "src/", "-f", "text"]
+        cmd = ["bandit", "-r", "src/", "-f", "txt"]  # Fixed: "text" -> "txt"
         success, output = self.run_command(cmd, "Security scanning")
 
         # Bandit returns non-zero for findings, so we check output content
@@ -122,19 +122,15 @@ class CodeQualityChecker:
         return not has_issues
 
     def run_tests(self, quick: bool = False) -> bool:
-        """Run test suite"""
+        """Run test suite with discovery-based approach"""
         self.print_header("Running Tests", "🧪")
 
         if quick:
-            cmd = [
-                "pytest",
-                "tests/test_functional_harmony.py",
-                "tests/test_enhanced_modal_analyzer.py",
-                "-v",
-                "--tb=short",
-            ]
-            description = "Quick functionality tests"
+            # Quick mode: Run functional and unit tests (skip slow integration tests)
+            cmd = ["pytest", "tests/", "-m", "unit or functional", "-v", "--tb=short"]
+            description = "Quick functionality tests (unit + functional)"
         else:
+            # Full mode: Run all tests
             cmd = ["pytest", "tests/", "--tb=short"]
             description = "Full test suite"
 
@@ -273,7 +269,12 @@ def main():
         print("\n⚠️  QUALITY ISSUES DETECTED")
         print("🔧 Use --fix to auto-resolve formatting and import issues")
         print("📖 Review output above for manual fixes needed")
-        sys.exit(1)
+
+    if not args.fix:
+        print("\n⚠️  Quality issues detected - consider fixing before push")
+        print("🔧 Run: python scripts/quality_check.py --fix")
+
+    sys.exit(0 if success else 1)
 
 
 if __name__ == "__main__":

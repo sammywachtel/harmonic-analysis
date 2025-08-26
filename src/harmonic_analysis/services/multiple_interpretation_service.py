@@ -1157,50 +1157,15 @@ class MultipleInterpretationService:
             bidirectional_suggestions = (
                 await self.bidirectional_engine.generate_bidirectional_suggestions(
                     chords,
-                    options.parent_key,
+                    options,
                     current_confidence,
                     current_roman_numerals,
                 )
             )
 
             if bidirectional_suggestions:
-                # Convert to AnalysisSuggestions format
-                from ..types import AnalysisSuggestions, KeySuggestion
-
-                parent_key_suggestions = []
-                unnecessary_key_suggestions = []
-                key_change_suggestions = []
-
-                for suggestion in bidirectional_suggestions:
-                    # Extract first detected pattern if available
-                    detected_pattern = ""
-                    if hasattr(suggestion, "relevance_score") and hasattr(
-                        suggestion.relevance_score, "detected_patterns"
-                    ):
-                        patterns = suggestion.relevance_score.detected_patterns
-                        detected_pattern = patterns[0] if patterns else ""
-
-                    key_suggestion = KeySuggestion(
-                        suggested_key=suggestion.suggested_key or "",
-                        confidence=suggestion.confidence,
-                        reason=suggestion.reason,
-                        detected_pattern=detected_pattern,
-                        potential_improvement=suggestion.potential_improvement,
-                    )
-
-                    if suggestion.suggestion_type.value == "add_key":
-                        parent_key_suggestions.append(key_suggestion)
-                    elif suggestion.suggestion_type.value == "remove_key":
-                        unnecessary_key_suggestions.append(key_suggestion)
-                    elif suggestion.suggestion_type.value == "change_key":
-                        key_change_suggestions.append(key_suggestion)
-
-                return AnalysisSuggestions(
-                    parent_key_suggestions=parent_key_suggestions,
-                    unnecessary_key_suggestions=unnecessary_key_suggestions or None,
-                    key_change_suggestions=key_change_suggestions or None,
-                    general_suggestions=[],
-                )
+                # bidirectional_suggestions is already an AnalysisSuggestions object
+                return bidirectional_suggestions
 
         except Exception as e:
             # If bidirectional engine fails, fall back to algorithmic engine
