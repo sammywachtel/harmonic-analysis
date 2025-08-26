@@ -1,7 +1,111 @@
+[build-system]
+requires = [
+    "hatchling",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "harmonic-analysis"
+dynamic = [
+    "version",
+]
+description = "Comprehensive harmonic and modal analysis engine for music theory"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9,<3.13"
+authors = [
+    { name = "Sam Wachtel", email = "sammywachtel@gmail.com" },
+]
+keywords = [
+    "music",
+    "theory",
+    "analysis",
+    "harmony",
+    "modal",
+    "chords",
+    "scales",
+    "functional-harmony",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Analysis",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Education",
+]
+dependencies = [
+    "typing-extensions>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "pytest-asyncio>=0.21",
+    "black",
+    "flake8",
+    "mypy",
+    "pre-commit",
+]
+test = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "pytest-xdist",
+    "pytest-asyncio>=0.21",
+]
+
+[project.urls]
+Homepage = "https://github.com/sammywachtel/harmonic-analysis"
+Repository = "https://github.com/sammywachtel/harmonic-analysis"
+Issues = "https://github.com/sammywachtel/harmonic-analysis/issues"
+
+[tool.hatch.version]
+path = "src/harmonic_analysis/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/harmonic_analysis",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = [
+    "tests",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]
+python_classes = [
+    "Test*",
+]
+python_functions = [
+    "test_*",
+]
+addopts = "-ra -q --strict-markers --strict-config --cov=harmonic_analysis --cov-report=html --cov-report=term-missing"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "functional: Functional tests",
+    "modal: Modal analysis tests",
+    "chromatic: Chromatic analysis tests",
+    "asyncio: Mark a test as an asyncio test",
+]
+
 [tool.black]
 line-length = 88
-target-version = ['py311']
-include = '\.pyi?$'
+target-version = [
+    "py311",
+]
+include = "\\.pyi?$"
 extend-exclude = '''
 /(
   # directories
@@ -24,7 +128,9 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 88
-known_first_party = ["app"]
+known_first_party = [
+    "app",
+]
 
 [tool.mypy]
 python_version = "3.11"
@@ -46,24 +152,14 @@ module = [
     "supabase",
     "supabase.client",
     "postgrest",
-    "gotrue"
+    "gotrue",
 ]
 ignore_missing_imports = true
 
-[tool.pytest.ini_options]
-minversion = "8.0"
-addopts = "-ra -q --strict-markers --strict-config"
-testpaths = [
-    "tests",
-]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-]
-
 [tool.coverage.run]
-source = ["app"]
+source = [
+    "app",
+]
 omit = [
     "*/tests/*",
     "*/venv/*",
