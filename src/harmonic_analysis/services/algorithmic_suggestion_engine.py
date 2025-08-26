@@ -11,6 +11,7 @@ Key Design Principles:
 4. No hardcoded chord names or key-specific patterns
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
@@ -128,8 +129,13 @@ class AlgorithmicSuggestionEngine:
                 result = await self._analyze_in_key(chords, key)
                 if result:
                     results.append(result)
-            except Exception:
-                # Skip keys that cause analysis errors
+            except (ValueError, TypeError, KeyError) as e:
+                # Skip keys that cause expected analysis errors (invalid chords, parsing issues)
+                logging.debug(f"Analysis failed for key {key}: {e}")
+                continue
+            except Exception as e:
+                # Log unexpected errors but continue with other keys  # nosec B112
+                logging.warning(f"Unexpected error analyzing key {key}: {e}")
                 continue
 
         return results
