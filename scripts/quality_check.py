@@ -126,15 +126,22 @@ class CodeQualityChecker:
         self.print_header("Running Tests", "🧪")
 
         if quick:
-            # Quick mode: Run functional and unit tests (skip slow integration tests)
-            cmd = ["pytest", "tests/", "-m", "unit or functional", "-v", "--tb=short"]
-            description = "Quick functionality tests (unit + functional)"
+            # Quick mode: Run tests without coverage (much faster)
+            cmd = ["pytest", "tests/", "-x", "--tb=short", "--no-cov", "-q"]
+            description = "Quick test run (no coverage, stop on first failure)"
         else:
-            # Full mode: Run all tests
+            # Full mode: Run all tests with coverage
             cmd = ["pytest", "tests/", "--tb=short"]
-            description = "Full test suite"
+            description = "Full test suite with coverage"
 
         success, output = self.run_command(cmd, description)
+
+        # Handle case where no tests are found at all
+        if not success and (
+            "collected 0 items" in output or "no tests ran" in output.lower()
+        ):
+            print("   ℹ️  No tests found in tests/ directory")
+            success = True  # Not a failure if there are simply no tests
 
         self.print_result(success, description, output if not success else "")
         return success
@@ -181,23 +188,33 @@ class CodeQualityChecker:
             print("🚀 Code is ready for commit")
         else:
             print("\n⚠️  QUALITY ISSUES DETECTED")
-            print("🔧 Run with --fix to auto-fix formatting and imports")
-            print("💡 Review failed checks above for details")
 
-        print("\n📋 Next Steps:")
-        if not results.get("pre_commit", True):
-            print("  1. 🔧 Install pre-commit: pip install pre-commit")
-            print("     and then run: pre-commit install")
-        if not results.get("formatting", True):
-            print("  2. ⚫ Fix formatting: python scripts/quality_check.py --fix")
-        if not results.get("imports", True):
-            print("  3. 🔤 Fix imports: python scripts/quality_check.py --fix")
-        if not results.get("linting", True):
-            print("  4. 🔍 Fix linting issues manually")
-        if not results.get("typing", True):
-            print("  5. 🎯 Fix type annotations")
-        if not results.get("security", True):
-            print("  6. 🔒 Review security findings")
+            # Only show actionable next steps for failed items
+            failed_items = [k for k, v in results.items() if not v]
+            if failed_items:
+                print("\n📋 Required Actions:")
+
+                if "pre_commit" in failed_items:
+                    print("  🔧 Install pre-commit:")
+                    print("     pip install pre-commit && pre-commit install")
+
+                if "formatting" in failed_items or "imports" in failed_items:
+                    print("  ⚫ Fix formatting/imports:")
+                    print("     python scripts/quality_check.py --fix")
+
+                if "linting" in failed_items:
+                    print("  🔍 Fix linting issues manually (see details above)")
+                    print("     Note: Black doesn't split comments - shorten manually")
+                    print("     Line length limit: 88 characters")
+
+                if "typing" in failed_items:
+                    print("  🎯 Fix type annotations (see MyPy output above)")
+
+                if "security" in failed_items:
+                    print("  🔒 Review security findings (see Bandit output above)")
+
+                if "tests" in failed_items:
+                    print("  🧪 Fix failing tests (see pytest output above)")
 
     def run_comprehensive_check(self, fix: bool = False, quick_tests: bool = False):
         """Run all quality checks and provide comprehensive report"""
@@ -213,6 +230,12 @@ class CodeQualityChecker:
         # Code formatting and style
         results["formatting"] = self.run_black_format(fix)
         results["imports"] = self.run_isort_imports(fix)
+
+        # Re-run Black if we're fixing to ensure consistency
+        if fix and results["formatting"] and results["imports"]:
+            # Black may have changed lines, format once more
+            self.run_black_format(fix=True)
+
         results["linting"] = self.run_flake8_linting()
         results["typing"] = self.run_mypy_typing()
 
@@ -267,12 +290,11 @@ def main():
         print("🔧 Pre-commit hooks will run automatically on git commit")
     else:
         print("\n⚠️  QUALITY ISSUES DETECTED")
-        print("🔧 Use --fix to auto-resolve formatting and import issues")
-        print("📖 Review output above for manual fixes needed")
-
-    if not args.fix:
-        print("\n⚠️  Quality issues detected - consider fixing before push")
-        print("🔧 Run: python scripts/quality_check.py --fix")
+        if args.fix:
+            print("📖 Some issues require manual fixes - review output above")
+        else:
+            print("🔧 Use --fix to auto-resolve formatting and import issues")
+            print("📖 Review output above for other manual fixes needed")
 
     sys.exit(0 if success else 1)
 

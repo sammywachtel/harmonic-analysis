@@ -130,7 +130,8 @@ class AlgorithmicSuggestionEngine:
                 if result:
                     results.append(result)
             except (ValueError, TypeError, KeyError) as e:
-                # Skip keys that cause expected analysis errors (invalid chords, parsing issues)
+                # Skip keys that cause expected analysis errors
+                #   (invalid chords, parsing issues)
                 logging.debug(f"Analysis failed for key {key}: {e}")
                 continue
             except Exception as e:
