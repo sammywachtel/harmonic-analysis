@@ -237,6 +237,229 @@ MODAL_CHARACTERISTICS: Dict[str, ModalCharacteristics] = {
 
 
 # =============================================================================
+# SCALE FAMILIES AND MODE DEFINITIONS
+# =============================================================================
+
+# Major Scale modes (already covered in MODAL_CHARACTERISTICS)
+MAJOR_SCALE_MODES = {
+    "Major Scale": {
+        "modes": [
+            ("Ionian", [0, 2, 4, 5, 7, 9, 11]),
+            ("Dorian", [0, 2, 3, 5, 7, 9, 10]),
+            ("Phrygian", [0, 1, 3, 5, 7, 8, 10]),
+            ("Lydian", [0, 2, 4, 6, 7, 9, 11]),
+            ("Mixolydian", [0, 2, 4, 5, 7, 9, 10]),
+            ("Aeolian", [0, 2, 3, 5, 7, 8, 10]),
+            ("Locrian", [0, 1, 3, 5, 6, 8, 10])
+        ],
+        "formulas": [
+            "1, 2, 3, 4, 5, 6, 7",
+            "1, 2, ♭3, 4, 5, 6, ♭7",
+            "1, ♭2, ♭3, 4, 5, ♭6, ♭7",
+            "1, 2, 3, ♯4, 5, 6, 7",
+            "1, 2, 3, 4, 5, 6, ♭7",
+            "1, 2, ♭3, 4, 5, ♭6, ♭7",
+            "1, ♭2, ♭3, 4, ♭5, ♭6, ♭7"
+        ],
+        "headers": ["Mode / Scale Degree", "Ionian (I)", "Dorian (II)", "Phrygian (III)", "Lydian (IV)", "Mixolydian (V)", "Aeolian (VI)", "Locrian (VII)"],
+        "parent_scale_intervals": [0, 2, 4, 5, 7, 9, 11],
+        "parent_scale_interval_pattern": [2, 2, 1, 2, 2, 2, 1],
+        "is_diatonic": True
+    }
+}
+
+# Melodic Minor modes
+MELODIC_MINOR_MODES = {
+    "Melodic Minor": {
+        "modes": [
+            ("Melodic Minor", [0, 2, 3, 5, 7, 9, 11]),
+            ("Dorian ♭2", [0, 1, 3, 5, 7, 9, 10]),
+            ("Lydian Augmented", [0, 2, 4, 6, 8, 9, 11]),
+            ("Lydian Dominant", [0, 2, 4, 6, 7, 9, 10]),
+            ("Mixolydian ♭6", [0, 2, 4, 5, 7, 8, 10]),
+            ("Locrian ♮2", [0, 2, 3, 5, 6, 8, 10]),
+            ("Altered", [0, 1, 3, 4, 6, 8, 10])
+        ],
+        "formulas": [
+            "1, 2, ♭3, 4, 5, 6, 7",
+            "1, ♭2, ♭3, 4, 5, 6, ♭7",
+            "1, 2, 3, ♯4, ♯5, 6, 7",
+            "1, 2, 3, ♯4, 5, 6, ♭7",
+            "1, 2, 3, 4, 5, ♭6, ♭7",
+            "1, 2, ♭3, 4, ♭5, ♭6, ♭7",
+            "1, ♭2, ♭3, ♭4, ♭5, ♭6, ♭7"
+        ],
+        "headers": ["Mode / Scale Degree", "Melodic Minor (I)", "Dorian ♭2 (II)", "Lydian Augmented (III)", "Lydian Dominant (IV)", "Mixolydian ♭6 (V)", "Locrian ♮2 (VI)", "Altered (VII)"],
+        "parent_scale_intervals": [0, 2, 3, 5, 7, 9, 11],
+        "parent_scale_interval_pattern": [2, 1, 2, 2, 2, 2, 1],
+        "is_diatonic": True,
+        "common_names": ["(Alt) Jazz Minor", "Dorian ♭2", "Lydian Augmented", "Lydian Dominant", "Mixolydian ♭6", "Locrian ♮2", "Altered"]
+    }
+}
+
+# Harmonic Minor modes
+HARMONIC_MINOR_MODES = {
+    "Harmonic Minor": {
+        "modes": [
+            ("Harmonic Minor", [0, 2, 3, 5, 7, 8, 11]),
+            ("Locrian ♮6", [0, 1, 3, 5, 6, 8, 10]),
+            ("Ionian ♯5", [0, 2, 4, 5, 8, 9, 11]),
+            ("Dorian ♯4", [0, 2, 3, 6, 7, 9, 10]),
+            ("Phrygian Dominant", [0, 1, 4, 5, 7, 8, 10]),
+            ("Lydian ♯2", [0, 3, 4, 6, 7, 9, 11]),
+            ("Super-Locrian", [0, 1, 3, 4, 6, 8, 9])
+        ],
+        "formulas": [
+            "1, 2, ♭3, 4, 5, ♭6, 7",
+            "1, ♭2, ♭3, 4, ♭5, 6, ♭7",
+            "1, 2, 3, 4, ♯5, 6, 7",
+            "1, 2, ♭3, ♯4, 5, 6, ♭7",
+            "1, ♭2, 3, 4, 5, ♭6, ♭7",
+            "1, ♯2, 3, ♯4, 5, 6, 7",
+            "1, ♭2, ♭3, ♭4, ♭5, ♭6, ♭7"
+        ],
+        "headers": ["Mode / Scale Degree", "Harmonic Minor (I)", "Locrian ♮6 (II)", "Ionian ♯5 (III)", "Dorian ♯4 (IV)", "Phrygian Dominant (V)", "Lydian ♯2 (VI)", "Super-Locrian (VII)"],
+        "parent_scale_intervals": [0, 2, 3, 5, 7, 8, 11],
+        "parent_scale_interval_pattern": [2, 1, 2, 2, 1, 3, 1],
+        "is_diatonic": True,
+        "common_names": ["Harmonic Minor", "Locrian ♮6", "Ionian ♯5", "Ukrainian Dorian", "Phrygian Dominant", "Lydian ♯2", "Super-Locrian"]
+    }
+}
+
+# Harmonic Major modes
+HARMONIC_MAJOR_MODES = {
+    "Harmonic Major": {
+        "modes": [
+            ("Harmonic Major", [0, 2, 4, 5, 7, 8, 11]),
+            ("Dorian ♭5", [0, 2, 3, 5, 6, 9, 10]),
+            ("Phrygian ♭4", [0, 1, 3, 4, 7, 8, 10]),
+            ("Lydian ♭3", [0, 2, 3, 6, 7, 9, 11]),
+            ("Mixolydian ♭2", [0, 1, 4, 5, 7, 9, 10]),
+            ("Lydian Aug ♯2", [0, 3, 4, 7, 8, 10, 11]),
+            ("Locrian ♭7♭5", [0, 1, 3, 5, 6, 8, 9])
+        ],
+        "formulas": [
+            "1, 2, 3, 4, 5, ♭6, 7",
+            "1, 2, ♭3, 4, ♭5, 6, ♭7",
+            "1, ♭2, ♭3, ♭4, 5, ♭6, ♭7",
+            "1, 2, ♭3, ♯4, 5, 6, 7",
+            "1, ♭2, 3, 4, 5, 6, ♭7",
+            "1, ♯2, 3, ♯4, ♯5, 6, 7",
+            "1, ♭2, ♭3, 4, ♭5, ♭6, ♭♭7"
+        ],
+        "headers": ["Mode / Scale Degree", "Harmonic Major (I)", "Dorian ♭5 (II)", "Phrygian ♭4 (III)", "Lydian ♭3 (IV)", "Mixolydian ♭2 (V)", "Lydian Aug ♯2 (VI)", "Locrian ♭7♭5 (VII)"],
+        "parent_scale_intervals": [0, 2, 4, 5, 7, 8, 11],
+        "parent_scale_interval_pattern": [2, 2, 1, 2, 1, 3, 1],
+        "is_diatonic": True,
+        "common_names": ["Harmonic Major", "Dorian ♭5", "Phrygian ♭4", "Lydian ♭3", "Mixolydian ♭2", "Lydian Aug ♯2", "Locrian ♭7♭5"]
+    }
+}
+
+# Double Harmonic Major modes
+DOUBLE_HARMONIC_MAJOR_MODES = {
+    "Double Harmonic Major": {
+        "modes": [
+            ("Double Harmonic", [0, 1, 4, 5, 7, 8, 11]),
+            ("Lydian ♯2 ♯6", [0, 3, 4, 6, 7, 10, 11]),
+            ("Ultraphrygian", [0, 1, 3, 4, 7, 9, 10]),
+            ("Hungarian Minor", [0, 2, 3, 6, 7, 8, 10]),
+            ("Oriental", [0, 1, 4, 5, 6, 9, 10]),
+            ("Ionian Aug ♯2", [0, 3, 4, 5, 8, 9, 11]),
+            ("Ultra-Locrian", [0, 1, 2, 4, 5, 7, 8])
+        ],
+        "formulas": [
+            "1, ♭2, 3, 4, 5, ♭6, 7",
+            "1, ♯2, 3, ♯4, 5, ♯6, 7",
+            "1, ♭2, ♭3, ♭4, 5, 6, ♭7",
+            "1, 2, ♭3, ♯4, 5, ♭6, ♭7",
+            "1, ♭2, 3, 4, ♭5, 6, ♭7",
+            "1, ♯2, 3, 4, ♯5, 6, 7",
+            "1, ♭2, ♭♭3, ♭4, ♭5, ♭6, ♭♭7"
+        ],
+        "headers": ["Mode / Scale Degree", "Double Harmonic (I)", "Lydian ♯2 ♯6 (II)", "Ultraphrygian (III)", "Hungarian Minor (IV)", "Oriental (V)", "Ionian Aug ♯2 (VI)", "Ultra-Locrian (VII)"],
+        "parent_scale_intervals": [0, 1, 4, 5, 7, 8, 11],
+        "parent_scale_interval_pattern": [1, 3, 1, 2, 1, 3, 1],
+        "is_diatonic": True,
+        "alternate_names": ["Byzantine", "Lydian ♯2 ♯6", "Ultraphrygian", "Hungarian Minor", "Oriental", "Ionian Aug ♯2", "Ultra-Locrian"],
+        "skip_common_names": True
+    }
+}
+
+# Major Pentatonic modes
+MAJOR_PENTATONIC_MODES = {
+    "Major Pentatonic": {
+        "modes": [
+            ("Mode I", [0, 2, 4, 7, 9]),
+            ("Mode II", [0, 2, 5, 7, 10]),
+            ("Mode III", [0, 3, 5, 8, 10]),
+            ("Mode IV", [0, 2, 5, 7, 9]),
+            ("Mode V", [0, 3, 5, 7, 10])
+        ],
+        "formulas": [
+            "1, 2, 3, 5, 6",
+            "1, 2, 4, 5, ♭7",
+            "1, ♭3, 4, ♭6, ♭7",
+            "1, 2, 4, 5, 6",
+            "1, ♭3, 4, 5, ♭7"
+        ],
+        "headers": ["Mode / Degree", "Mode I", "Mode II", "Mode III", "Mode IV", "Mode V"],
+        "parent_scale_intervals": [0, 2, 4, 7, 9],
+        "parent_scale_interval_pattern": [2, 2, 3, 2, 3],
+        "is_diatonic": False,
+        "alternate_names": ["Major Pentatonic", "Suspended", "Jue", "Zhi", "Minor Pentatonic"],
+        "skip_common_names": True
+    }
+}
+
+# Blues Scale modes
+BLUES_SCALE_MODES = {
+    "Blues Scale": {
+        "modes": [
+            ("Mode I", [0, 3, 5, 6, 7, 10]),
+            ("Mode II", [0, 2, 3, 4, 7, 9]),
+            ("Mode III", [0, 1, 2, 5, 7, 10]),
+            ("Mode IV", [0, 1, 4, 6, 9, 11]),
+            ("Mode V", [0, 3, 5, 8, 10, 11]),
+            ("Mode VI", [0, 2, 3, 7, 8, 9])
+        ],
+        "formulas": [
+            "1, ♭3, 4, ♭5, 5, ♭7",
+            "1, 2, ♭3, 3, 5, 6",
+            "1, ♭2, 2, 4, 5, ♭7",
+            "1, ♭2, 3, ♯4, 6, 7",
+            "1, ♭3, 4, ♭6, ♭7, 7",
+            "1, 2, ♭3, 5, ♭6, 6"
+        ],
+        "headers": ["Mode / Degree", "Mode I", "Mode II", "Mode III", "Mode IV", "Mode V", "Mode VI"],
+        "parent_scale_intervals": [0, 3, 5, 6, 7, 10],
+        "parent_scale_interval_pattern": [3, 2, 1, 1, 3, 2],
+        "is_diatonic": False,
+        "common_names": ["Blues Scale", "Blues Mode II", "Blues Mode III", "Blues Mode IV", "Blues Mode V", "Blues Mode VI"],
+        "skip_common_names": True
+    }
+}
+
+# All scale families combined
+ALL_SCALE_FAMILIES = {
+    **MAJOR_SCALE_MODES,
+    **MELODIC_MINOR_MODES,
+    **HARMONIC_MINOR_MODES,
+    **HARMONIC_MAJOR_MODES,
+    **DOUBLE_HARMONIC_MAJOR_MODES,
+    **MAJOR_PENTATONIC_MODES,
+    **BLUES_SCALE_MODES
+}
+
+# Comprehensive mode list for convenience
+ALL_MODES = []
+for family_name, family_data in ALL_SCALE_FAMILIES.items():
+    for mode_name, intervals in family_data["modes"]:
+        ALL_MODES.append(mode_name)
+
+# Extract all unique mode names (removing duplicates)
+ALL_MODES = list(set(ALL_MODES))
+
+# =============================================================================
 # MELODIC MOTION ANALYSIS
 # =============================================================================
 

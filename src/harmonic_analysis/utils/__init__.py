@@ -16,10 +16,13 @@ from .analysis_helpers import (
 
 # API integration helpers
 from .api_helpers import (
+    build_modes_from_root,
     create_scale_reference_endpoint_data,
     format_suggestions_for_api,
+    generate_scale_from_intervals,
     get_all_reference_data,
     get_chord_scale_relationships,
+    get_complete_scale_matrix,
     get_interval_training_data,
     get_modal_chord_progressions,
 )
@@ -71,12 +74,15 @@ __all__ = [
     "get_scale_reference_data",
     "format_analysis_for_display",
     # API helpers
-    "get_all_reference_data",
-    "format_suggestions_for_api",
-    "get_modal_chord_progressions",
-    "get_chord_scale_relationships",
-    "get_interval_training_data",
+    "build_modes_from_root",
     "create_scale_reference_endpoint_data",
+    "format_suggestions_for_api",
+    "generate_scale_from_intervals",
+    "get_all_reference_data",
+    "get_chord_scale_relationships",
+    "get_complete_scale_matrix",
+    "get_interval_training_data",
+    "get_modal_chord_progressions",
     # Enums
     "MotionType",
     "ScaleDegree",

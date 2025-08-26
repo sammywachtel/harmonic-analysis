@@ -15,6 +15,7 @@ from .music_theory_constants import (
     ALL_MAJOR_KEYS,
     ALL_MINOR_KEYS,
     ALL_MODES,
+    ALL_SCALE_FAMILIES,
     MODAL_CHARACTERISTICS,
     get_interval_name,
 )
@@ -329,3 +330,248 @@ def _get_relative_modes(mode: str) -> List[str]:
         "Locrian": ["Ionian", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian"],
     }
     return mode_families.get(mode, [])
+
+
+# =============================================================================
+# COMPLETE SCALE MATRIX FOR FRONTEND MIGRATION
+# =============================================================================
+
+# Parent keys in chromatic order (matches music_modes_app format)
+PARENT_KEY_INDICES = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5]  # C, G, D, A, E, B, F#, C#, G#, D#, A#, F
+
+PARENT_KEYS = {
+    0: "C",
+    1: "C♯",
+    2: "D",
+    3: "D♯",
+    4: "E",
+    5: "F",
+    6: "F♯",
+    7: "G",
+    8: "G♯",
+    9: "A",
+    10: "A♯",
+    11: "B"
+}
+
+# Note names for pitch class conversion
+NOTE_NAMES = [
+    "C", "C♯/D♭", "D", "D♯/E♭", "E", "F",
+    "F♯/G♭", "G", "G♯/A♭", "A", "A♯/B♭", "B"
+]
+
+def generate_scale_from_intervals(root_pitch_class: int, root_name: str, intervals: List[int]) -> List[str]:
+    """
+    Generate scale notes from root and intervals using context-aware enharmonic spelling.
+
+    Args:
+        root_pitch_class: Root note as pitch class (0-11)
+        root_name: Root note name (e.g., 'F#', 'Gb')
+        intervals: List of semitone intervals
+
+    Returns:
+        List of note names with appropriate enharmonic spelling
+    """
+    # Simple enharmonic logic - if root uses sharps, prefer sharps; if flats, prefer flats
+    prefer_sharps = '#' in root_name or '♯' in root_name
+
+    scale_notes = []
+    for interval in intervals:
+        pitch_class = (root_pitch_class + interval) % 12
+        note_options = NOTE_NAMES[pitch_class]
+
+        if '/' in note_options:  # Handle enharmonic notes
+            sharp_note, flat_note = note_options.split('/')
+            if prefer_sharps:
+                scale_notes.append(sharp_note)
+            else:
+                scale_notes.append(flat_note)
+        else:
+            scale_notes.append(note_options)
+
+    return scale_notes
+
+
+def get_complete_scale_matrix() -> List[Dict[str, Any]]:
+    """
+    Generate complete scale matrix in music_modes_app format.
+
+    Returns exactly the same structure as allScaleData from the TypeScript frontend,
+    allowing for drop-in replacement.
+
+    Returns:
+        List of ScaleData objects compatible with music_modes_app frontend
+    """
+    matrix_data = []
+
+    for family_name, family_data in ALL_SCALE_FAMILIES.items():
+        # Map our data structure to music_modes_app format
+        scale_data = {
+            "name": family_name,
+            "tableId": family_name.lower().replace(" ", "-") + "-modes",
+            "isDiatonic": family_data.get("is_diatonic", True),
+            "headers": family_data["headers"],
+            "formulas": family_data["formulas"],
+            "modeIntervals": [list(intervals) for _, intervals in family_data["modes"]],
+            "parentScaleIntervals": list(family_data["parent_scale_intervals"]),
+            "parentScaleIntervalPattern": family_data.get("parent_scale_interval_pattern", [])
+        }
+
+        # Add optional fields if they exist
+        if "common_names" in family_data and not family_data.get("skip_common_names", False):
+            scale_data["commonNames"] = family_data["common_names"]
+
+        if "alternate_names" in family_data:
+            scale_data["alternateNames"] = family_data["alternate_names"]
+
+        if family_data.get("skip_common_names", False):
+            scale_data["skipCommonNames"] = True
+
+        matrix_data.append(scale_data)
+
+    return matrix_data
+
+
+def build_modes_from_root(root_note: str) -> List[Dict[str, Any]]:
+    """
+    Build all modes from a given root note (matches music_modes_app scaleDataService).
+
+    Args:
+        root_note: Root note name (e.g., 'C', 'F#', 'Bb')
+
+    Returns:
+        List of ModeFromRoot objects compatible with music_modes_app ScaleGrid component
+    """
+    # Convert root note to pitch class
+    root_pitch_class = _note_name_to_pitch_class(root_note)
+    if root_pitch_class == -1:
+        raise ValueError(f"Invalid root note: {root_note}")
+
+    modes = []
+
+    for family_name, family_data in ALL_SCALE_FAMILIES.items():
+        for mode_index, (mode_name, intervals) in enumerate(family_data["modes"]):
+            # Generate mode notes from root
+            mode_notes = generate_scale_from_intervals(root_pitch_class, root_note, intervals)
+
+            # Calculate parent scale root (mode index semitones below current root)
+            parent_root_pitch = (root_pitch_class - family_data["parent_scale_intervals"][mode_index]) % 12
+            parent_root_name = PARENT_KEYS[parent_root_pitch]
+
+            # Get mode formula
+            formula = family_data["formulas"][mode_index]
+
+            # Get common name if available
+            common_name = None
+            if ("common_names" in family_data and
+                not family_data.get("skip_common_names", False) and
+                mode_index < len(family_data["common_names"])):
+                common_name = family_data["common_names"][mode_index]
+            elif ("alternate_names" in family_data and
+                  mode_index < len(family_data["alternate_names"])):
+                common_name = family_data["alternate_names"][mode_index]
+
+            mode_data = {
+                "id": f"{family_data.get('tableId', family_name.lower().replace(' ', '-'))}-mode-{mode_index}-root-{root_pitch_class}",
+                "name": mode_name,
+                "commonName": common_name,
+                "formula": formula,
+                "intervals": list(intervals),
+                "notes": mode_notes,
+                "tableId": family_name.lower().replace(" ", "-") + "-modes",
+                "modeIndex": mode_index,
+                "parentScaleName": family_name,
+                "parentScaleRootNote": parent_root_name,
+                "character": _get_mode_character_description(family_name, mode_index, mode_name)
+            }
+
+            modes.append(mode_data)
+
+    # Sort by scale family order, then by mode index
+    family_order = list(ALL_SCALE_FAMILIES.keys())
+    modes.sort(key=lambda m: (
+        family_order.index(m["parentScaleName"]) if m["parentScaleName"] in family_order else 999,
+        m["modeIndex"]
+    ))
+
+    return modes
+
+
+def _note_name_to_pitch_class(note_name: str) -> int:
+    """Convert note name to pitch class (0-11)."""
+    # Simple mapping - could be enhanced
+    note_map = {
+        "C": 0, "C#": 1, "C♯": 1, "DB": 1, "D♭": 1,
+        "D": 2, "D#": 3, "D♯": 3, "EB": 3, "E♭": 3,
+        "E": 4, "FB": 4, "F♭": 4,
+        "F": 5, "E#": 5, "E♯": 5,
+        "F#": 6, "F♯": 6, "GB": 6, "G♭": 6,
+        "G": 7, "G#": 8, "G♯": 8, "AB": 8, "A♭": 8,
+        "A": 9, "A#": 10, "A♯": 10, "BB": 10, "B♭": 10,
+        "B": 11, "CB": 11, "C♭": 11
+    }
+    return note_map.get(note_name.upper(), -1)
+
+
+def _get_mode_character_description(scale_name: str, mode_index: int, mode_name: str) -> str:
+    """Get character description for a mode (basic implementation)."""
+    # This matches the music_modes_app getCharacterDescription function
+    descriptions = {
+        'Major Scale': [
+            'Bright, happy, stable - the foundation of Western music',
+            'Minor with bright 6th - jazzy, sophisticated',
+            'Dark, Spanish flavor - exotic and mysterious',
+            'Dreamy, floating - augmented 4th creates ethereal quality',
+            'Dominant, bluesy - perfect for rock and blues',
+            'Sad, melancholic - natural minor scale',
+            'Unstable, diminished - rarely used as tonal center'
+        ],
+        'Melodic Minor': [
+            'Jazz minor - sophisticated, modern sound',
+            'Dark with flat 2nd - haunting quality',
+            'Augmented, dreamy - raised 5th creates tension',
+            'Lydian dominant - jazz standard, sophisticated',
+            'Hindu scale - exotic, Eastern flavor',
+            'Half-diminished - dark but stable',
+            'Altered dominant - highly dissonant, jazz fusion'
+        ],
+        'Harmonic Minor': [
+            'Classical minor - dramatic, exotic augmented 2nd',
+            'Locrian with natural 6th - unusual but usable',
+            'Major with augmented 5th - bright but tense',
+            'Ukrainian Dorian - folk music character',
+            'Phrygian dominant - Middle Eastern, Spanish',
+            'Lydian with sharp 2nd - very exotic',
+            'Super-Locrian - extremely dissonant'
+        ],
+        'Harmonic Major': [
+            'Major with flat 6th - unique, somewhat dark',
+            'Dorian with flat 5th - unstable character',
+            'Phrygian with flat 4th - very exotic',
+            'Lydian with flat 3rd - unusual major/minor blend',
+            'Mixolydian with flat 2nd - Eastern flavor',
+            'Lydian augmented with sharp 2nd - highly exotic',
+            'Ultra-diminished - extremely unstable'
+        ]
+    }
+
+    if scale_name in descriptions and mode_index < len(descriptions[scale_name]):
+        return descriptions[scale_name][mode_index]
+
+    # Fallback generic descriptions
+    if 'major' in mode_name.lower() or 'ionian' in mode_name.lower():
+        return 'Bright, stable major character'
+    elif 'minor' in mode_name.lower() or 'aeolian' in mode_name.lower():
+        return 'Dark, melancholic minor character'
+    elif 'dorian' in mode_name.lower():
+        return 'Minor with bright 6th - sophisticated'
+    elif 'phrygian' in mode_name.lower():
+        return 'Dark with flat 2nd - Spanish/exotic flavor'
+    elif 'lydian' in mode_name.lower():
+        return 'Bright with raised 4th - dreamy, floating'
+    elif 'mixolydian' in mode_name.lower():
+        return 'Major with flat 7th - bluesy, dominant'
+    elif 'locrian' in mode_name.lower():
+        return 'Diminished, unstable - rarely used as tonal center'
+    else:
+        return 'Unique modal character - explore its distinctive sound'
