@@ -64,7 +64,7 @@ jobs:
         pip install -r requirements-dev.txt
 
     - name: Generate comprehensive test cases
-      run: python scripts/generate_comprehensive_test_cases.py
+      run: python scripts/generate_comprehensive_multi_layer_tests.py
 
     - name: Validate generated test cases
       run: pytest tests/generated/ -v

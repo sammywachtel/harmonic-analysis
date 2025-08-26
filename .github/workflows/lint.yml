@@ -112,7 +112,7 @@ jobs:
       - name: Generate comprehensive test data
         run: |
           echo "🎯 Generating comprehensive test data..."
-          python scripts/generate_test_data.py
+          python scripts/generate_comprehensive_multi_layer_tests.py
           echo "✅ Generated test data files:"
           ls -la tests/generated/
 
