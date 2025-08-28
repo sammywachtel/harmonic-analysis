@@ -28,6 +28,32 @@ class ChromaticType(Enum):
     NEAPOLITAN = "neapolitan"
 
 
+class EvidenceType(Enum):
+    """Types of analytical evidence for harmonic interpretation."""
+
+    HARMONIC = "harmonic"
+    STRUCTURAL = "structural"
+    CADENTIAL = "cadential"
+    INTERVALLIC = "intervallic"
+    CONTEXTUAL = "contextual"
+
+
+class InterpretationType(Enum):
+    """Types of harmonic interpretation."""
+
+    FUNCTIONAL = "functional"
+    MODAL = "modal"
+    CHROMATIC = "chromatic"
+
+
+class PedagogicalLevel(Enum):
+    """Pedagogical levels for adaptive disclosure."""
+
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    ADVANCED = "advanced"
+
+
 class ProgressionType(Enum):
     """Types of chord progressions."""
 

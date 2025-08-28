@@ -4,11 +4,12 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 0.2.x   | :white_check_mark: |
 | 0.1.x   | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please send an email to sammywachtel@gmail.com.
+If you discover a security vulnerability, please report it through GitHub Security Advisories or create a private issue.
 
 Please include:
 - Description of the vulnerability

@@ -18,7 +18,6 @@ import json
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
 from typing import Dict, List, Optional, cast
 
 from ..core.enhanced_modal_analyzer import EnhancedModalAnalyzer, ModalAnalysisResult
@@ -26,35 +25,17 @@ from ..core.functional_harmony import (
     FunctionalAnalysisResult,
     FunctionalHarmonyAnalyzer,
 )
-from ..types import AnalysisOptions, AnalysisSuggestions
+from ..types import (
+    AnalysisOptions,
+    AnalysisSuggestions,
+    EvidenceType,
+    InterpretationType,
+    PedagogicalLevel,
+)
 from .algorithmic_suggestion_engine import AlgorithmicSuggestionEngine
 from .bidirectional_suggestion_engine import BidirectionalSuggestionEngine
 
-
-class EvidenceType(Enum):
-    """Types of analytical evidence"""
-
-    HARMONIC = "harmonic"
-    STRUCTURAL = "structural"
-    CADENTIAL = "cadential"
-    INTERVALLIC = "intervallic"
-    CONTEXTUAL = "contextual"
-
-
-class InterpretationType(Enum):
-    """Types of harmonic interpretation"""
-
-    FUNCTIONAL = "functional"
-    MODAL = "modal"
-    CHROMATIC = "chromatic"
-
-
-class PedagogicalLevel(Enum):
-    """Pedagogical levels for adaptive disclosure"""
-
-    BEGINNER = "beginner"
-    INTERMEDIATE = "intermediate"
-    ADVANCED = "advanced"
+# Enums moved to types.py for shared usage
 
 
 @dataclass
@@ -397,7 +378,9 @@ class MultipleInterpretationService:
     ) -> Optional[InterpretationAnalysis]:
         """Create functional interpretation with confidence scoring"""
         try:
-            evidence = self._collect_functional_evidence(chords, functional_result, options)
+            evidence = self._collect_functional_evidence(
+                chords, functional_result, options
+            )
             confidence = self._calculate_confidence(evidence)
 
             # Extract cadences and chord functions from functional analysis
@@ -492,7 +475,10 @@ class MultipleInterpretationService:
             return None
 
     def _collect_functional_evidence(
-        self, chords: List[str], functional_result: FunctionalAnalysisResult, options: Optional[AnalysisOptions] = None
+        self,
+        chords: List[str],
+        functional_result: FunctionalAnalysisResult,
+        options: Optional[AnalysisOptions] = None,
     ) -> List[AnalysisEvidence]:
         """Collect evidence for functional analysis"""
         evidence: List[AnalysisEvidence] = []
@@ -608,7 +594,9 @@ class MultipleInterpretationService:
         # FIXED: Add evidence for chromatic elements in functional analysis
         # This was missing and is crucial for secondary dominant detection
         if options and options.parent_key:
-            chromatic_elements = self._detect_chromatic_elements(chords, options.parent_key)
+            chromatic_elements = self._detect_chromatic_elements(
+                chords, options.parent_key
+            )
 
             # Secondary dominants boost functional analysis confidence significantly
             if chromatic_elements["secondary_dominants"]:
@@ -620,7 +608,7 @@ class MultipleInterpretationService:
                         description=f"Contains {num_secondary} secondary dominant(s)",
                         supported_interpretations=[InterpretationType.FUNCTIONAL],
                         musical_basis=(
-                            "Secondary dominants indicate sophisticated functional harmony"
+                            "Secondary dominants indicate sophisticated harmony"
                         ),
                     )
                 )
@@ -634,7 +622,7 @@ class MultipleInterpretationService:
                         strength=0.75,
                         description=f"Contains {num_borrowed} borrowed chord(s)",
                         supported_interpretations=[InterpretationType.FUNCTIONAL],
-                        musical_basis="Borrowed chords indicate functional harmonic awareness",
+                        musical_basis="Borrowed chords indicate functional awareness",
                     )
                 )
 

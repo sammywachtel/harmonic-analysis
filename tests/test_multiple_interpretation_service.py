@@ -13,11 +13,15 @@ import pytest
 
 from harmonic_analysis import (
     AnalysisOptions,
+    analyze_progression_multiple,
+)
+from harmonic_analysis.services.multiple_interpretation_service import (
+    MultipleInterpretationService,
+)
+from harmonic_analysis.types import (
     EvidenceType,
     InterpretationType,
-    MultipleInterpretationService,
     PedagogicalLevel,
-    analyze_progression_multiple,
 )
 
 

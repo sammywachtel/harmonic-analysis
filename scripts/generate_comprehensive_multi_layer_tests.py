@@ -768,7 +768,7 @@ class ComprehensiveMultiLayerGenerator:
     def generate_ambiguous_context_tests(self):
         """
         🤔 AMBIGUOUS CONTEXT TESTS - Progressions that could be interpreted
-        multiple ways
+        multiple ways and make the algorithms go 'hmmmmm'.
         """
         print("  🤔 Generating ambiguous context tests...")
 

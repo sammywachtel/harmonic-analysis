@@ -23,7 +23,7 @@ uphold this code. Please report unacceptable behavior to the owner.
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.11 or higher
 - Git
 - Basic understanding of music theory concepts
 
@@ -46,8 +46,8 @@ We welcome contributions in the following areas:
 
 2. **Clone your fork** and setup environment:
    ```bash
-   git clone https://github.com/yourusername/harmonic-analysis-py.git
-   cd harmonic-analysis-py
+   git clone https://github.com/yourusername/harmonic-analysis.git
+   cd harmonic-analysis
 
    # One-command comprehensive setup
    python scripts/setup_dev_env.py
@@ -687,7 +687,7 @@ If you need help with contributing:
    python scripts/setup_dev_env.py
    ```
 4. **Ask questions** in GitHub discussions
-5. **Contact maintainers** at sammywachtel@gmail.com
+5. **Contact maintainers** through GitHub discussions or issues
 
 ## Quality Automation Benefits 🎆
 
