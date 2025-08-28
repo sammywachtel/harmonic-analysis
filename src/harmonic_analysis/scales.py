@@ -8,66 +8,47 @@ including parent scale detection, modal label generation, and contextual classif
 """
 
 # Re-export all scale and melody analysis functionality
+# Main analysis function; Result types; Analyzer class (for power users)
 from .scale_melody_analysis import (
-    # Main analysis function
-    analyze_scale_melody,
-
-    # Result types
     ScaleMelodyAnalysisResult,
-
-    # Analyzer class (for power users)
     ScaleMelodyAnalyzer,
+    analyze_scale_melody,
 )
 
 # Scale data and constants
+# Data structures; Scale systems; Modal relationships; Constants; Utility functions
 from .utils.scales import (
-    # Data structures
-    ScaleData,
-
-    # Scale systems
+    ALL_SCALE_SYSTEMS,
+    HARMONIC_MINOR_MODES,
     MAJOR_SCALE_MODES,
     MELODIC_MINOR_MODES,
-    HARMONIC_MINOR_MODES,
-    ALL_SCALE_SYSTEMS,
-
-    # Modal relationships
     MODAL_PARENT_KEYS,
-
-    # Constants
     NOTE_TO_PITCH_CLASS,
     PITCH_CLASS_NAMES,
-
-    # Utility functions
-    get_parent_key,
+    ScaleData,
     generate_scale_notes,
+    get_parent_key,
 )
 
 __all__ = [
     # Main analysis function
     "analyze_scale_melody",
-
     # Result types
     "ScaleMelodyAnalysisResult",
-
     # Analyzer class
     "ScaleMelodyAnalyzer",
-
     # Data structures
     "ScaleData",
-
     # Scale systems
     "MAJOR_SCALE_MODES",
     "MELODIC_MINOR_MODES",
     "HARMONIC_MINOR_MODES",
     "ALL_SCALE_SYSTEMS",
-
     # Modal relationships
     "MODAL_PARENT_KEYS",
-
     # Constants
     "NOTE_TO_PITCH_CLASS",
     "PITCH_CLASS_NAMES",
-
     # Utility functions
     "get_parent_key",
     "generate_scale_notes",

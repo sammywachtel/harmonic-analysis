@@ -17,7 +17,9 @@ from harmonic_analysis import (
 from harmonic_analysis.chromatic import ChromaticAnalyzer
 from harmonic_analysis.core.enhanced_modal_analyzer import EnhancedModalAnalyzer
 from harmonic_analysis.core.functional_harmony import FunctionalHarmonyAnalyzer
-from harmonic_analysis.services.multiple_interpretation_service import MultipleInterpretationService
+from harmonic_analysis.services.multiple_interpretation_service import (
+    MultipleInterpretationService,
+)
 from scripts.generate_comprehensive_multi_layer_tests import (
     ComprehensiveMultiLayerGenerator,
     MultiLayerTestCase,

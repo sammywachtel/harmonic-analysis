@@ -8,24 +8,17 @@ who need detailed analysis of complex harmonic techniques.
 """
 
 # Re-export all chromatic analysis functionality
+# Analysis functions; Result types; Data structures;
+#   Enums; Analyzer class (for power users)
 from .core.chromatic_analysis import (
-    # Analysis functions
-    analyze_chromatic_harmony,
-
-    # Result types
-    ChromaticAnalysisResult,
-
-    # Data structures
-    SecondaryDominant,
     BorrowedChord,
+    ChromaticAnalysisResult,
+    ChromaticAnalyzer,
     ChromaticMediant,
     ResolutionPattern,
-
-    # Enums
     ResolutionType,
-
-    # Analyzer class (for power users)
-    ChromaticAnalyzer,
+    SecondaryDominant,
+    analyze_chromatic_harmony,
 )
 
 # Also re-export modal analysis function for completeness
@@ -35,19 +28,15 @@ __all__ = [
     # Analysis functions
     "analyze_chromatic_harmony",
     "analyze_modal_progression",
-
     # Result types
     "ChromaticAnalysisResult",
-
     # Data structures
     "SecondaryDominant",
     "BorrowedChord",
     "ChromaticMediant",
     "ResolutionPattern",
-
     # Enums
     "ResolutionType",
-
     # Analyzer class
     "ChromaticAnalyzer",
 ]

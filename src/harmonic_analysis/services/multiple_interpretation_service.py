@@ -397,7 +397,7 @@ class MultipleInterpretationService:
     ) -> Optional[InterpretationAnalysis]:
         """Create functional interpretation with confidence scoring"""
         try:
-            evidence = self._collect_functional_evidence(chords, functional_result)
+            evidence = self._collect_functional_evidence(chords, functional_result, options)
             confidence = self._calculate_confidence(evidence)
 
             # Extract cadences and chord functions from functional analysis
@@ -492,7 +492,7 @@ class MultipleInterpretationService:
             return None
 
     def _collect_functional_evidence(
-        self, chords: List[str], functional_result: FunctionalAnalysisResult
+        self, chords: List[str], functional_result: FunctionalAnalysisResult, options: Optional[AnalysisOptions] = None
     ) -> List[AnalysisEvidence]:
         """Collect evidence for functional analysis"""
         evidence: List[AnalysisEvidence] = []
@@ -605,6 +605,39 @@ class MultipleInterpretationService:
                     )
                 )
 
+        # FIXED: Add evidence for chromatic elements in functional analysis
+        # This was missing and is crucial for secondary dominant detection
+        if options and options.parent_key:
+            chromatic_elements = self._detect_chromatic_elements(chords, options.parent_key)
+
+            # Secondary dominants boost functional analysis confidence significantly
+            if chromatic_elements["secondary_dominants"]:
+                num_secondary = len(chromatic_elements["secondary_dominants"])
+                evidence.append(
+                    AnalysisEvidence(
+                        type=EvidenceType.HARMONIC,
+                        strength=0.85,  # High strength for secondary dominants
+                        description=f"Contains {num_secondary} secondary dominant(s)",
+                        supported_interpretations=[InterpretationType.FUNCTIONAL],
+                        musical_basis=(
+                            "Secondary dominants indicate sophisticated functional harmony"
+                        ),
+                    )
+                )
+
+            # Borrowed chords also support functional interpretation
+            if chromatic_elements["borrowed_chords"]:
+                num_borrowed = len(chromatic_elements["borrowed_chords"])
+                evidence.append(
+                    AnalysisEvidence(
+                        type=EvidenceType.HARMONIC,
+                        strength=0.75,
+                        description=f"Contains {num_borrowed} borrowed chord(s)",
+                        supported_interpretations=[InterpretationType.FUNCTIONAL],
+                        musical_basis="Borrowed chords indicate functional harmonic awareness",
+                    )
+                )
+
         return evidence
 
     def _collect_modal_evidence(
@@ -621,8 +654,11 @@ class MultipleInterpretationService:
             # Use the original description instead of stringifying
             description = getattr(modal_evidence, "description", str(modal_evidence))
 
-            # Use the original strength instead of hardcoding 0.85
-            strength = getattr(modal_evidence, "strength", 0.85)
+            # FIXED: Use more conservative modal evidence scoring
+            # Modal evidence should not default to such high values
+            original_strength = getattr(modal_evidence, "strength", 0.70)
+            # Cap modal evidence at reasonable levels to balance with functional
+            strength = min(original_strength, 0.75)
 
             evidence.append(
                 AnalysisEvidence(
@@ -637,11 +673,13 @@ class MultipleInterpretationService:
                 )
             )
 
-        # Overall modal confidence
+        # FIXED: Reduce overall modal confidence contribution
+        # Don't double-count the analyzer confidence at full strength
+        contextual_strength = min(modal_result.confidence * 0.8, 0.75)
         evidence.append(
             AnalysisEvidence(
                 type=EvidenceType.CONTEXTUAL,
-                strength=modal_result.confidence,
+                strength=contextual_strength,
                 description="Overall modal characteristics present",
                 supported_interpretations=[InterpretationType.MODAL],
                 musical_basis="Combined modal features suggest modal interpretation",

@@ -8,32 +8,23 @@ for advanced users and applications requiring deeper analytical insight.
 """
 
 # Re-export all algorithmic analysis functionality
+# Core engine; Result types
 from .services.algorithmic_suggestion_engine import (
-    # Core engine
     AlgorithmicSuggestionEngine,
-
-    # Result types
     KeyAnalysisResult,
 )
 
+# Core engine; Result types; Enums
 from .services.bidirectional_suggestion_engine import (
-    # Core engine
-    BidirectionalSuggestionEngine,
-
-    # Result types
     BidirectionalSuggestion,
+    BidirectionalSuggestionEngine,
     KeyRelevanceScore,
-
-    # Enums
     SuggestionType,
 )
 
 # Import types for suggestion system
-from .types import (
-    # Configuration
+from .types import (  # Configuration; Result types
     AnalysisOptions,
-
-    # Result types
     AnalysisSuggestions,
     KeySuggestion,
 )
@@ -42,18 +33,14 @@ __all__ = [
     # Core engines
     "AlgorithmicSuggestionEngine",
     "BidirectionalSuggestionEngine",
-
     # Result types
     "KeyAnalysisResult",
     "BidirectionalSuggestion",
     "KeyRelevanceScore",
-
     # Enums
     "SuggestionType",
-
     # Configuration types
     "AnalysisOptions",
-
     # Suggestion types
     "AnalysisSuggestions",
     "KeySuggestion",
