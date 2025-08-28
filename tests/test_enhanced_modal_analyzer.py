@@ -10,11 +10,11 @@ Tests the sophisticated modal detection capabilities including:
 
 import pytest
 
-from harmonic_analysis import (
+from harmonic_analysis.core.enhanced_modal_analyzer import (
     EnhancedModalAnalyzer,
     EvidenceType,
-    analyze_modal_progression,
 )
+from harmonic_analysis.chromatic import analyze_modal_progression
 
 
 class TestEnhancedModalAnalyzer:
