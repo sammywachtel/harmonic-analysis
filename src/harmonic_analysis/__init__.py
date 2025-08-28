@@ -12,7 +12,7 @@ For specialized functionality, see:
 - harmonic_analysis.algorithms - Advanced algorithmic analysis
 """
 
-__version__ = "0.2.0rc2"
+__version__ = "0.2.0rc3"
 
 # =============================================================================
 # LAYER 1: MAIN API - Essential Functions for 90% of Users
