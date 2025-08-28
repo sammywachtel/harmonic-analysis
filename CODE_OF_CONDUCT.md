@@ -18,6 +18,6 @@ Examples of behavior that contributes to creating a positive environment include
 
 Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate action in response to any instances of unacceptable behavior.
 
-For questions or reports, please contact sammywachtel@gmail.com.
+For questions or reports, please create an issue on GitHub or contact the maintainers through GitHub discussions.
 
 This Code of Conduct is adapted from the Contributor Covenant, version 1.4.

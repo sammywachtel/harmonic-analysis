@@ -15,12 +15,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from ..types import EvidenceType
 
-class EvidenceType(Enum):
-    STRUCTURAL = "structural"
-    CADENTIAL = "cadential"
-    INTERVALLIC = "intervallic"
-    CONTEXTUAL = "contextual"
+# EvidenceType moved to types.py for shared usage
 
 
 class PatternContext(Enum):

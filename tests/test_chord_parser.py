@@ -9,7 +9,7 @@ Tests comprehensive chord parsing and detection including:
 - Inversion detection
 """
 
-from harmonic_analysis import (
+from harmonic_analysis.midi import (
     ChordParser,
     find_chords_from_midi,
     parse_chord,

@@ -673,6 +673,76 @@ pytest tests/test_comprehensive_multi_layer_validation.py::TestComprehensiveMult
 pytest tests/test_edge_case_behavior.py -v
 ```
 
+## 🔧 Specialized Module Examples
+
+### MIDI Integration
+```python
+from harmonic_analysis.midi import parse_chord, find_chords_from_midi
+
+# Parse chord symbols
+chord_info = parse_chord('Cmaj7')
+print(chord_info['quality'])  # 'major7'
+
+# Analyze MIDI notes
+midi_notes = [60, 64, 67]  # C major triad
+matches = find_chords_from_midi(midi_notes)
+print(matches[0].chord_name)  # 'Major'
+```
+
+### Advanced Chromatic Analysis
+```python
+from harmonic_analysis.chromatic import ChromaticAnalyzer, analyze_chromatic_harmony
+from harmonic_analysis.core.functional_harmony import FunctionalHarmonyAnalyzer
+
+async def chromatic_example():
+    # First get functional analysis
+    functional_analyzer = FunctionalHarmonyAnalyzer()
+    chords = ['C', 'A7', 'Dm', 'G7', 'C']
+    functional_result = await functional_analyzer.analyze_functionally(chords, 'C major')
+
+    # Then analyze chromatic elements
+    chromatic_result = analyze_chromatic_harmony(functional_result)
+    if chromatic_result:
+        print(f"Secondary dominants: {len(chromatic_result.secondary_dominants)}")
+        print(f"Borrowed chords: {len(chromatic_result.borrowed_chords)}")
+```
+
+### Music Theory Utilities
+```python
+from harmonic_analysis.theory import (
+    get_interval_name,
+    MODAL_CHARACTERISTICS,
+    get_modal_characteristics
+)
+
+# Interval analysis
+print(get_interval_name(7))  # "Perfect 5th"
+
+# Modal characteristics
+characteristics = get_modal_characteristics('Dorian')
+print(characteristics.brightness)  # "neutral"
+print(characteristics.characteristic_degrees)  # ['1', '♭3', '6', '♭7']
+```
+
+### Algorithmic Suggestions
+```python
+from harmonic_analysis.algorithms import BidirectionalSuggestionEngine, AnalysisOptions
+
+async def suggestion_example():
+    engine = BidirectionalSuggestionEngine()
+    chords = ['Dm7', 'G7', 'Cmaj7']
+    options = AnalysisOptions()
+
+    suggestions = await engine.generate_bidirectional_suggestions(
+        chords, options, current_analysis_confidence=0.6
+    )
+
+    if suggestions.parent_key_suggestions:
+        suggestion = suggestions.parent_key_suggestions[0]
+        print(f"Try: {suggestion.suggested_key}")
+        print(f"Reason: {suggestion.reason}")
+```
+
 ## Common Questions
 
 ### "Why doesn't it recognize my progression?"
@@ -695,9 +765,9 @@ The library shows you the most likely interpretations with confidence scores.
 
 ### "What's the difference between a scale and a melody?"
 
-- **Scale**: A collection of notes (unordered, no rhythm)
+- **Scale**: `analyze_scale_melody(notes, melody=False)` - A collection of notes (unordered, no rhythm)
     - Returns: What scales contain these notes
-- **Melody**: A sequence of notes (ordered, implies rhythm)
+- **Melody**: `analyze_scale_melody(notes, melody=True)` - A sequence of notes (ordered, implies rhythm)
     - Returns: Same as scale PLUS suggested tonic and confidence
 
 ### "How accurate is the confidence score?"
