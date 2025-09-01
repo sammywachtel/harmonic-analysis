@@ -8,19 +8,17 @@ for scales, modes, and progressions.
 """
 
 import asyncio
-from harmonic_analysis import (
-    # Core analysis
-    analyze_progression_multiple,
-    # Character analysis
-    get_mode_emotional_profile,
-    analyze_progression_character,
-    get_character_suggestions,
-    get_modes_by_brightness,
-    describe_emotional_contour,
-    # Data types
+
+from harmonic_analysis import (  # Core analysis; Character analysis; Data types
+    CharacterSuggestion,
     EmotionalProfile,
     ProgressionCharacter,
-    CharacterSuggestion,
+    analyze_progression_character,
+    analyze_progression_multiple,
+    describe_emotional_contour,
+    get_character_suggestions,
+    get_mode_emotional_profile,
+    get_modes_by_brightness,
 )
 
 

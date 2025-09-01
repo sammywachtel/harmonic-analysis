@@ -19,21 +19,20 @@ try:
         format_scale_melody_analysis,
     )
 
-    from harmonic_analysis import (  # Import utilities from library instead of duplicating
+    from harmonic_analysis import (  # Import utilities from library instead of duplicating; Character and Emotional Analysis
         AnalysisOptions,
-        analyze_progression_multiple,
-        analyze_scale_melody,
-        describe_contour,
-        get_interval_name,
-        # Character and Emotional Analysis
-        analyze_progression_character,
-        get_mode_emotional_profile,
-        get_character_suggestions,
-        get_modes_by_brightness,
-        describe_emotional_contour,
         CharacterSuggestion,
         EmotionalProfile,
         ProgressionCharacter,
+        analyze_progression_character,
+        analyze_progression_multiple,
+        analyze_scale_melody,
+        describe_contour,
+        describe_emotional_contour,
+        get_character_suggestions,
+        get_interval_name,
+        get_mode_emotional_profile,
+        get_modes_by_brightness,
     )
 
     # Import additional utilities from submodules
@@ -64,21 +63,21 @@ try:
 
     def get_all_reference_data():
         """Get all music theory reference data from the library."""
+        from harmonic_analysis.scales import ALL_SCALE_SYSTEMS, PITCH_CLASS_NAMES
         from harmonic_analysis.utils.music_theory_constants import (
-            ALL_MODES,
             ALL_MAJOR_KEYS,
             ALL_MINOR_KEYS,
+            ALL_MODES,
             MODAL_CHARACTERISTICS,
             SCALE_TO_CHORD_MAPPINGS,
             SEMITONE_TO_INTERVAL_NAME,
             get_modal_characteristics,
         )
-        from harmonic_analysis.scales import ALL_SCALE_SYSTEMS, PITCH_CLASS_NAMES
-        from harmonic_analysis.utils.scales import KEY_SIGNATURES
         from harmonic_analysis.utils.roman_numeral_converter import (
             convert_roman_numerals_to_chords,
             is_roman_numeral_progression,
         )
+        from harmonic_analysis.utils.scales import KEY_SIGNATURES
 
         return {
             "modes": {
@@ -136,9 +135,9 @@ try:
     def get_modal_chord_progressions():
         """Get modal chord progressions reference using library data."""
         from harmonic_analysis.utils.music_theory_constants import (
+            ALL_MODES,
             SCALE_TO_CHORD_MAPPINGS,
             get_modal_characteristics,
-            ALL_MODES,
         )
 
         # Build comprehensive modal progressions from library data
@@ -191,8 +190,8 @@ try:
         """Create reference data for a specific scale using library data."""
         from harmonic_analysis.scales import ALL_SCALE_SYSTEMS, PITCH_CLASS_NAMES
         from harmonic_analysis.utils.music_theory_constants import (
-            get_modal_characteristics,
             SCALE_TO_CHORD_MAPPINGS,
+            get_modal_characteristics,
         )
 
         # Find the scale in available systems
