@@ -10,11 +10,15 @@ This library listens to your chord progressions, scales, and melodies and tells 
 - **What key you're in** and how confident it is about that
 - **The function of each chord** (tonic, dominant, subdominant, etc.) with full inversion analysis
 - **What mode you might be using** (Dorian, Mixolydian, Phrygian, etc.)
-- **Advanced harmonic techniques** you're employing (secondary dominants, borrowed chords, etc.)
+- **Advanced harmonic techniques** you're employing (secondary dominants, borrowed chords, chromatic mediants)
 - **Chord inversions with proper figured bass notation** (⁶, ⁶⁴, ⁴²)
 - **Multiple valid interpretations** when your music is ambiguous (which is often!)
+- **Chromatic harmony analysis** including tonicization, modal mixture, and voice leading
+- **Emotional character** of your progressions and scales
+- **Intelligent key suggestions** that consider both harmonic function and context
+- **Perfect bidirectional conversion** between chord symbols and Roman numerals
 
-Think of it as having a music theory professor analyze your work and explain their reasoning, including proper voice leading and inversion analysis.
+Think of it as having three music theory professors analyze your work simultaneously - one specializing in classical harmony, one in modal jazz, and one in chromatic/contemporary techniques - each explaining their reasoning with evidence-based analysis.
 
 ## Installation
 
@@ -104,21 +108,21 @@ from harmonic_analysis import analyze_chord_progression, AnalysisOptions
 async def analyze_inversions():
     # Progression with multiple inversions in F major
     chords = ['D', 'Gm/Bb', 'D/A', 'Gm', 'F/C', 'C', 'F']
-    
+
     result = await analyze_chord_progression(
-        chords, 
+        chords,
         AnalysisOptions(parent_key='F major')
     )
-    
+
     print("Analysis:", result.primary_analysis.analysis)
     # Output: "Functional progression with secondary dominants"
-    
+
     print("Roman numerals:", result.primary_analysis.roman_numerals)
     # Output: ['V/ii', 'ii⁶', 'V/ii⁶⁴', 'ii', 'I⁶⁴', 'V', 'I']
-    
+
     # Perfect bidirectional conversion
     from harmonic_analysis.utils.roman_numeral_converter import convert_roman_numerals_to_chords
-    
+
     romans_str = " ".join(result.primary_analysis.roman_numerals)
     reconstructed = convert_roman_numerals_to_chords(romans_str, "F major")
     print("Reconstructed chords:", reconstructed)
@@ -130,7 +134,7 @@ asyncio.run(analyze_inversions())
 
 **Inversion Notation Used:**
 - **⁶** = First inversion (third in bass)
-- **⁶⁴** = Second inversion (fifth in bass)  
+- **⁶⁴** = Second inversion (fifth in bass)
 - **⁴²** = Third inversion of seventh chords (seventh in bass)
 
 The library provides **perfect bidirectional conversion** - you can go from chord symbols → Roman numerals → chord symbols with complete inversion preservation.
@@ -225,6 +229,150 @@ result = await analyze_chord_progression(['Dm', 'G', 'C'])
 # Alternative interpretation (if confidence is close):
 "D Dorian modal progression: i - IV - bVII"
 # Why: Dm as tonic, characteristic modal motion
+```
+
+## Multiple Interpretations & Advanced Harmonic Analysis 🎭
+
+Music is often ambiguous, and good musicians can hear the same progression multiple ways. This library embraces that reality by providing **multiple valid interpretations** when appropriate.
+
+### Getting All Interpretations
+
+```python
+import asyncio
+from harmonic_analysis import analyze_progression_multiple, AnalysisOptions
+
+async def explore_interpretations():
+    # This progression can be heard multiple ways
+    chords = ['Am', 'F', 'C', 'G']
+
+    # Request multiple interpretations with low threshold
+    options = AnalysisOptions(
+        confidence_threshold=0.3,  # Show more alternatives
+        max_alternatives=5         # Up to 5 alternatives
+    )
+
+    result = await analyze_progression_multiple(chords, options)
+
+    print(f"Primary interpretation: {result.primary_analysis.type.value}")
+    print(f"  {result.primary_analysis.analysis}")
+    print(f"  Confidence: {result.primary_analysis.confidence:.0%}")
+
+    print(f"\nAlternative interpretations ({len(result.alternative_analyses)}):")
+    for i, alt in enumerate(result.alternative_analyses, 1):
+        print(f"  {i}. {alt.type.value}: {alt.analysis}")
+        print(f"     Confidence: {alt.confidence:.0%}")
+
+asyncio.run(explore_interpretations())
+```
+
+**Output:**
+```
+Primary interpretation: functional
+  Functional progression in C major: vi - IV - I - V
+  Confidence: 70%
+
+Alternative interpretations (2):
+  1. modal: A Aeolian progression with borrowed major chords
+     Confidence: 65%
+  2. chromatic: Chromatic progression featuring borrowed chords (F)
+     Confidence: 55%
+```
+
+### Chromatic Harmony Analysis 🎨
+
+The library detects and analyzes advanced chromatic techniques:
+
+```python
+async def analyze_chromatic_harmony():
+    # Progression with secondary dominants
+    chords = ['C', 'A7', 'Dm', 'G7', 'C']
+
+    result = await analyze_progression_multiple(chords)
+
+    if result.primary_analysis.type.value == "chromatic":
+        print("Chromatic elements detected:")
+
+        # Secondary dominants
+        if result.primary_analysis.secondary_dominants:
+            print("\n🎯 Secondary Dominants:")
+            for sd in result.primary_analysis.secondary_dominants:
+                print(f"  {sd['chord']} → {sd['target']}")
+                print(f"  Function: {sd['roman_numeral']}")
+
+        # Borrowed chords
+        if result.primary_analysis.borrowed_chords:
+            print("\n🎨 Borrowed Chords:")
+            for bc in result.primary_analysis.borrowed_chords:
+                print(f"  {bc['chord']} borrowed from {bc['borrowed_from']}")
+
+        # Chromatic mediants
+        if result.primary_analysis.chromatic_mediants:
+            print("\n✨ Chromatic Mediants:")
+            for cm in result.primary_analysis.chromatic_mediants:
+                print(f"  {cm['chord']}: {cm['relationship']}")
+
+asyncio.run(analyze_chromatic_harmony())
+```
+
+**Output:**
+```
+Chromatic elements detected:
+
+🎯 Secondary Dominants:
+  A7 → Dm
+  Function: V7/ii
+
+The A7 acts as the dominant of Dm (V of ii), creating a brief tonicization before returning to the main key.
+```
+
+### Understanding the Three Analysis Types
+
+The library uses three complementary analytical approaches:
+
+#### 1. **Functional Analysis** (Traditional Harmony)
+- Roman numeral analysis (I, ii, V7, etc.)
+- Identifies tonic, dominant, subdominant functions
+- Recognizes cadences and voice leading
+- Best for: Classical, pop, folk music
+
+#### 2. **Modal Analysis** (Modal Harmony)
+- Identifies modes (Dorian, Mixolydian, etc.)
+- Detects characteristic modal intervals
+- Finds parent scales and modal interchange
+- Best for: Jazz, rock, world music
+
+#### 3. **Chromatic Analysis** (Advanced Harmony)
+- Secondary dominants (V/V, V7/ii, etc.)
+- Borrowed chords and modal mixture
+- Chromatic mediants and voice leading
+- Best for: Jazz, classical, progressive music
+
+### Real-World Examples
+
+```python
+async def analyze_real_progressions():
+    progressions = [
+        # Pop: vi-IV-I-V
+        (['Am', 'F', 'C', 'G'], "Pop progression"),
+
+        # Jazz: ii-V-I with alterations
+        (['Dm7', 'G7alt', 'Cmaj7'], "Jazz ii-V-I"),
+
+        # Modal: i-bVII-IV-i (Dorian)
+        (['Dm', 'C', 'G', 'Dm'], "Dorian vamp"),
+
+        # Chromatic: Circle of fifths with secondary dominants
+        (['C', 'E7', 'Am', 'D7', 'G', 'C'], "Chromatic circle"),
+    ]
+
+    for chords, description in progressions:
+        result = await analyze_progression_multiple(chords)
+        print(f"\n{description}: {' - '.join(chords)}")
+        print(f"  Primary: {result.primary_analysis.type.value}")
+        print(f"  Analysis: {result.primary_analysis.analysis}")
+        print(f"  Alternatives: {len(result.alternative_analyses)}")
+
+asyncio.run(analyze_real_progressions())
 ```
 
 ## Musical Character and Emotional Analysis 🎨
