@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, cast
 
-from ..core.chromatic_analysis import ChromaticAnalyzer, ChromaticAnalysisResult
+from ..core.chromatic_analysis import ChromaticAnalysisResult, ChromaticAnalyzer
 from ..core.enhanced_modal_analyzer import EnhancedModalAnalyzer, ModalAnalysisResult
 from ..core.functional_harmony import (
     FunctionalAnalysisResult,
@@ -596,10 +596,14 @@ class MultipleInterpretationService:
                 return None
 
             # Collect evidence for chromatic interpretation
-            evidence = self._collect_chromatic_evidence(chords, chromatic_result, functional_result)
+            evidence = self._collect_chromatic_evidence(
+                chords, chromatic_result, functional_result
+            )
 
             # Calculate confidence based on chromatic complexity
-            confidence = self._calculate_chromatic_confidence(chromatic_result, evidence)
+            confidence = self._calculate_chromatic_confidence(
+                chromatic_result, evidence, chords
+            )
 
             # Apply single chord confidence penalty for edge case consistency
             if len(chords) == 1:
@@ -607,15 +611,27 @@ class MultipleInterpretationService:
 
             # Extract chromatic elements for result
             secondary_dominants = [
-                {"chord": sd.chord, "target": sd.target, "roman_numeral": sd.roman_numeral}
+                {
+                    "chord": sd.chord,
+                    "target": sd.target,
+                    "roman_numeral": sd.roman_numeral,
+                }
                 for sd in chromatic_result.secondary_dominants
             ]
             borrowed_chords = [
-                {"chord": bc.chord, "borrowed_from": bc.borrowed_from, "roman_numeral": bc.roman_numeral}
+                {
+                    "chord": bc.chord,
+                    "borrowed_from": bc.borrowed_from,
+                    "roman_numeral": bc.roman_numeral,
+                }
                 for bc in chromatic_result.borrowed_chords
             ]
             chromatic_mediants = [
-                {"chord": cm.chord, "relationship": cm.relationship, "roman_numeral": ""}
+                {
+                    "chord": cm.chord,
+                    "relationship": cm.relationship,
+                    "roman_numeral": "",
+                }
                 for cm in chromatic_result.chromatic_mediants
             ]
 
@@ -628,7 +644,9 @@ class MultipleInterpretationService:
                 ],
                 key_signature=functional_result.key_center or options.parent_key,
                 evidence=evidence,
-                reasoning=self._generate_chromatic_reasoning(chromatic_result, evidence),
+                reasoning=self._generate_chromatic_reasoning(
+                    chromatic_result, evidence
+                ),
                 theoretical_basis=(
                     "Chromatic harmony analysis focusing on secondary dominants, "
                     "borrowed chords, and chromatic relationships"
@@ -1475,12 +1493,14 @@ class MultipleInterpretationService:
 
         return None
 
-    def _has_significant_chromatic_elements(self, chromatic_result: ChromaticAnalysisResult) -> bool:
+    def _has_significant_chromatic_elements(
+        self, chromatic_result: ChromaticAnalysisResult
+    ) -> bool:
         """Check if chromatic analysis contains significant elements worth reporting"""
         total_elements = (
-            len(chromatic_result.secondary_dominants) +
-            len(chromatic_result.borrowed_chords) +
-            len(chromatic_result.chromatic_mediants)
+            len(chromatic_result.secondary_dominants)
+            + len(chromatic_result.borrowed_chords)
+            + len(chromatic_result.chromatic_mediants)
         )
         return total_elements > 0
 
@@ -1488,7 +1508,7 @@ class MultipleInterpretationService:
         self,
         chords: List[str],
         chromatic_result: ChromaticAnalysisResult,
-        functional_result: FunctionalAnalysisResult
+        functional_result: FunctionalAnalysisResult,
     ) -> List[AnalysisEvidence]:
         """Collect evidence for chromatic interpretation"""
         evidence: List[AnalysisEvidence] = []
@@ -1502,7 +1522,7 @@ class MultipleInterpretationService:
                     strength=0.85,  # Secondary dominants are strong chromatic evidence
                     description=f"Contains {num_secondary} secondary dominant(s)",
                     supported_interpretations=[InterpretationType.CHROMATIC],
-                    musical_basis="Secondary dominants create chromatic voice leading and tonicization"
+                    musical_basis="Secondary dominants create chromatic voice leading and tonicization",
                 )
             )
 
@@ -1515,7 +1535,7 @@ class MultipleInterpretationService:
                     strength=0.75,  # Borrowed chords indicate modal mixture
                     description=f"Contains {num_borrowed} borrowed chord(s)",
                     supported_interpretations=[InterpretationType.CHROMATIC],
-                    musical_basis="Borrowed chords indicate modal mixture and chromatic harmony"
+                    musical_basis="Borrowed chords indicate modal mixture and chromatic harmony",
                 )
             )
 
@@ -1528,7 +1548,7 @@ class MultipleInterpretationService:
                     strength=0.80,  # Chromatic mediants are sophisticated harmonic relationships
                     description=f"Contains {num_mediants} chromatic mediant relationship(s)",
                     supported_interpretations=[InterpretationType.CHROMATIC],
-                    musical_basis="Chromatic mediants create sophisticated harmonic color"
+                    musical_basis="Chromatic mediants create sophisticated harmonic color",
                 )
             )
 
@@ -1537,9 +1557,16 @@ class MultipleInterpretationService:
     def _calculate_chromatic_confidence(
         self,
         chromatic_result: ChromaticAnalysisResult,
-        evidence: List[AnalysisEvidence]
+        evidence: List[AnalysisEvidence],
+        chords: List[str],
     ) -> float:
         """Calculate confidence for chromatic interpretation"""
+        # Check for static harmony (repeated chords or no harmonic motion)
+        unique_chords = set(chords)
+        if len(unique_chords) == 1:
+            # Static harmony - chromatic analysis should be less confident
+            return 0.6  # Cap at 0.6 for static harmony
+
         # Base confidence starts lower since chromatic analysis is more specialized
         base_confidence = 0.6
 
@@ -1563,7 +1590,9 @@ class MultipleInterpretationService:
         # Cap maximum confidence for chromatic analysis
         return min(base_confidence, 0.9)
 
-    def _generate_chromatic_analysis_text(self, chromatic_result: ChromaticAnalysisResult) -> str:
+    def _generate_chromatic_analysis_text(
+        self, chromatic_result: ChromaticAnalysisResult
+    ) -> str:
         """Generate descriptive text for chromatic analysis"""
         elements = []
 
@@ -1587,7 +1616,7 @@ class MultipleInterpretationService:
     def _generate_chromatic_reasoning(
         self,
         chromatic_result: ChromaticAnalysisResult,
-        evidence: List[AnalysisEvidence]
+        evidence: List[AnalysisEvidence],
     ) -> str:
         """Generate reasoning for chromatic interpretation"""
         reasons = []
@@ -1610,7 +1639,11 @@ class MultipleInterpretationService:
                 "create sophisticated harmonic relationships"
             )
 
-        return "; ".join(reasons) if reasons else "Complex chromatic harmonic relationships present"
+        return (
+            "; ".join(reasons)
+            if reasons
+            else "Complex chromatic harmonic relationships present"
+        )
 
 
 # Export singleton instance
