@@ -66,7 +66,7 @@ def demo_progression_character():
         print(f"   Genre associations: {', '.join(character.genre_associations)}")
         print(f"   Emotional keywords: {', '.join(character.emotional_keywords)}")
         if character.suggested_instrumentation:
-            instruments = ', '.join(character.suggested_instrumentation[:3])
+            instruments = ", ".join(character.suggested_instrumentation[:3])
             print(f"   Suggested instruments: {instruments}")
 
 
