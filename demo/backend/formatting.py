@@ -365,7 +365,9 @@ def format_harmonic_implications(
         parent_scales = getattr(result, "parent_scales", [])
         if parent_scales:
             # Replace the generic first implication with specific parent scales
-            custom_first = f"Uses notes from the {', '.join(parent_scales)} scale collection"
+            custom_first = (
+                f"Uses notes from the {', '.join(parent_scales)} scale collection"
+            )
             implications.append(custom_first)
             implications.extend(base_implications[1:])  # Add remaining implications
         else:

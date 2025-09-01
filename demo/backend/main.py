@@ -39,7 +39,7 @@ try:
     # Import additional utilities from submodules
     from harmonic_analysis.utils.analysis_helpers import (
         analyze_intervallic_content,
-        get_scale_reference_data
+        get_scale_reference_data,
     )
 
     LIBRARY_AVAILABLE = True
@@ -65,26 +65,40 @@ try:
     def get_all_reference_data():
         """Get all music theory reference data from the library."""
         from harmonic_analysis.utils.music_theory_constants import (
-            ALL_MODES, ALL_MAJOR_KEYS, ALL_MINOR_KEYS,
-            MODAL_CHARACTERISTICS, SCALE_TO_CHORD_MAPPINGS, SEMITONE_TO_INTERVAL_NAME,
-            get_modal_characteristics
+            ALL_MODES,
+            ALL_MAJOR_KEYS,
+            ALL_MINOR_KEYS,
+            MODAL_CHARACTERISTICS,
+            SCALE_TO_CHORD_MAPPINGS,
+            SEMITONE_TO_INTERVAL_NAME,
+            get_modal_characteristics,
         )
         from harmonic_analysis.scales import ALL_SCALE_SYSTEMS, PITCH_CLASS_NAMES
         from harmonic_analysis.utils.scales import KEY_SIGNATURES
-        from harmonic_analysis.utils.roman_numeral_converter import convert_roman_numerals_to_chords, is_roman_numeral_progression
+        from harmonic_analysis.utils.roman_numeral_converter import (
+            convert_roman_numerals_to_chords,
+            is_roman_numeral_progression,
+        )
 
         return {
             "modes": {
                 "all_modes": ALL_MODES,
                 "mode_characteristics": {
                     mode: {
-                        "characteristic_degrees": get_modal_characteristics(mode).characteristic_degrees,
-                        "harmonic_implications": get_modal_characteristics(mode).harmonic_implications,
-                        "typical_applications": get_modal_characteristics(mode).typical_applications,
+                        "characteristic_degrees": get_modal_characteristics(
+                            mode
+                        ).characteristic_degrees,
+                        "harmonic_implications": get_modal_characteristics(
+                            mode
+                        ).harmonic_implications,
+                        "typical_applications": get_modal_characteristics(
+                            mode
+                        ).typical_applications,
                         "brightness": get_modal_characteristics(mode).brightness,
-                        "chord_types": SCALE_TO_CHORD_MAPPINGS.get(mode, [])
-                    } for mode in ALL_MODES
-                }
+                        "chord_types": SCALE_TO_CHORD_MAPPINGS.get(mode, []),
+                    }
+                    for mode in ALL_MODES
+                },
             },
             "keys": {
                 "major_keys": ALL_MAJOR_KEYS,
@@ -96,7 +110,24 @@ try:
             },
             "intervals": {
                 "semitone_to_name": SEMITONE_TO_INTERVAL_NAME,
-                "abbreviations": dict(enumerate(["P1", "m2", "M2", "m3", "M3", "P4", "TT", "P5", "m6", "M6", "m7", "M7"]))
+                "abbreviations": dict(
+                    enumerate(
+                        [
+                            "P1",
+                            "m2",
+                            "M2",
+                            "m3",
+                            "M3",
+                            "P4",
+                            "TT",
+                            "P5",
+                            "m6",
+                            "M6",
+                            "m7",
+                            "M7",
+                        ]
+                    )
+                ),
             },
             "chord_mappings": SCALE_TO_CHORD_MAPPINGS,
             "key_signatures": KEY_SIGNATURES,
@@ -105,7 +136,9 @@ try:
     def get_modal_chord_progressions():
         """Get modal chord progressions reference using library data."""
         from harmonic_analysis.utils.music_theory_constants import (
-            SCALE_TO_CHORD_MAPPINGS, get_modal_characteristics, ALL_MODES
+            SCALE_TO_CHORD_MAPPINGS,
+            get_modal_characteristics,
+            ALL_MODES,
         )
 
         # Build comprehensive modal progressions from library data
@@ -126,7 +159,11 @@ try:
             elif mode == "Mixolydian":
                 progressions[mode] = ["I-♭VII-IV-I", "I-IV-♭VII-I", "I-♭VII-♭VII-I"]
             elif mode == "Aeolian":
-                progressions[mode] = ["i-♭VI-♭VII-i", "i-iv-♭VII-♭VI", "i-♭VII-♭VI-♭VII"]
+                progressions[mode] = [
+                    "i-♭VI-♭VII-i",
+                    "i-iv-♭VII-♭VI",
+                    "i-♭VII-♭VI-♭VII",
+                ]
             elif mode == "Locrian":
                 progressions[mode] = ["i°-♭II-♭VII-i°", "♭II-♭VI-♭VII-i°"]
             else:
@@ -137,16 +174,26 @@ try:
             "mode_chord_mappings": SCALE_TO_CHORD_MAPPINGS,
             "characteristic_info": {
                 mode: {
-                    "characteristic_degrees": get_modal_characteristics(mode).characteristic_degrees,
-                    "harmonic_implications": get_modal_characteristics(mode).harmonic_implications[:2]  # Top 2
-                } for mode in ALL_MODES
-            }
+                    "characteristic_degrees": get_modal_characteristics(
+                        mode
+                    ).characteristic_degrees,
+                    "harmonic_implications": get_modal_characteristics(
+                        mode
+                    ).harmonic_implications[
+                        :2
+                    ],  # Top 2
+                }
+                for mode in ALL_MODES
+            },
         }
 
     def create_scale_reference_endpoint_data(scale_name):
         """Create reference data for a specific scale using library data."""
         from harmonic_analysis.scales import ALL_SCALE_SYSTEMS, PITCH_CLASS_NAMES
-        from harmonic_analysis.utils.music_theory_constants import get_modal_characteristics, SCALE_TO_CHORD_MAPPINGS
+        from harmonic_analysis.utils.music_theory_constants import (
+            get_modal_characteristics,
+            SCALE_TO_CHORD_MAPPINGS,
+        )
 
         # Find the scale in available systems
         scale_intervals = None
@@ -161,7 +208,11 @@ try:
         if not scale_intervals:
             return {
                 "error": f"Scale '{scale_name}' not found in library",
-                "available_scales": [scale for scales in ALL_SCALE_SYSTEMS.values() for scale in scales.keys()]
+                "available_scales": [
+                    scale
+                    for scales in ALL_SCALE_SYSTEMS.values()
+                    for scale in scales.keys()
+                ],
             }
 
         # Convert intervals to note names (starting from C)
@@ -185,20 +236,40 @@ try:
             "intervals_semitones": scale_intervals,
             "notes_from_C": notes,
             "step_pattern": [
-                scale_intervals[i+1] - scale_intervals[i]
-                for i in range(len(scale_intervals)-1)
-            ] + [12 - scale_intervals[-1]],  # Last interval back to octave
-            "characteristics": {
-                "characteristic_degrees": characteristics.characteristic_degrees if characteristics else [],
-                "harmonic_implications": characteristics.harmonic_implications if characteristics else [],
-                "typical_applications": characteristics.typical_applications if characteristics else [],
-                "brightness": characteristics.brightness if characteristics else "unknown"
-            } if characteristics else None,
+                scale_intervals[i + 1] - scale_intervals[i]
+                for i in range(len(scale_intervals) - 1)
+            ]
+            + [12 - scale_intervals[-1]],  # Last interval back to octave
+            "characteristics": (
+                {
+                    "characteristic_degrees": (
+                        characteristics.characteristic_degrees
+                        if characteristics
+                        else []
+                    ),
+                    "harmonic_implications": (
+                        characteristics.harmonic_implications if characteristics else []
+                    ),
+                    "typical_applications": (
+                        characteristics.typical_applications if characteristics else []
+                    ),
+                    "brightness": (
+                        characteristics.brightness if characteristics else "unknown"
+                    ),
+                }
+                if characteristics
+                else None
+            ),
             "chord_types": chord_types,
-            "related_modes": [
-                mode for mode in ALL_SCALE_SYSTEMS.get("Major", {}).keys()
-                if mode != scale_name
-            ] if scale_system == "Major" else []
+            "related_modes": (
+                [
+                    mode
+                    for mode in ALL_SCALE_SYSTEMS.get("Major", {}).keys()
+                    if mode != scale_name
+                ]
+                if scale_system == "Major"
+                else []
+            ),
         }
 
     def get_characteristic_degrees(mode):
@@ -224,32 +295,38 @@ except ImportError as e:
     print("   Run setup.sh to install the library, or use frontend-only mode")
     LIBRARY_AVAILABLE = False
 
+
 # Helper function to update analysis descriptions with original Roman numerals
 def _update_analysis_with_original_romans(result, original_romans):
     """Update analysis descriptions to use original Roman numerals instead of library-generated ones."""
     # Convert original Romans to formatted version with superscripts
-    formatted_romans = [_format_roman_numeral_superscript(roman) for roman in original_romans]
+    formatted_romans = [
+        _format_roman_numeral_superscript(roman) for roman in original_romans
+    ]
     roman_sequence = " - ".join(formatted_romans)
-    
+
     # Update primary analysis description
-    if hasattr(result.primary_analysis, 'analysis') and result.primary_analysis.analysis:
+    if (
+        hasattr(result.primary_analysis, "analysis")
+        and result.primary_analysis.analysis
+    ):
         original_analysis = result.primary_analysis.analysis
         # Replace the Roman numeral sequence in the analysis description
         # Pattern: looks for sequences like "V7/ii - ii⁶ - V7/ii⁶ - ii - I⁶ - V - I"
-        pattern = r'([IV]+[♭♯]?[⁰⁺⁶⁴⁷]*/[iv]+[⁰⁺⁶⁴⁷]*|[IV]+[♭♯]?[⁰⁺⁶⁴⁷]*)(?: - ([IV]+[♭♯]?[⁰⁺⁶⁴⁷]*/[iv]+[⁰⁺⁶⁴⁷]*|[IV]+[♭♯]?[⁰⁺⁶⁴⁷]*))*'
-        
+        pattern = r"([IV]+[♭♯]?[⁰⁺⁶⁴⁷]*/[iv]+[⁰⁺⁶⁴⁷]*|[IV]+[♭♯]?[⁰⁺⁶⁴⁷]*)(?: - ([IV]+[♭♯]?[⁰⁺⁶⁴⁷]*/[iv]+[⁰⁺⁶⁴⁷]*|[IV]+[♭♯]?[⁰⁺⁶⁴⁷]*))*"
+
         # For now, simple replacement: find and replace the Roman numeral sequence
         # This assumes the analysis follows the pattern "TYPE progression: ROMANS. ..."
-        if ': ' in original_analysis and '. ' in original_analysis:
-            parts = original_analysis.split(': ', 1)
+        if ": " in original_analysis and ". " in original_analysis:
+            parts = original_analysis.split(": ", 1)
             if len(parts) == 2:
-                prefix = parts[0] + ': '
-                rest = parts[1].split('. ', 1)
+                prefix = parts[0] + ": "
+                rest = parts[1].split(". ", 1)
                 if len(rest) == 2:
-                    suffix = '. ' + rest[1]
+                    suffix = ". " + rest[1]
                     updated_analysis = prefix + roman_sequence + suffix
                     result.primary_analysis.analysis = updated_analysis
-    
+
     return result
 
 
@@ -257,14 +334,22 @@ def _format_roman_numeral_superscript(roman):
     """Convert Roman numeral notation to use proper superscripts."""
     # Convert regular numbers to superscript equivalents
     superscript_map = {
-        '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
-        '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
+        "0": "⁰",
+        "1": "¹",
+        "2": "²",
+        "3": "³",
+        "4": "⁴",
+        "5": "⁵",
+        "6": "⁶",
+        "7": "⁷",
+        "8": "⁸",
+        "9": "⁹",
     }
-    
+
     result = roman
     for digit, superscript in superscript_map.items():
         result = result.replace(digit, superscript)
-    
+
     return result
 
 
@@ -288,18 +373,24 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
     error_messages = []
 
     for error in errors:
-        if error['type'] == 'extra_forbidden':
+        if error["type"] == "extra_forbidden":
             # Extract the unknown field name
-            unknown_field = error['loc'][0] if error['loc'] else 'unknown'
+            unknown_field = error["loc"][0] if error["loc"] else "unknown"
 
             # Provide helpful suggestions for common mistakes
             suggestions = []
-            if unknown_field == 'key_context':
-                suggestions.append("Did you mean 'parent_key'? The API uses 'parent_key' for key context.")
-            elif unknown_field == 'key':
-                suggestions.append("Did you mean 'parent_key'? Use 'parent_key' to specify the key context.")
-            elif unknown_field == 'level':
-                suggestions.append("Did you mean 'pedagogical_level'? Valid values are: beginner, intermediate, advanced")
+            if unknown_field == "key_context":
+                suggestions.append(
+                    "Did you mean 'parent_key'? The API uses 'parent_key' for key context."
+                )
+            elif unknown_field == "key":
+                suggestions.append(
+                    "Did you mean 'parent_key'? Use 'parent_key' to specify the key context."
+                )
+            elif unknown_field == "level":
+                suggestions.append(
+                    "Did you mean 'pedagogical_level'? Valid values are: beginner, intermediate, advanced"
+                )
 
             error_msg = f"Unknown parameter '{unknown_field}' is not allowed."
             if suggestions:
@@ -307,7 +398,7 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
             error_messages.append(error_msg)
         else:
             # Handle other validation errors
-            field = '.'.join(str(loc) for loc in error['loc'])
+            field = ".".join(str(loc) for loc in error["loc"])
             error_messages.append(f"{field}: {error['msg']}")
 
     return JSONResponse(
@@ -315,8 +406,8 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
         content={
             "error": "Validation Error",
             "detail": error_messages,
-            "message": "Request contains invalid or unknown parameters. Please check the API documentation."
-        }
+            "message": "Request contains invalid or unknown parameters. Please check the API documentation.",
+        },
     )
 
 
@@ -351,7 +442,7 @@ def _convert_brightness_to_float(brightness_enum) -> float:
         "bright": 0.75,
         "neutral": 0.5,
         "dark": 0.25,
-        "very_dark": 0.0
+        "very_dark": 0.0,
     }
     return brightness_map.get(brightness_enum.value, 0.5)
 
@@ -363,7 +454,7 @@ def _convert_energy_to_float(energy_enum) -> float:
         "medium_high": 0.75,
         "medium": 0.5,
         "medium_low": 0.25,
-        "low": 0.0
+        "low": 0.0,
     }
     return energy_map.get(energy_enum.value, 0.5)
 
@@ -375,7 +466,7 @@ def _convert_tension_to_float(tension_enum) -> float:
         "tense": 0.75,
         "moderate": 0.5,
         "relaxed": 0.25,
-        "very_relaxed": 0.0
+        "very_relaxed": 0.0,
     }
     return tension_map.get(tension_enum.value, 0.5)
 
@@ -478,6 +569,7 @@ def analyze_melody_notes(
     try:
         # Parse note names to pitch classes - import NOTE_TO_PITCH_CLASS locally
         from harmonic_analysis.utils.chord_parser import NOTE_TO_PITCH_CLASS
+
         pitch_classes = [
             NOTE_TO_PITCH_CLASS[note.replace("♯", "#").replace("♭", "b")]
             for note in melody_notes
@@ -622,11 +714,12 @@ def generate_character_analysis(chords, primary_type, key_signature, mode, confi
     try:
         # Use library's character analysis
         # Combine key_signature and mode into single key_context
-        key_context = f"{key_signature or 'C major'} ({mode or 'Ionian'})" if mode and mode != "Ionian" else key_signature or "C major"
-        character_result = analyze_progression_character(
-            chords,
-            key_context
+        key_context = (
+            f"{key_signature or 'C major'} ({mode or 'Ionian'})"
+            if mode and mode != "Ionian"
+            else key_signature or "C major"
         )
+        character_result = analyze_progression_character(chords, key_context)
 
         # Get mode emotional profile
         if mode and mode != "Unknown":
@@ -637,7 +730,7 @@ def generate_character_analysis(chords, primary_type, key_signature, mode, confi
         # Get character suggestions
         suggestions = get_character_suggestions(
             character_result.overall_mood,
-            emotional_profile.brightness if emotional_profile else 0.5
+            emotional_profile.brightness if emotional_profile else 0.5,
         )
 
         return {
@@ -647,13 +740,33 @@ def generate_character_analysis(chords, primary_type, key_signature, mode, confi
                 "description": character_result.emotional_trajectory,
                 "musical_elements": character_result.emotional_keywords,
             },
-            "emotional_profile": {
-                "brightness": _convert_brightness_to_float(emotional_profile.brightness) if emotional_profile else 0.5,
-                "energy": _convert_energy_to_float(emotional_profile.energy) if emotional_profile else 0.5,
-                "tension": _convert_tension_to_float(emotional_profile.tension) if emotional_profile else 0.5,
-                "warmth": 0.5,  # Default value since warmth doesn't exist in EmotionalProfile
-                "description": ", ".join(emotional_profile.primary_emotions) if emotional_profile and emotional_profile.primary_emotions else "Neutral emotional character",
-            } if emotional_profile else None,
+            "emotional_profile": (
+                {
+                    "brightness": (
+                        _convert_brightness_to_float(emotional_profile.brightness)
+                        if emotional_profile
+                        else 0.5
+                    ),
+                    "energy": (
+                        _convert_energy_to_float(emotional_profile.energy)
+                        if emotional_profile
+                        else 0.5
+                    ),
+                    "tension": (
+                        _convert_tension_to_float(emotional_profile.tension)
+                        if emotional_profile
+                        else 0.5
+                    ),
+                    "warmth": 0.5,  # Default value since warmth doesn't exist in EmotionalProfile
+                    "description": (
+                        ", ".join(emotional_profile.primary_emotions)
+                        if emotional_profile and emotional_profile.primary_emotions
+                        else "Neutral emotional character"
+                    ),
+                }
+                if emotional_profile
+                else None
+            ),
             "character_suggestions": [
                 {
                     "character": suggestions.target_emotion,
@@ -695,19 +808,39 @@ def get_mode_character_profile(mode_name):
         brightness_modes = bright_modes + neutral_modes + dark_modes
 
         mode_rank = next(
-            (i for i, mode in enumerate(brightness_modes) if mode.lower() == clean_mode.lower()),
-            3  # Default to middle rank
+            (
+                i
+                for i, mode in enumerate(brightness_modes)
+                if mode.lower() == clean_mode.lower()
+            ),
+            3,  # Default to middle rank
         )
 
         return {
             "mode_name": clean_mode,
             "emotional_profile": {
-                "brightness": emotional_profile.brightness.value if hasattr(emotional_profile.brightness, 'value') else str(emotional_profile.brightness),
-                "energy": emotional_profile.energy.value if hasattr(emotional_profile.energy, 'value') else str(emotional_profile.energy),
-                "tension": emotional_profile.tension.value if hasattr(emotional_profile.tension, 'value') else str(emotional_profile.tension),
+                "brightness": (
+                    emotional_profile.brightness.value
+                    if hasattr(emotional_profile.brightness, "value")
+                    else str(emotional_profile.brightness)
+                ),
+                "energy": (
+                    emotional_profile.energy.value
+                    if hasattr(emotional_profile.energy, "value")
+                    else str(emotional_profile.energy)
+                ),
+                "tension": (
+                    emotional_profile.tension.value
+                    if hasattr(emotional_profile.tension, "value")
+                    else str(emotional_profile.tension)
+                ),
                 "primary_emotions": emotional_profile.primary_emotions,
                 "typical_genres": emotional_profile.typical_genres,
-                "description": ", ".join(emotional_profile.primary_emotions) if emotional_profile.primary_emotions else "No description available",
+                "description": (
+                    ", ".join(emotional_profile.primary_emotions)
+                    if emotional_profile.primary_emotions
+                    else "No description available"
+                ),
             },
             "brightness_rank": mode_rank + 1,  # 1-based ranking
             "total_modes": len(brightness_modes),
@@ -736,9 +869,9 @@ def get_modes_by_mood_keywords(mood_keywords):
         # Define mood keyword mappings
         mood_mappings = {
             "bright": bright_modes,  # Bright modes
-            "happy": bright_modes,   # Also bright modes
-            "sad": dark_modes,    # Dark modes
-            "dark": dark_modes,   # Dark modes
+            "happy": bright_modes,  # Also bright modes
+            "sad": dark_modes,  # Dark modes
+            "dark": dark_modes,  # Dark modes
             "mysterious": ["Phrygian", "Locrian", "Aeolian"],
             "uplifting": ["Lydian", "Ionian"],
             "melancholy": ["Aeolian", "Dorian"],
@@ -758,20 +891,40 @@ def get_modes_by_mood_keywords(mood_keywords):
         for mode in matching_modes:
             try:
                 profile = get_mode_emotional_profile(mode)
-                results.append({
-                    "mode": mode,
-                    "emotional_profile": {
-                        "brightness": profile.brightness.value if hasattr(profile.brightness, 'value') else str(profile.brightness),
-                        "energy": profile.energy.value if hasattr(profile.energy, 'value') else str(profile.energy),
-                        "tension": profile.tension.value if hasattr(profile.tension, 'value') else str(profile.tension),
-                        "primary_emotions": profile.primary_emotions,
-                        "description": ", ".join(profile.primary_emotions) if profile.primary_emotions else "No description available",
-                    },
-                    "match_keywords": [
-                        keyword for keyword in mood_keywords
-                        if keyword in mood_mappings and mode in mood_mappings[keyword]
-                    ],
-                })
+                results.append(
+                    {
+                        "mode": mode,
+                        "emotional_profile": {
+                            "brightness": (
+                                profile.brightness.value
+                                if hasattr(profile.brightness, "value")
+                                else str(profile.brightness)
+                            ),
+                            "energy": (
+                                profile.energy.value
+                                if hasattr(profile.energy, "value")
+                                else str(profile.energy)
+                            ),
+                            "tension": (
+                                profile.tension.value
+                                if hasattr(profile.tension, "value")
+                                else str(profile.tension)
+                            ),
+                            "primary_emotions": profile.primary_emotions,
+                            "description": (
+                                ", ".join(profile.primary_emotions)
+                                if profile.primary_emotions
+                                else "No description available"
+                            ),
+                        },
+                        "match_keywords": [
+                            keyword
+                            for keyword in mood_keywords
+                            if keyword in mood_mappings
+                            and mode in mood_mappings[keyword]
+                        ],
+                    }
+                )
             except Exception:
                 continue
 
@@ -794,17 +947,19 @@ async def generate_enhancement_suggestions(chords, primary_analysis):
     """Generate real enhancement suggestions using the harmonic analysis library."""
     try:
         # Import the real suggestion engines from the library
-        from harmonic_analysis.services.bidirectional_suggestion_engine import BidirectionalSuggestionEngine
+        from harmonic_analysis.services.bidirectional_suggestion_engine import (
+            BidirectionalSuggestionEngine,
+        )
 
         # Extract analysis information
-        analysis_type = getattr(primary_analysis, 'type', 'FUNCTIONAL')
-        if hasattr(analysis_type, 'value'):
+        analysis_type = getattr(primary_analysis, "type", "FUNCTIONAL")
+        if hasattr(analysis_type, "value"):
             analysis_type = analysis_type.value
 
-        confidence = getattr(primary_analysis, 'confidence', 0.5)
-        key_signature = getattr(primary_analysis, 'key_signature', None)
-        mode = getattr(primary_analysis, 'mode', 'Ionian')
-        roman_numerals = getattr(primary_analysis, 'roman_numerals', [])
+        confidence = getattr(primary_analysis, "confidence", 0.5)
+        key_signature = getattr(primary_analysis, "key_signature", None)
+        mode = getattr(primary_analysis, "mode", "Ionian")
+        roman_numerals = getattr(primary_analysis, "roman_numerals", [])
 
         suggestions = []
 
@@ -814,20 +969,24 @@ async def generate_enhancement_suggestions(chords, primary_analysis):
             options = AnalysisOptions(parent_key=key_signature)
 
             # Get key-related suggestions (add/remove/change key context)
-            analysis_suggestions = await suggestion_engine.generate_bidirectional_suggestions(
-                chords, options, confidence, roman_numerals
+            analysis_suggestions = (
+                await suggestion_engine.generate_bidirectional_suggestions(
+                    chords, options, confidence, roman_numerals
+                )
             )
 
             # Convert library suggestions to demo format
             for key_suggestion in analysis_suggestions.parent_key_suggestions:
-                suggestions.append({
-                    "type": "key_context",
-                    "description": key_suggestion.reason,
-                    "example": f"Try analyzing in {key_suggestion.suggested_key}",
-                    "difficulty": "intermediate",
-                    "confidence": key_suggestion.confidence,
-                    "potential_improvement": key_suggestion.potential_improvement,
-                })
+                suggestions.append(
+                    {
+                        "type": "key_context",
+                        "description": key_suggestion.reason,
+                        "example": f"Try analyzing in {key_suggestion.suggested_key}",
+                        "difficulty": "intermediate",
+                        "confidence": key_suggestion.confidence,
+                        "potential_improvement": key_suggestion.potential_improvement,
+                    }
+                )
 
         # Use character analysis for emotional enhancement suggestions
         if LIBRARY_AVAILABLE:
@@ -837,21 +996,30 @@ async def generate_enhancement_suggestions(chords, primary_analysis):
                 current_emotion = character_analysis.overall_mood
 
                 # Get suggestions for common desired emotions
-                emotional_targets = ["mysterious", "uplifting", "melancholy", "energetic"]
+                emotional_targets = [
+                    "mysterious",
+                    "uplifting",
+                    "melancholy",
+                    "energetic",
+                ]
 
                 for emotion in emotional_targets:
                     if emotion.lower() != current_emotion.lower():
                         character_suggestion = get_character_suggestions(emotion)
 
                         if character_suggestion.suggested_modes:
-                            mode_suggestions = ", ".join(character_suggestion.suggested_modes[:2])
-                            suggestions.append({
-                                "type": "emotional_enhancement",
-                                "description": f"For a more {emotion} sound, consider {mode_suggestions} modes",
-                                "example": f"Current: {current_emotion} → Target: {emotion}",
-                                "difficulty": "intermediate",
-                                "confidence": 0.7,
-                            })
+                            mode_suggestions = ", ".join(
+                                character_suggestion.suggested_modes[:2]
+                            )
+                            suggestions.append(
+                                {
+                                    "type": "emotional_enhancement",
+                                    "description": f"For a more {emotion} sound, consider {mode_suggestions} modes",
+                                    "example": f"Current: {current_emotion} → Target: {emotion}",
+                                    "difficulty": "intermediate",
+                                    "confidence": 0.7,
+                                }
+                            )
                             break  # Only add one emotional suggestion
 
             except Exception as e:
@@ -869,7 +1037,7 @@ async def generate_enhancement_suggestions(chords, primary_analysis):
                     "mode": mode,
                 },
                 "suggestion_categories": [],
-                "note": "Enhancement suggestions require library analysis capabilities"
+                "note": "Enhancement suggestions require library analysis capabilities",
             }
 
         # Limit suggestions
@@ -891,10 +1059,10 @@ async def generate_enhancement_suggestions(chords, primary_analysis):
         return {
             "suggestions": [],
             "analysis_context": {
-                "type": getattr(primary_analysis, 'type', 'UNKNOWN'),
-                "confidence": getattr(primary_analysis, 'confidence', 0.0),
-                "key_signature": getattr(primary_analysis, 'key_signature', None),
-                "mode": getattr(primary_analysis, 'mode', 'Unknown'),
+                "type": getattr(primary_analysis, "type", "UNKNOWN"),
+                "confidence": getattr(primary_analysis, "confidence", 0.0),
+                "key_signature": getattr(primary_analysis, "key_signature", None),
+                "mode": getattr(primary_analysis, "mode", "Unknown"),
             },
             "suggestion_categories": [],
             "error": str(e),
@@ -1014,37 +1182,46 @@ async def analyze_chord_progression(request: AnalysisRequest):
 
     try:
         # Import Roman numeral conversion functions
-        from harmonic_analysis.utils.roman_numeral_converter import convert_roman_numerals_to_chords, is_roman_numeral_progression
-        
+        from harmonic_analysis.utils.roman_numeral_converter import (
+            convert_roman_numerals_to_chords,
+            is_roman_numeral_progression,
+        )
+
         # Check if input contains Roman numerals and convert if needed
         chord_input = " ".join(request.chords)
         original_roman_numerals = None
-        
+
         if is_roman_numeral_progression(chord_input):
             # Roman numerals detected - parent key is required
             if not request.parent_key:
                 raise HTTPException(
-                    status_code=400, 
-                    detail="Parent key is required when using Roman numeral notation. Please specify a parent key (e.g., 'C major', 'A minor')."
+                    status_code=400,
+                    detail="Parent key is required when using Roman numeral notation. Please specify a parent key (e.g., 'C major', 'A minor').",
                 )
-            
+
             # Store original Roman numerals to preserve in output
             original_roman_numerals = request.chords.copy()
-            
+
             # Convert Roman numerals to chord symbols
             try:
-                converted_chords = convert_roman_numerals_to_chords(chord_input, request.parent_key)
-                print(f"🎼 Converted Roman numerals '{chord_input}' to chord symbols: {converted_chords}")
-                print(f"🎼 Preserving original Roman numerals: {original_roman_numerals}")
+                converted_chords = convert_roman_numerals_to_chords(
+                    chord_input, request.parent_key
+                )
+                print(
+                    f"🎼 Converted Roman numerals '{chord_input}' to chord symbols: {converted_chords}"
+                )
+                print(
+                    f"🎼 Preserving original Roman numerals: {original_roman_numerals}"
+                )
             except Exception as convert_error:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Failed to convert Roman numerals: {convert_error}. Please check your Roman numeral notation and parent key."
+                    detail=f"Failed to convert Roman numerals: {convert_error}. Please check your Roman numeral notation and parent key.",
                 )
         else:
             # Use chord symbols as-is
             converted_chords = request.chords
-        
+
         # Create analysis options
         options = AnalysisOptions(
             parent_key=request.parent_key,
@@ -1055,10 +1232,12 @@ async def analyze_chord_progression(request: AnalysisRequest):
 
         # Run the analysis with converted chords
         result = await analyze_progression_multiple(converted_chords, options)
-        
-        # If we have original Roman numerals, update the analysis description 
+
+        # If we have original Roman numerals, update the analysis description
         if original_roman_numerals:
-            result = _update_analysis_with_original_romans(result, original_roman_numerals)
+            result = _update_analysis_with_original_romans(
+                result, original_roman_numerals
+            )
 
         # Debug logging for suggestions
         print(f"🎯 Analysis result has suggestions: {result.suggestions is not None}")
@@ -1116,7 +1295,14 @@ async def analyze_chord_progression(request: AnalysisRequest):
                 "type": result.primary_analysis.type.value,
                 "confidence": result.primary_analysis.confidence,
                 "analysis": result.primary_analysis.analysis,
-                "roman_numerals": [_format_roman_numeral_superscript(roman) for roman in original_roman_numerals] if original_roman_numerals else (result.primary_analysis.roman_numerals or []),
+                "roman_numerals": (
+                    [
+                        _format_roman_numeral_superscript(roman)
+                        for roman in original_roman_numerals
+                    ]
+                    if original_roman_numerals
+                    else (result.primary_analysis.roman_numerals or [])
+                ),
                 "key_signature": result.primary_analysis.key_signature,
                 "mode": result.primary_analysis.mode,
                 "reasoning": result.primary_analysis.reasoning,
@@ -1174,7 +1360,14 @@ async def analyze_chord_progression(request: AnalysisRequest):
                     "type": alt.type.value,
                     "confidence": alt.confidence,
                     "analysis": alt.analysis,
-                    "roman_numerals": [_format_roman_numeral_superscript(roman) for roman in original_roman_numerals] if original_roman_numerals else (alt.roman_numerals or []),
+                    "roman_numerals": (
+                        [
+                            _format_roman_numeral_superscript(roman)
+                            for roman in original_roman_numerals
+                        ]
+                        if original_roman_numerals
+                        else (alt.roman_numerals or [])
+                    ),
                     "key_signature": alt.key_signature,
                     "mode": alt.mode,
                     "reasoning": alt.reasoning,
@@ -1307,7 +1500,9 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
             chords = request.input_data.strip().split()
 
             # Debug logging for parent key validation
-            print(f"🔍 UNIFIED ENDPOINT: Analyzing {chords} with parent_key='{request.parent_key}'")
+            print(
+                f"🔍 UNIFIED ENDPOINT: Analyzing {chords} with parent_key='{request.parent_key}'"
+            )
 
             # Create analysis options
             options = AnalysisOptions(
@@ -1317,24 +1512,34 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
                 pedagogical_level=request.pedagogical_level,
                 confidence_threshold=request.confidence_threshold,
                 max_alternatives=request.max_alternatives,
-                force_multiple_interpretations=False
+                force_multiple_interpretations=False,
             )
 
             # Run harmonic analysis
             harmonic_result = await analyze_progression_multiple(chords, options)
 
             # Debug the result
-            print(f"🔍 UNIFIED RESULT: Primary confidence={harmonic_result.primary_analysis.confidence:.3f}, type={harmonic_result.primary_analysis.type}, key={harmonic_result.primary_analysis.key_signature}")
-            print(f"🔍 CHROMATIC ELEMENTS: secondary_dominants={harmonic_result.primary_analysis.secondary_dominants}, borrowed_chords={harmonic_result.primary_analysis.borrowed_chords}")
+            print(
+                f"🔍 UNIFIED RESULT: Primary confidence={harmonic_result.primary_analysis.confidence:.3f}, type={harmonic_result.primary_analysis.type}, key={harmonic_result.primary_analysis.key_signature}"
+            )
+            print(
+                f"🔍 CHROMATIC ELEMENTS: secondary_dominants={harmonic_result.primary_analysis.secondary_dominants}, borrowed_chords={harmonic_result.primary_analysis.borrowed_chords}"
+            )
             if harmonic_result.suggestions:
-                print(f"🔍 SUGGESTIONS EXIST: parent_key_suggestions={len(harmonic_result.suggestions.parent_key_suggestions) if harmonic_result.suggestions.parent_key_suggestions else 0}")
+                print(
+                    f"🔍 SUGGESTIONS EXIST: parent_key_suggestions={len(harmonic_result.suggestions.parent_key_suggestions) if harmonic_result.suggestions.parent_key_suggestions else 0}"
+                )
                 if harmonic_result.suggestions.parent_key_suggestions:
                     for s in harmonic_result.suggestions.parent_key_suggestions:
-                        print(f"   - Suggestion: {s.suggested_key} (confidence: {s.confidence:.3f})")
+                        print(
+                            f"   - Suggestion: {s.suggested_key} (confidence: {s.confidence:.3f})"
+                        )
             else:
                 print("🔍 NO SUGGESTIONS GENERATED")
-            if hasattr(harmonic_result.primary_analysis, 'parent_key_validation'):
-                print(f"🔍 Parent key validation: {harmonic_result.primary_analysis.parent_key_validation}")
+            if hasattr(harmonic_result.primary_analysis, "parent_key_validation"):
+                print(
+                    f"🔍 Parent key validation: {harmonic_result.primary_analysis.parent_key_validation}"
+                )
 
             # Extract primary analysis for character analysis
             primary_type = harmonic_result.primary_analysis.type.value
@@ -1352,7 +1557,9 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
             # Generate enhancement suggestions if requested
             enhancement_suggestions = None
             if request.include_enhancements:
-                print(f"🔍 GENERATING ENHANCEMENTS for {chords} with parent_key={request.parent_key}")
+                print(
+                    f"🔍 GENERATING ENHANCEMENTS for {chords} with parent_key={request.parent_key}"
+                )
                 enhancement_suggestions = await generate_enhancement_suggestions(
                     chords, harmonic_result.primary_analysis
                 )
@@ -1379,7 +1586,9 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
                             "key_signature": alt.key_signature,
                             "mode": alt.mode,
                         }
-                        for alt in harmonic_result.alternative_analyses[:2]  # Limit for compactness
+                        for alt in harmonic_result.alternative_analyses[
+                            :2
+                        ]  # Limit for compactness
                     ],
                 },
                 "character_analysis": character_analysis,
@@ -1421,7 +1630,9 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
 
             character_analysis = None
             if request.include_character and "primary_analysis" in melody_result:
-                scale_context = melody_result["primary_analysis"].get("scale_context", "")
+                scale_context = melody_result["primary_analysis"].get(
+                    "scale_context", ""
+                )
                 if "context" in scale_context:
                     mode = scale_context.replace(" context", "")
                     character_analysis = get_mode_character_profile(mode)
@@ -1440,11 +1651,13 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"Unsupported analysis type: {request.analysis_type}"
+                detail=f"Unsupported analysis type: {request.analysis_type}",
             )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unified analysis failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Unified analysis failed: {str(e)}"
+        )
 
 
 @app.post("/api/analyze/character")
@@ -1485,7 +1698,7 @@ async def analyze_character(request: CharacterAnalysisRequest):
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"Unsupported character analysis type: {request.analysis_type}"
+                detail=f"Unsupported character analysis type: {request.analysis_type}",
             )
 
         return {
@@ -1498,7 +1711,9 @@ async def analyze_character(request: CharacterAnalysisRequest):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Character analysis failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Character analysis failed: {str(e)}"
+        )
 
 
 @app.post("/api/analyze/enhancements")
@@ -1516,23 +1731,33 @@ async def analyze_enhancements(request: EnhancementRequest):
             primary_analysis = request.current_analysis
         else:
             options = AnalysisOptions(confidence_threshold=0.4)
-            harmonic_result = await analyze_progression_multiple(request.chords, options)
+            harmonic_result = await analyze_progression_multiple(
+                request.chords, options
+            )
             primary_analysis = harmonic_result.primary_analysis
 
         # Generate enhancement suggestions
-        enhancements = await generate_enhancement_suggestions(request.chords, primary_analysis)
+        enhancements = await generate_enhancement_suggestions(
+            request.chords, primary_analysis
+        )
 
         return {
             "input_chords": request.chords,
             "enhancement_suggestions": enhancements,
             "metadata": {
                 "suggestion_count": len(enhancements.get("suggestions", [])),
-                "analysis_basis": "harmonic_function" if request.current_analysis else "fresh_analysis",
+                "analysis_basis": (
+                    "harmonic_function"
+                    if request.current_analysis
+                    else "fresh_analysis"
+                ),
             },
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Enhancement analysis failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Enhancement analysis failed: {str(e)}"
+        )
 
 
 @app.get("/api/reference/all")
