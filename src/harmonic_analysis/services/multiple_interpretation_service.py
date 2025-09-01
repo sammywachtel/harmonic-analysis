@@ -1570,6 +1570,11 @@ class MultipleInterpretationService:
         # Base confidence starts lower since chromatic analysis is more specialized
         base_confidence = 0.6
 
+        # Check for classic modal patterns that should favor modal interpretation
+        if self._is_classic_modal_pattern(chords):
+            # Reduce confidence for chromatic analysis of classic modal progressions
+            base_confidence *= 0.75  # 25% reduction for classic modal patterns
+
         # Boost confidence based on number and type of chromatic elements
         secondary_count = len(chromatic_result.secondary_dominants)
         borrowed_count = len(chromatic_result.borrowed_chords)
@@ -1644,6 +1649,59 @@ class MultipleInterpretationService:
             if reasons
             else "Complex chromatic harmonic relationships present"
         )
+
+    def _is_classic_modal_pattern(self, chords: List[str]) -> bool:
+        """Check if progression matches classic modal patterns"""
+        if len(chords) < 2:
+            return False
+
+        # Convert to simplified chord roots for pattern matching
+        chord_roots = []
+        for chord in chords:
+            # Extract root note (handle complex chord symbols)
+            root = chord.split('/')[0]  # Remove slash bass
+            root = root.rstrip('0123456789')  # Remove numbers
+            root = root.rstrip('majmindimaugaddsusmMsus24679b#°')  # Remove extensions
+            chord_roots.append(root)
+
+        # Common modal patterns
+        modal_patterns = [
+            # Mixolydian patterns (I-bVII-I, bVII-I)
+            (['G', 'F', 'G'], 'mixolydian'),
+            (['D', 'C', 'D'], 'mixolydian'),
+            (['A', 'G', 'A'], 'mixolydian'),
+            (['E', 'D', 'E'], 'mixolydian'),
+
+            # Dorian patterns (i-IV-i, i-bVII-i)
+            (['Dm', 'G', 'Dm'], 'dorian'),
+            (['Em', 'A', 'Em'], 'dorian'),
+            (['Am', 'D', 'Am'], 'dorian'),
+
+            # Phrygian patterns (i-bII-i)
+            (['Em', 'F', 'Em'], 'phrygian'),
+            (['Am', 'Bb', 'Am'], 'phrygian'),
+
+            # Simplified root-based patterns (case insensitive)
+            (['G', 'F'], 'mixolydian_simple'),
+            (['D', 'C'], 'mixolydian_simple'),
+            (['E', 'F'], 'phrygian_simple'),
+            (['A', 'G'], 'mixolydian_simple'),
+        ]
+
+        # Check exact matches first
+        chord_str = '-'.join(chords)
+        for pattern, mode_type in modal_patterns:
+            if chords == pattern:
+                return True
+
+        # Check root-based patterns
+        root_str = '-'.join(chord_roots)
+        for pattern, mode_type in modal_patterns:
+            pattern_roots = [p.rstrip('majmindimaugaddsusmMsus24679b#°') for p in pattern]
+            if chord_roots == pattern_roots:
+                return True
+
+        return False
 
 
 # Export singleton instance
