@@ -9,10 +9,7 @@ for scales, modes, and progressions.
 
 import asyncio
 
-from harmonic_analysis import (  # Core analysis; Character analysis; Data types
-    CharacterSuggestion,
-    EmotionalProfile,
-    ProgressionCharacter,
+from harmonic_analysis import (
     analyze_progression_character,
     analyze_progression_multiple,
     describe_emotional_contour,
@@ -69,9 +66,8 @@ def demo_progression_character():
         print(f"   Genre associations: {', '.join(character.genre_associations)}")
         print(f"   Emotional keywords: {', '.join(character.emotional_keywords)}")
         if character.suggested_instrumentation:
-            print(
-                f"   Suggested instruments: {', '.join(character.suggested_instrumentation[:3])}"
-            )
+            instruments = ', '.join(character.suggested_instrumentation[:3])
+            print(f"   Suggested instruments: {instruments}")
 
 
 def demo_character_suggestions():
@@ -139,7 +135,7 @@ async def demo_integrated_analysis():
 
     # Analyze character separately
     character = analyze_progression_character(progression)
-    print(f"\nCharacter Analysis:")
+    print("\nCharacter Analysis:")
     print(f"   Mood: {character.overall_mood}")
     print(f"   Keywords: {', '.join(character.emotional_keywords)}")
 
