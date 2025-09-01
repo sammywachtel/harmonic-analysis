@@ -276,7 +276,7 @@ def _load_language_config() -> Dict[str, Any]:
             "classifications": {
                 "diatonic": "Diatonic within provided key context",
                 "modal_borrowing": "Modal borrowing from parent scale",
-                "modal_candidate": "Modal characteristics without clear parent key",
+                "modal_candidate": "Modal interpretation of scale collection",
             },
             "scale_degrees": {str(i): str(i + 1) for i in range(12)},
             "analysis_templates": {
@@ -359,7 +359,19 @@ def format_harmonic_implications(
     base_implications = _LANGUAGE.get("harmonic_implications", {}).get(
         classification, []
     )
-    implications.extend(base_implications)
+
+    # For modal_candidate, customize the first implication with actual parent scales
+    if classification == "modal_candidate" and base_implications:
+        parent_scales = getattr(result, "parent_scales", [])
+        if parent_scales:
+            # Replace the generic first implication with specific parent scales
+            custom_first = f"Uses notes from the {', '.join(parent_scales)} scale collection"
+            implications.append(custom_first)
+            implications.extend(base_implications[1:])  # Add remaining implications
+        else:
+            implications.extend(base_implications)
+    else:
+        implications.extend(base_implications)
 
     # Add non-diatonic implications
     non_diatonic = getattr(result, "non_diatonic_pitches", [])

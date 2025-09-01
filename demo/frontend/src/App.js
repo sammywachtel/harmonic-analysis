@@ -10,10 +10,22 @@ function App() {
     const [backendAvailable, setBackendAvailable] = useState(true);
     const [showJsonModal, setShowJsonModal] = useState(false);
     const [userIsEditing, setUserIsEditing] = useState(false);
+    
+    // Advanced analysis options - ported from static HTML demo
+    const [pedagogicalLevel, setPedagogicalLevel] = useState('intermediate');
+    const [confidenceThreshold, setConfidenceThreshold] = useState(0.1);
+    const [maxAlternatives, setMaxAlternatives] = useState(3);
+    const [analysisDepth, setAnalysisDepth] = useState('comprehensive');
+    const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
     const examples = {
         progression: [
             {input: 'C Am F G', key: 'C major', description: 'Classic I-vi-IV-V'},
+            {input: 'C A7 Dm G7 C', key: 'C major', description: 'I-V/ii-ii-V-I (secondary dominant)'},
+            {input: 'C E7 Am D7 G C', key: 'C major', description: 'I-V/vi-vi-V/V-V-I (double secondary)'},
+            {input: 'V/ii ii V I', key: 'C major', description: 'Roman numerals: V/ii-ii-V-I'},
+            {input: 'I vi IV V', key: 'G major', description: 'Roman numerals: I-vi-IV-V'},
+            {input: 'i iv V i', key: 'A minor', description: 'Roman numerals: i-iv-V-i'},
             {input: 'G F G', key: 'C major', description: 'Modal Mixolydian'},
             {input: 'Dm G C', key: 'C major', description: 'Strong ii-V-I'},
             {input: 'Am F C G', key: 'C major', description: 'vi-IV-I-V'},
@@ -88,11 +100,48 @@ function App() {
         checkBackend();
     }, []);
 
+    // Helper function to detect Roman numeral progressions
+    const isRomanNumeralProgression = useCallback((progression) => {
+        if (!progression || typeof progression !== 'string') return false;
+        
+        const tokens = progression.trim().split(/\s+/);
+        if (tokens.length === 0) return false;
+
+        let romanIndicators = 0;
+        let chordSymbolIndicators = 0;
+
+        for (const token of tokens) {
+            // Check for Roman numeral patterns
+            if (/^[ivxIVX]+/.test(token)) {
+                romanIndicators++;
+            } else if (/^[bv#]+[ivxIVX]+/.test(token)) { // Accidental + roman
+                romanIndicators++;
+            } else if (/\//.test(token) && /[ivxIVX]/.test(token)) { // Secondary dominants
+                romanIndicators++;
+            } 
+            // Check for chord symbol patterns
+            else if (/^[A-G][#b]?/.test(token)) { // Starts with note name
+                chordSymbolIndicators++;
+            }
+        }
+
+        return romanIndicators > chordSymbolIndicators;
+    }, []);
+
     const analyzeInput = useCallback(async () => {
         if (!inputValue.trim()) return;
 
         // If backend not available, don't analyze - user will see connection message
         if (!backendAvailable) {
+            return;
+        }
+
+        // Validate Roman numeral input requires parent key
+        if (analysisType === 'progression' && isRomanNumeralProgression(inputValue) && !parentKey) {
+            setResult({
+                error: true,
+                message: "Parent key is required for Roman numeral analysis. Please specify a parent key (e.g., 'C major', 'A minor') above."
+            });
             return;
         }
 
@@ -107,15 +156,15 @@ function App() {
                 requestBody = {
                     chords: inputValue.split(/\s+/).filter(c => c.length > 0),
                     parent_key: parentKey,
-                    pedagogical_level: 'intermediate',
-                    confidence_threshold: 0.5,
-                    max_alternatives: 3
+                    pedagogical_level: pedagogicalLevel,
+                    confidence_threshold: confidenceThreshold,
+                    max_alternatives: maxAlternatives
                 };
             } else if (analysisType === 'scale') {
                 requestBody = {
                     scale: inputValue,
                     parent_key: parentKey,
-                    analysis_depth: 'comprehensive'
+                    analysis_depth: analysisDepth
                 };
             } else { // melody
                 requestBody = {
@@ -145,7 +194,7 @@ function App() {
         }
 
         setLoading(false);
-    }, [inputValue, analysisType, parentKey, backendAvailable]);
+    }, [inputValue, analysisType, parentKey, backendAvailable, isRomanNumeralProgression, pedagogicalLevel, confidenceThreshold, maxAlternatives, analysisDepth]);
 
     const analyzeSpecificInput = async (specificInputValue, specificParentKey) => {
         if (!specificInputValue.trim()) return;
@@ -166,9 +215,9 @@ function App() {
                 requestBody = {
                     chords: specificInputValue.split(/\s+/).filter(c => c.length > 0),
                     parent_key: specificParentKey,
-                    pedagogical_level: 'intermediate',
-                    confidence_threshold: 0.5,
-                    max_alternatives: 3
+                    pedagogical_level: pedagogicalLevel,
+                    confidence_threshold: confidenceThreshold,
+                    max_alternatives: maxAlternatives
                 };
             } else if (analysisType === 'scale') {
                 requestBody = {
@@ -416,6 +465,206 @@ function App() {
         );
     };
 
+    const renderAnalysisDetails = (analysis, isPrimary = false) => {
+        return (
+            <div className="analysis-content">
+                <div className="analysis-text">{analysis.analysis}</div>
+
+                {/* Render different fields based on analysis type */}
+                {analysisType === 'progression' && (
+                    <>
+                        {analysis.roman_numerals && analysis.roman_numerals.length > 0 && (
+                            <div className="roman-numerals">
+                                <strong>Roman Numerals:</strong> {analysis.roman_numerals.join(' - ')}
+                            </div>
+                        )}
+
+                        {analysis.key_signature && (
+                            <div className="key-info">
+                                <strong>Key:</strong> {analysis.key_signature}
+                                {analysis.mode && <span> ({analysis.mode})</span>}
+                            </div>
+                        )}
+
+                        {/* Enhanced Analysis Fields */}
+                        {analysis.contextual_classification && (
+                            <div className="contextual-classification">
+                                <strong>Context:</strong> {analysis.contextual_classification.charAt(0).toUpperCase() + analysis.contextual_classification.slice(1).replace('_', ' ')}
+                            </div>
+                        )}
+
+                        {analysis.modal_characteristics && analysis.modal_characteristics.length > 0 && (
+                            <div className="modal-characteristics">
+                                <strong>Modal Characteristics:</strong>
+                                <ul className="characteristics-list">
+                                    {analysis.modal_characteristics.map((char, idx) => (
+                                        <li key={idx}>• {char}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {analysis.parent_key_relationship && (
+                            <div className="parent-key-relationship">
+                                <strong>Parent Key Relationship:</strong> {analysis.parent_key_relationship.charAt(0).toUpperCase() + analysis.parent_key_relationship.slice(1)}
+                            </div>
+                        )}
+
+                        {analysis.secondary_dominants && analysis.secondary_dominants.length > 0 && (
+                            <div className="secondary-dominants">
+                                <strong>Secondary Dominants:</strong>
+                                <ul className="dominants-list">
+                                    {analysis.secondary_dominants.map((dom, idx) => (
+                                        <li key={idx}>• {dom.chord} → {dom.target} ({dom.roman_numeral})</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {analysis.borrowed_chords && analysis.borrowed_chords.length > 0 && (
+                            <div className="borrowed-chords">
+                                <strong>Borrowed Chords:</strong>
+                                <ul className="borrowed-list">
+                                    {analysis.borrowed_chords.map((chord, idx) => (
+                                        <li key={idx}>• {chord.chord} ({chord.origin || 'borrowed'})</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {analysis.chromatic_mediants && analysis.chromatic_mediants.length > 0 && (
+                            <div className="chromatic-mediants">
+                                <strong>Chromatic Mediants:</strong>
+                                <ul className="mediants-list">
+                                    {analysis.chromatic_mediants.map((mediant, idx) => (
+                                        <li key={idx}>• {mediant.chord} ({mediant.type || 'chromatic mediant'})</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {analysis.cadences && analysis.cadences.length > 0 && (
+                            <div className="cadences">
+                                <strong>Cadences:</strong>
+                                <ul className="cadences-list">
+                                    {analysis.cadences.map((cadence, idx) => (
+                                        <li key={idx}>
+                                            • {cadence.type.charAt(0).toUpperCase() + cadence.type.slice(1)} cadence: {cadence.chords}
+                                            {cadence.strength && <span className="strength"> (strength: {cadence.strength})</span>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {analysis.chord_functions && analysis.chord_functions.length > 0 && (
+                            <div className="chord-functions">
+                                <strong>Chord Functions:</strong> {analysis.chord_functions.map(func => func.charAt(0).toUpperCase() + func.slice(1)).join(' → ')}
+                            </div>
+                        )}
+
+                        {/* Confidence Breakdown */}
+                        {(analysis.functional_confidence || analysis.modal_confidence || analysis.chromatic_confidence) && (
+                            <div className="confidence-breakdown">
+                                <strong>Confidence Breakdown:</strong>
+                                <div className="confidence-grid">
+                                    {analysis.functional_confidence && (
+                                        <span className="confidence-item">Functional: {analysis.functional_confidence.toFixed(2)}</span>
+                                    )}
+                                    {analysis.modal_confidence && (
+                                        <span className="confidence-item">Modal: {analysis.modal_confidence.toFixed(2)}</span>
+                                    )}
+                                    {analysis.chromatic_confidence && (
+                                        <span className="confidence-item">Chromatic: {analysis.chromatic_confidence.toFixed(2)}</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {analysisType === 'scale' && (
+                    <>
+                        {analysis.scale_degrees && (
+                            <div className="scale-degrees">
+                                <strong>Scale Degrees:</strong> {analysis.scale_degrees.join(' - ')}
+                            </div>
+                        )}
+
+                        {analysis.parent_key && (
+                            <div className="key-info">
+                                <strong>Parent Key:</strong> {analysis.parent_key}
+                                {analysis.mode && <span> ({analysis.mode})</span>}
+                            </div>
+                        )}
+
+                        {analysis.intervallic_analysis && (
+                            <div className="intervallic-analysis">
+                                <strong>Intervallic Pattern:</strong> {analysis.intervallic_analysis}
+                            </div>
+                        )}
+
+                        {analysis.characteristic_notes && (
+                            <div className="characteristic-notes">
+                                <strong>Characteristic Notes:</strong> {analysis.characteristic_notes.join(', ')}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {analysisType === 'melody' && (
+                    <>
+                        {analysis.melodic_contour && (
+                            <div className="melodic-contour">
+                                <strong>Melodic Contour:</strong> {analysis.melodic_contour}
+                            </div>
+                        )}
+
+                        {analysis.scale_context && (
+                            <div className="scale-context">
+                                <strong>Scale Context:</strong> {analysis.scale_context}
+                            </div>
+                        )}
+
+                        {analysis.modal_characteristics && (
+                            <div className="modal-characteristics">
+                                <strong>Modal Characteristics:</strong> {analysis.modal_characteristics}
+                            </div>
+                        )}
+
+                        {analysis.phrase_analysis && (
+                            <div className="phrase-analysis">
+                                <strong>Phrase Analysis:</strong> {analysis.phrase_analysis}
+                            </div>
+                        )}
+
+                        {analysis.harmonic_implications && (
+                            <div className="harmonic-implications">
+                                <strong>Harmonic Implications:</strong> {analysis.harmonic_implications}
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {analysis.reasoning && (
+                    <div className="reasoning">
+                        <h4>Reasoning</h4>
+                        <div>{analysis.reasoning}</div>
+                    </div>
+                )}
+
+                {analysis.theoretical_basis && (
+                    <div className="theoretical-basis">
+                        <h4>Theoretical Basis</h4>
+                        <div>{analysis.theoretical_basis}</div>
+                    </div>
+                )}
+
+                {analysis.evidence && analysis.evidence.length > 0 && renderEvidence(analysis.evidence)}
+            </div>
+        );
+    };
+
     return (
         <div className="App">
             <header className="app-header">
@@ -486,11 +735,139 @@ function App() {
                     />
                 </div>
 
+                {/* Advanced Settings Toggle */}
+                <div className="advanced-settings-toggle">
+                    <button 
+                        type="button" 
+                        onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                        className="toggle-button"
+                    >
+                        ⚙️ Advanced Settings {showAdvancedSettings ? '▲' : '▼'}
+                    </button>
+                </div>
+
+                {/* Advanced Settings Panel - Ported from static HTML demo */}
+                {showAdvancedSettings && (
+                    <div className="advanced-settings-panel">
+                        <div className="input-group">
+                            <label htmlFor="pedagogicalLevel">Pedagogical Level:</label>
+                            <select 
+                                id="pedagogicalLevel" 
+                                value={pedagogicalLevel} 
+                                onChange={(e) => {
+                                    setPedagogicalLevel(e.target.value);
+                                    setUserIsEditing(true);
+                                    setTimeout(() => analyzeInput(), 300);
+                                }}
+                                className="level-select"
+                            >
+                                <option value="beginner">Beginner - Simple functional analysis</option>
+                                <option value="intermediate">Intermediate - Modal and secondary analysis</option>
+                                <option value="advanced">Advanced - Full chromatic analysis</option>
+                            </select>
+                        </div>
+
+                        <div className="input-group">
+                            <label htmlFor="confidenceThreshold">Confidence Threshold:</label>
+                            <div className="threshold-control">
+                                <input 
+                                    id="confidenceThreshold" 
+                                    type="range" 
+                                    min="0.1" 
+                                    max="0.9" 
+                                    step="0.1" 
+                                    value={confidenceThreshold} 
+                                    onChange={(e) => {
+                                        setConfidenceThreshold(parseFloat(e.target.value));
+                                        setUserIsEditing(true);
+                                        setTimeout(() => analyzeInput(), 500);
+                                    }}
+                                    className="threshold-slider"
+                                />
+                                <span className="threshold-value">{(confidenceThreshold * 100).toFixed(0)}%</span>
+                            </div>
+                            <div className="threshold-hint">Minimum confidence for alternative interpretations</div>
+                        </div>
+
+                        <div className="input-group">
+                            <label htmlFor="maxAlternatives">Max Alternatives:</label>
+                            <div className="alternatives-control">
+                                <input 
+                                    id="maxAlternatives" 
+                                    type="number" 
+                                    min="1" 
+                                    max="10" 
+                                    value={maxAlternatives} 
+                                    onChange={(e) => {
+                                        setMaxAlternatives(parseInt(e.target.value));
+                                        setUserIsEditing(true);
+                                        setTimeout(() => analyzeInput(), 300);
+                                    }}
+                                    className="alternatives-input"
+                                />
+                                <span className="alternatives-hint">Number of alternative analyses to show</span>
+                            </div>
+                        </div>
+
+                        {analysisType === 'scale' && (
+                            <div className="input-group">
+                                <label>Analysis Depth:</label>
+                                <div className="radio-group">
+                                    <label className="radio-option">
+                                        <input 
+                                            type="radio" 
+                                            name="analysisDepth" 
+                                            value="basic" 
+                                            checked={analysisDepth === 'basic'}
+                                            onChange={(e) => {
+                                                setAnalysisDepth(e.target.value);
+                                                setUserIsEditing(true);
+                                                setTimeout(() => analyzeInput(), 300);
+                                            }}
+                                        />
+                                        <div className="radio-content">
+                                            <div className="radio-title">Basic Analysis</div>
+                                            <div className="radio-desc">Pattern recognition only</div>
+                                        </div>
+                                    </label>
+                                    <label className="radio-option">
+                                        <input 
+                                            type="radio" 
+                                            name="analysisDepth" 
+                                            value="comprehensive" 
+                                            checked={analysisDepth === 'comprehensive'}
+                                            onChange={(e) => {
+                                                setAnalysisDepth(e.target.value);
+                                                setUserIsEditing(true);
+                                                setTimeout(() => analyzeInput(), 300);
+                                            }}
+                                        />
+                                        <div className="radio-content">
+                                            <div className="radio-title">Comprehensive Analysis</div>
+                                            <div className="radio-desc">Full harmonic implications and character analysis</div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="help-text">
                     <div>💡 <strong>Tab:</strong> Cycle through {analysisType} examples (click outside inputs first)
                         <strong>Shift+Tab:</strong> Works anywhere
                         <strong>Enter:</strong> Analyze current input
                     </div>
+                    {analysisType === 'progression' && (
+                        <div>
+                            🎼 <strong>Input Formats:</strong> Chord symbols (C A7 Dm G7) or Roman numerals (V/ii ii V I). Parent key required for Roman numerals!
+                            {inputValue && isRomanNumeralProgression && isRomanNumeralProgression(inputValue) && (
+                                <div style={{color: '#3498db', fontWeight: 'bold', marginTop: '5px'}}>
+                                    🎵 Roman numerals detected - make sure to specify a parent key above
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div>📝
                         Examples: {currentExamples.slice(0, 3).map(ex => `${ex.input} (${ex.description})`).join(' • ')}{currentExamples.length > 3 ? '...' : ''}</div>
                     <div>🎯 Try different {analysisType} inputs and parent keys to see how analysis changes!</div>
@@ -527,6 +904,16 @@ function App() {
                         </div>
                     </div>
                 </div>
+            ) : result && result.error ? (
+                // Error Message Display
+                <div className="results-container">
+                    <div className="section">
+                        <div className="error-message">
+                            <h3>⚠️ Validation Error</h3>
+                            <p>{result.message}</p>
+                        </div>
+                    </div>
+                </div>
             ) : result && result.primary_analysis ? (
                 <div className="results-container">
                     {/* Input Display */}
@@ -542,294 +929,53 @@ function App() {
                     {/* Suggestions Section - Show first for immediate visibility */}
                     {result.suggestions && renderSuggestions(result.suggestions)}
 
-                    {/* Primary Analysis */}
-                    <div className="section primary-analysis">
-                        <h3>Primary Analysis</h3>
-                        <div className="analysis-content">
-                            <div className="analysis-header">
-                                <span className="analysis-type">{result.primary_analysis.type}</span>
-                                <span
-                                    className="confidence">Confidence: {result.primary_analysis.confidence.toFixed(3)}</span>
+                    {/* Analysis Results - Side by Side */}
+                    <div className="section analysis-results">
+                        <h3>Complete Analysis Results</h3>
+                        <div className="analyses-container">
+                            {/* Primary Analysis */}
+                            <div className="analysis-panel primary-analysis">
+                                <div className="panel-header">
+                                    <h4>🥇 Primary Analysis</h4>
+                                    <div className="analysis-header">
+                                        <span className="analysis-type">{result.primary_analysis.type}</span>
+                                        <span className="confidence">Confidence: {result.primary_analysis.confidence.toFixed(3)}</span>
+                                    </div>
+                                </div>
+
+                                {renderAnalysisDetails(result.primary_analysis, true)}
                             </div>
 
-                            <div className="analysis-text">{result.primary_analysis.analysis}</div>
-
-                            {/* Render different fields based on analysis type */}
-                            {analysisType === 'progression' && (
-                                <>
-                                    {result.primary_analysis.roman_numerals && result.primary_analysis.roman_numerals.length > 0 && (
-                                        <div className="roman-numerals">
-                                            <strong>Roman
-                                                Numerals:</strong> {result.primary_analysis.roman_numerals.join(' - ')}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.key_signature && (
-                                        <div className="key-info">
-                                            <strong>Key:</strong> {result.primary_analysis.key_signature}
-                                            {result.primary_analysis.mode &&
-                                                <span> ({result.primary_analysis.mode})</span>}
-                                        </div>
-                                    )}
-
-                                    {/* Enhanced Analysis Fields */}
-                                    {result.primary_analysis.contextual_classification && (
-                                        <div className="contextual-classification">
-                                            <strong>Context:</strong> {result.primary_analysis.contextual_classification.charAt(0).toUpperCase() + result.primary_analysis.contextual_classification.slice(1).replace('_', ' ')}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.modal_characteristics && result.primary_analysis.modal_characteristics.length > 0 && (
-                                        <div className="modal-characteristics">
-                                            <strong>Modal Characteristics:</strong>
-                                            <ul className="characteristics-list">
-                                                {result.primary_analysis.modal_characteristics.map((char, idx) => (
-                                                    <li key={idx}>• {char}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.parent_key_relationship && (
-                                        <div className="parent-key-relationship">
-                                            <strong>Parent Key
-                                                Relationship:</strong> {result.primary_analysis.parent_key_relationship.charAt(0).toUpperCase() + result.primary_analysis.parent_key_relationship.slice(1)}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.secondary_dominants && result.primary_analysis.secondary_dominants.length > 0 && (
-                                        <div className="secondary-dominants">
-                                            <strong>Secondary Dominants:</strong>
-                                            <ul className="dominants-list">
-                                                {result.primary_analysis.secondary_dominants.map((dom, idx) => (
-                                                    <li key={idx}>• {dom.chord} → {dom.target} ({dom.roman_numeral})</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.borrowed_chords && result.primary_analysis.borrowed_chords.length > 0 && (
-                                        <div className="borrowed-chords">
-                                            <strong>Borrowed Chords:</strong>
-                                            <ul className="borrowed-list">
-                                                {result.primary_analysis.borrowed_chords.map((chord, idx) => (
-                                                    <li key={idx}>• {chord.chord} ({chord.origin || 'borrowed'})</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.chromatic_mediants && result.primary_analysis.chromatic_mediants.length > 0 && (
-                                        <div className="chromatic-mediants">
-                                            <strong>Chromatic Mediants:</strong>
-                                            <ul className="mediants-list">
-                                                {result.primary_analysis.chromatic_mediants.map((mediant, idx) => (
-                                                    <li key={idx}>• {mediant.chord} ({mediant.type || 'chromatic mediant'})</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.cadences && result.primary_analysis.cadences.length > 0 && (
-                                        <div className="cadences">
-                                            <strong>Cadences:</strong>
-                                            <ul className="cadences-list">
-                                                {result.primary_analysis.cadences.map((cadence, idx) => (
-                                                    <li key={idx}>
-                                                        • {cadence.type.charAt(0).toUpperCase() + cadence.type.slice(1)} cadence: {cadence.chords}
-                                                        {cadence.strength && <span
-                                                            className="strength"> (strength: {cadence.strength})</span>}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.chord_functions && result.primary_analysis.chord_functions.length > 0 && (
-                                        <div className="chord-functions">
-                                            <strong>Chord
-                                                Functions:</strong> {result.primary_analysis.chord_functions.map(func => func.charAt(0).toUpperCase() + func.slice(1)).join(' → ')}
-                                        </div>
-                                    )}
-
-                                    {/* Confidence Breakdown */}
-                                    {(result.primary_analysis.functional_confidence || result.primary_analysis.modal_confidence || result.primary_analysis.chromatic_confidence) && (
-                                        <div className="confidence-breakdown">
-                                            <strong>Confidence Breakdown:</strong>
-                                            <div className="confidence-grid">
-                                                {result.primary_analysis.functional_confidence && (
-                                                    <span
-                                                        className="confidence-item">Functional: {result.primary_analysis.functional_confidence.toFixed(2)}</span>
-                                                )}
-                                                {result.primary_analysis.modal_confidence && (
-                                                    <span
-                                                        className="confidence-item">Modal: {result.primary_analysis.modal_confidence.toFixed(2)}</span>
-                                                )}
-                                                {result.primary_analysis.chromatic_confidence && (
-                                                    <span
-                                                        className="confidence-item">Chromatic: {result.primary_analysis.chromatic_confidence.toFixed(2)}</span>
-                                                )}
+                            {/* Alternative Analyses - Side by Side */}
+                            {result.alternative_analyses && result.alternative_analyses.length > 0 && 
+                                result.alternative_analyses.map((alt, index) => (
+                                    <div key={index} className="analysis-panel alternative-analysis">
+                                        <div className="panel-header">
+                                            <h4>🥈 Alternative {index + 1}</h4>
+                                            <div className="analysis-header">
+                                                <span className="analysis-type">{alt.type}</span>
+                                                <span className="confidence">Confidence: {alt.confidence.toFixed(3)}</span>
                                             </div>
                                         </div>
-                                    )}
-                                </>
-                            )}
-
-                            {analysisType === 'scale' && (
-                                <>
-                                    {result.primary_analysis.scale_degrees && (
-                                        <div className="scale-degrees">
-                                            <strong>Scale
-                                                Degrees:</strong> {result.primary_analysis.scale_degrees.join(' - ')}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.parent_key && (
-                                        <div className="key-info">
-                                            <strong>Parent Key:</strong> {result.primary_analysis.parent_key}
-                                            {result.primary_analysis.mode &&
-                                                <span> ({result.primary_analysis.mode})</span>}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.intervallic_analysis && (
-                                        <div className="intervallic-analysis">
-                                            <strong>Intervallic
-                                                Pattern:</strong> {result.primary_analysis.intervallic_analysis}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.characteristic_notes && (
-                                        <div className="characteristic-notes">
-                                            <strong>Characteristic
-                                                Notes:</strong> {result.primary_analysis.characteristic_notes.join(', ')}
-                                        </div>
-                                    )}
-                                </>
-                            )}
-
-                            {analysisType === 'melody' && (
-                                <>
-                                    {result.primary_analysis.melodic_contour && (
-                                        <div className="melodic-contour">
-                                            <strong>Melodic Contour:</strong> {result.primary_analysis.melodic_contour}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.scale_context && (
-                                        <div className="scale-context">
-                                            <strong>Scale Context:</strong> {result.primary_analysis.scale_context}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.modal_characteristics && (
-                                        <div className="modal-characteristics">
-                                            <strong>Modal
-                                                Characteristics:</strong> {result.primary_analysis.modal_characteristics}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.phrase_analysis && (
-                                        <div className="phrase-analysis">
-                                            <strong>Phrase Analysis:</strong> {result.primary_analysis.phrase_analysis}
-                                        </div>
-                                    )}
-
-                                    {result.primary_analysis.harmonic_implications && (
-                                        <div className="harmonic-implications">
-                                            <strong>Harmonic
-                                                Implications:</strong> {result.primary_analysis.harmonic_implications}
-                                        </div>
-                                    )}
-                                </>
-                            )}
-
-                            {result.primary_analysis.reasoning && (
-                                <div className="reasoning">
-                                    <h4>Reasoning</h4>
-                                    <div>{result.primary_analysis.reasoning}</div>
-                                </div>
-                            )}
-
-                            {result.primary_analysis.theoretical_basis && (
-                                <div className="theoretical-basis">
-                                    <h4>Theoretical Basis</h4>
-                                    <div>{result.primary_analysis.theoretical_basis}</div>
-                                </div>
-                            )}
-
-                            {result.primary_analysis.evidence && result.primary_analysis.evidence.length > 0 &&
-                                renderEvidence(result.primary_analysis.evidence)
+                                        {renderAnalysisDetails(alt, false)}
+                                    </div>
+                                ))
                             }
+
+                            {/* No Alternatives Message */}
+                            {(!result.alternative_analyses || result.alternative_analyses.length === 0) && (
+                                <div className="analysis-panel no-alternatives">
+                                    <div className="panel-header">
+                                        <h4>🎯 No Alternatives Found</h4>
+                                    </div>
+                                    <div className="analysis-content">
+                                        <p>The primary analysis has such high confidence that no alternative interpretations meet the threshold.</p>
+                                        <p>This suggests a very clear, unambiguous musical pattern.</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
-
-                    {/* Alternative Analyses */}
-                    {result.alternative_analyses && result.alternative_analyses.length > 0 && (
-                        <div className="section">
-                            <h3>Alternative Interpretations ({result.alternative_analyses.length})</h3>
-                            {result.alternative_analyses.map((alt, index) => (
-                                <div key={index} className="alternative-analysis">
-                                    <div className="analysis-header">
-                                        <span className="analysis-type">{alt.type}</span>
-                                        <span className="confidence">Confidence: {alt.confidence.toFixed(3)}</span>
-                                    </div>
-
-                                    <div className="analysis-text">{alt.analysis}</div>
-
-                                    {alt.roman_numerals && alt.roman_numerals.length > 0 && (
-                                        <div className="roman-numerals">
-                                            <strong>Roman Numerals:</strong> {alt.roman_numerals.join(' - ')}
-                                        </div>
-                                    )}
-
-                                    {alt.key_signature && (
-                                        <div className="key-info">
-                                            <strong>Key:</strong> {alt.key_signature}
-                                            {alt.mode && <span> ({alt.mode})</span>}
-                                        </div>
-                                    )}
-
-                                    {alt.relationship_to_primary && (
-                                        <div className="relationship">
-                                            <strong>Relationship to Primary:</strong> {alt.relationship_to_primary}
-                                        </div>
-                                    )}
-
-                                    {/* Enhanced fields for alternatives */}
-                                    {alt.secondary_dominants && alt.secondary_dominants.length > 0 && (
-                                        <div className="secondary-dominants">
-                                            <strong>Secondary Dominants:</strong>
-                                            <ul className="dominants-list">
-                                                {alt.secondary_dominants.map((dom, idx) => (
-                                                    <li key={idx}>• {dom.chord} → {dom.target} ({dom.roman_numeral})</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-
-                                    {alt.modal_characteristics && alt.modal_characteristics.length > 0 && (
-                                        <div className="modal-characteristics">
-                                            <strong>Modal Characteristics:</strong>
-                                            <ul className="characteristics-list">
-                                                {alt.modal_characteristics.map((char, idx) => (
-                                                    <li key={idx}>• {char}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-
-                                    {alt.contextual_classification && (
-                                        <div className="contextual-classification">
-                                            <strong>Context:</strong> {alt.contextual_classification.charAt(0).toUpperCase() + alt.contextual_classification.slice(1).replace('_', ' ')}
-                                        </div>
-                                    )}
-
-                                    {alt.evidence && alt.evidence.length > 0 && renderEvidence(alt.evidence)}
-                                </div>
-                            ))}
-                        </div>
-                    )}
 
                     {/* Additional Analysis Sections for Scale and Melody */}
                     {analysisType === 'scale' && result.harmonic_implications && (

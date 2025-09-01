@@ -14,10 +14,8 @@ Architecture:
 """
 
 import asyncio
-import json
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from typing import Dict, List, Optional, cast
 
 from ..core.enhanced_modal_analyzer import EnhancedModalAnalyzer, ModalAnalysisResult
@@ -32,6 +30,7 @@ from ..types import (
     InterpretationType,
     PedagogicalLevel,
 )
+from ..utils.scales import KEY_SIGNATURES
 from .algorithmic_suggestion_engine import AlgorithmicSuggestionEngine
 from .bidirectional_suggestion_engine import BidirectionalSuggestionEngine
 
@@ -154,52 +153,10 @@ EVIDENCE_WEIGHTS = {
 }
 
 
-class AnalysisCache:
-    """Simple cache for performance optimization"""
-
-    def __init__(self, max_size: int = 100, ttl_minutes: int = 5):
-        self.cache: Dict[str, MultipleInterpretationResult] = {}
-        self.timestamps: Dict[str, datetime] = {}
-        self.max_size = max_size
-        self.ttl = timedelta(minutes=ttl_minutes)
-
-    def get(self, key: str) -> Optional[MultipleInterpretationResult]:
-        """Get cached result if still valid"""
-        if key not in self.cache:
-            return None
-
-        # Check TTL
-        if datetime.now() - self.timestamps[key] > self.ttl:
-            del self.cache[key]
-            del self.timestamps[key]
-            return None
-
-        return self.cache[key]
-
-    def set(self, key: str, result: MultipleInterpretationResult) -> None:
-        """Cache result with LRU eviction"""
-        # Implement LRU by clearing oldest entries
-        if len(self.cache) >= self.max_size:
-            oldest_key = min(self.timestamps.keys(), key=lambda k: self.timestamps[k])
-            del self.cache[oldest_key]
-            del self.timestamps[oldest_key]
-
-        self.cache[key] = result
-        self.timestamps[key] = datetime.now()
-
-    def get_cache_key(
-        self, chords: List[str], options: Optional[AnalysisOptions] = None
-    ) -> str:
-        """Generate cache key from input"""
-        options_str = json.dumps(options.__dict__ if options else {}, sort_keys=True)
-        return f"{'_'.join(chords)}_{hash(options_str)}"
-
-
 class MultipleInterpretationService:
     """Service for multiple interpretation analysis"""
 
     def __init__(self) -> None:
-        self.cache = AnalysisCache()
         self.functional_analyzer = FunctionalHarmonyAnalyzer()
         self.modal_analyzer = EnhancedModalAnalyzer()
         self.suggestion_engine = AlgorithmicSuggestionEngine()
@@ -225,13 +182,6 @@ class MultipleInterpretationService:
 
         if options is None:
             options = AnalysisOptions()
-
-        cache_key = self.cache.get_cache_key(chords, options)
-
-        # Check cache first
-        cached = self.cache.get(cache_key)
-        if cached:
-            return cached
 
         try:
             # Set defaults
@@ -273,8 +223,24 @@ class MultipleInterpretationService:
                 chords, functional_result, modal_result, options
             )
 
-            # Rank and filter interpretations
+            # Apply parent key validation penalties to all interpretations
+            interpretations = self._apply_parent_key_validation_penalties(
+                interpretations, chords, options.parent_key
+            )
+
+            # Rank interpretations
             ranked_interpretations = self._rank_interpretations(interpretations)
+
+            # Primary analysis is always the best available, regardless of threshold
+            primary_analysis = (
+                ranked_interpretations[0]
+                if ranked_interpretations
+                else self._create_fallback_interpretation(chords)
+            )
+
+            # Filter alternatives using confidence threshold
+            # Note: _filter_alternatives expects full ranked list and handles
+            #       primary exclusion internally
             filtered_alternatives = self._filter_alternatives(
                 ranked_interpretations, confidence_threshold, max_alternatives
             )
@@ -288,11 +254,7 @@ class MultipleInterpretationService:
             analysis_time_ms = (time.time() - start_time) * 1000
 
             result = MultipleInterpretationResult(
-                primary_analysis=(
-                    ranked_interpretations[0]
-                    if ranked_interpretations
-                    else self._create_fallback_interpretation(chords)
-                ),
+                primary_analysis=primary_analysis,
                 alternative_analyses=filtered_alternatives,
                 metadata=MultipleInterpretationMetadata(
                     total_interpretations_considered=len(interpretations),
@@ -310,13 +272,121 @@ class MultipleInterpretationService:
                 suggestions=suggestions,
             )
 
-            # Cache result
-            self.cache.set(cache_key, result)
-
             return result
 
         except Exception as error:
             raise Exception(f"Multiple interpretation analysis failed: {str(error)}")
+
+    def _apply_parent_key_validation_penalties(
+        self,
+        interpretations: List[InterpretationAnalysis],
+        chords: List[str],
+        parent_key: Optional[str],
+    ) -> List[InterpretationAnalysis]:
+        """Apply confidence penalties for interpretations with invalid parent keys"""
+        if not parent_key or not interpretations:
+            return interpretations
+
+        # Use the same key validation logic as the modal analyzer
+        outside_key_ratio = self._calculate_outside_key_ratio(chords, parent_key)
+
+        if outside_key_ratio <= 0.1:
+            return interpretations  # No penalty needed
+
+        # Apply penalties to all interpretations
+        penalty_factor = 1.0
+        if outside_key_ratio > 0.5:
+            penalty_factor = 0.3  # Heavy penalty for >50% outside key
+        elif outside_key_ratio > 0.3:
+            penalty_factor = 0.5  # Moderate penalty for >30% outside key
+        else:  # > 0.1
+            penalty_factor = 0.7  # Light penalty for >10% outside key
+
+        penalized_interpretations = []
+        for interp in interpretations:
+            original_confidence = interp.confidence
+            penalized_confidence = original_confidence * penalty_factor
+
+            # Create new interpretation with penalized confidence
+            penalized_interp = InterpretationAnalysis(
+                type=interp.type,
+                confidence=penalized_confidence,
+                analysis=interp.analysis,
+                roman_numerals=interp.roman_numerals,
+                key_signature=interp.key_signature,
+                mode=interp.mode,
+                evidence=interp.evidence,
+                reasoning=interp.reasoning,
+                theoretical_basis=interp.theoretical_basis,
+                modal_characteristics=interp.modal_characteristics,
+                parent_key_relationship=interp.parent_key_relationship,
+                secondary_dominants=interp.secondary_dominants,
+                borrowed_chords=interp.borrowed_chords,
+                chromatic_mediants=interp.chromatic_mediants,
+                cadences=interp.cadences,
+                chord_functions=interp.chord_functions,
+                contextual_classification=interp.contextual_classification,
+                modal_confidence=interp.modal_confidence,
+                functional_confidence=interp.functional_confidence,
+                chromatic_confidence=interp.chromatic_confidence,
+            )
+
+            penalized_interpretations.append(penalized_interp)
+
+        return penalized_interpretations
+
+    def _calculate_outside_key_ratio(self, chords: List[str], parent_key: str) -> float:
+        """Calculate ratio of chords that fall outside the parent key signature"""
+
+        if parent_key not in KEY_SIGNATURES:
+            return 0.0  # Unknown key, no penalty
+
+        key_signature_accidentals = KEY_SIGNATURES[parent_key]
+
+        outside_count = 0
+        for chord in chords:
+            chord_root = (
+                chord.replace("m", "")
+                .replace("7", "")
+                .replace("maj", "")
+                .replace("dim", "")
+                .replace("aug", "")
+                .replace("sus", "")
+                .replace("add", "")
+                .replace("6", "")
+                .replace("9", "")
+                .replace("11", "")
+                .replace("13", "")
+                .replace("b", "")
+                .replace("#", "")[0]
+            )
+
+            if not self._chord_fits_key_signature(
+                chord_root, key_signature_accidentals
+            ):
+                outside_count += 1
+
+        return outside_count / len(chords)
+
+    def _chord_fits_key_signature(
+        self, chord_root: str, key_accidentals: List[str]
+    ) -> bool:
+        """Check if a chord root fits within the key signature"""
+        # If chord root is in the accidentals list, it fits
+        if chord_root in key_accidentals:
+            return True
+
+        # If chord root is a natural note and not contradicted by key signature, it fits
+        natural_notes = ["C", "D", "E", "F", "G", "A", "B"]
+        if chord_root in natural_notes:
+            # Check if this natural note is contradicted by the key signature
+            for accidental in key_accidentals:
+                accidental_root = accidental[0]  # Get root of accidental (F# -> F)
+                if accidental_root == chord_root:
+                    return False  # Natural note contradicted by key signature
+            return True
+
+        return False
 
     async def _run_functional_analysis(
         self, chords: List[str], options: AnalysisOptions
@@ -381,7 +451,14 @@ class MultipleInterpretationService:
             evidence = self._collect_functional_evidence(
                 chords, functional_result, options
             )
-            confidence = self._calculate_confidence(evidence)
+            # Use functional analyzer's confidence rather than recalculating
+            # The functional analyzer has domain-specific confidence scoring
+            confidence = functional_result.confidence
+
+            # Apply single chord confidence penalty for edge case consistency
+            if len(chords) == 1:
+                # Single chords have limited harmonic context, reduce confidence
+                confidence = min(confidence * 0.7, 0.45)  # Cap at 0.45 to ensure ≤0.5
 
             # Extract cadences and chord functions from functional analysis
             cadences = self._extract_cadences(functional_result)
@@ -390,6 +467,11 @@ class MultipleInterpretationService:
             # Detect chromatic elements
             chromatic_elements = self._detect_chromatic_elements(
                 chords, options.parent_key
+            )
+
+            # Extract modal characteristics from borrowed chords in functional context
+            modal_characteristics = self._extract_modal_characteristics_from_functional(
+                functional_result, chromatic_elements
             )
 
             return InterpretationAnalysis(
@@ -415,6 +497,8 @@ class MultipleInterpretationService:
                 contextual_classification=self._determine_contextual_classification(
                     chords, options.parent_key
                 ),
+                # Modal characteristics in functional context
+                modal_characteristics=modal_characteristics,
                 # Chromatic elements
                 secondary_dominants=chromatic_elements["secondary_dominants"],
                 borrowed_chords=chromatic_elements["borrowed_chords"],
@@ -433,7 +517,14 @@ class MultipleInterpretationService:
         """Create modal interpretation with confidence scoring"""
         try:
             evidence = self._collect_modal_evidence(chords, modal_result)
-            confidence = self._calculate_confidence(evidence)
+            # Use modal analyzer's confidence rather than recalculating
+            # The modal analyzer has domain-specific confidence scoring
+            confidence = modal_result.confidence
+
+            # Apply single chord confidence penalty for edge case consistency
+            if len(chords) == 1:
+                # Single chords have limited harmonic context, reduce confidence
+                confidence = min(confidence * 0.7, 0.45)  # Cap at 0.45 to ensure ≤0.5
 
             # Extract modal characteristics and parent key relationship
             modal_characteristics = self._extract_modal_characteristics(modal_result)
@@ -452,6 +543,7 @@ class MultipleInterpretationService:
                 analysis=f"{modal_result.mode_name} modal progression",
                 mode=modal_result.mode_name,
                 key_signature=modal_result.parent_key_signature,
+                roman_numerals=modal_result.roman_numerals,
                 evidence=evidence,
                 reasoning=self._generate_modal_reasoning(modal_result, evidence),
                 theoretical_basis=(
@@ -642,11 +734,24 @@ class MultipleInterpretationService:
             # Use the original description instead of stringifying
             description = getattr(modal_evidence, "description", str(modal_evidence))
 
-            # FIXED: Use more conservative modal evidence scoring
-            # Modal evidence should not default to such high values
+            # MUSIC THEORY-BASED EVIDENCE WEIGHTING
+            # Modal evidence should be weighted by music theory significance
             original_strength = getattr(modal_evidence, "strength", 0.70)
-            # Cap modal evidence at reasonable levels to balance with functional
-            strength = min(original_strength, 0.75)
+
+            # BOOST: Strong modal characteristics should match functional strength
+            description = getattr(modal_evidence, "description", str(modal_evidence))
+            if any(
+                term in description
+                for term in ["bVII", "Mixolydian", "bII", "Phrygian"]
+            ):
+                # bVII and bII are DEFINING modal characteristics, as strong as ii-V-I
+                strength = min(original_strength + 0.20, 0.95)
+            elif any(term in description for term in ["cadence", "characteristic"]):
+                # Modal cadences are strong evidence
+                strength = min(original_strength + 0.10, 0.85)
+            else:
+                # Regular modal evidence - no artificial capping
+                strength = min(original_strength, 0.80)
 
             evidence.append(
                 AnalysisEvidence(
@@ -739,33 +844,31 @@ class MultipleInterpretationService:
 
         if modal_result.evidence:
             first_evidence = modal_result.evidence[0]
-            chord_info = getattr(
-                first_evidence,
-                "chord",
-                getattr(first_evidence, "pattern", str(first_evidence)),
-            )
+            # Use the description field from ModalEvidence instead of
+            # object serialization
+            chord_info = first_evidence.description
             reasons.append(
-                f"{chord_info} is characteristic of {modal_result.mode_name} mode"
+                f"{chord_info} is characteristic of {modal_result.mode_name} mode."
             )
 
         if any(e.type == EvidenceType.INTERVALLIC for e in evidence):
-            reasons.append("Distinctive modal scale degrees present")
+            reasons.append("Distinctive modal scale degrees present.")
 
         return (
             "; ".join(reasons)
             if reasons
             else (
                 f"Modal characteristics suggest {modal_result.mode_name} "
-                "interpretation"
+                "interpretation."
             )
         )
 
     def _rank_interpretations(
         self, interpretations: List[InterpretationAnalysis]
     ) -> List[InterpretationAnalysis]:
-        """Rank interpretations by confidence"""
+        """Rank interpretations by confidence (no filtering)"""
         return sorted(
-            [interp for interp in interpretations if interp.confidence > 0.2],
+            interpretations,
             key=lambda x: x.confidence,
             reverse=True,
         )
@@ -814,7 +917,7 @@ class MultipleInterpretationService:
         ):
             return (
                 "Modal interpretation emphasizes scale degrees over functional "
-                "harmonic relationships"
+                "harmonic relationships."
             )
         elif (
             primary.type == InterpretationType.MODAL
@@ -822,10 +925,10 @@ class MultipleInterpretationService:
         ):
             return (
                 "Functional interpretation emphasizes tonal chord progressions "
-                "over modal characteristics"
+                "over modal characteristics."
             )
         else:
-            return "Alternative analytical perspective on the same harmonic content"
+            return "Alternative analytical perspective on the same harmonic content."
 
     def _should_show_alternatives(
         self,
@@ -864,8 +967,8 @@ class MultipleInterpretationService:
             type=InterpretationType.FUNCTIONAL,
             confidence=0.3,
             analysis=f"Basic chord progression: {' - '.join(chords)}",
-            reasoning="Analysis completed with limited harmonic information",
-            theoretical_basis="Basic chord progression analysis",
+            reasoning="Analysis completed with limited harmonic information.",
+            theoretical_basis="Basic chord progression analysis.",
         )
 
     def _get_cadence_quality(self, cadence_key: str) -> str:
@@ -905,10 +1008,19 @@ class MultipleInterpretationService:
             # Plagal variants (still functional but weaker - handled elsewhere)
         }
 
-        # Check for exact matches and partial matches
+        # Check for exact matches and flexible pattern matches
         for pattern_name, variations in strong_patterns.items():
             for variation in variations:
-                if rn_str == variation or rn_str.endswith(variation):
+                # Exact match
+                if rn_str == variation:
+                    patterns.append(pattern_name)
+                    break
+                # Flexible matching for chord extensions (ii7-V7-I matches ii7-V7-I7)
+                elif self._flexible_pattern_match(rn_str, variation):
+                    patterns.append(pattern_name)
+                    break
+                # Ending match for longer progressions
+                elif rn_str.endswith(variation):
                     patterns.append(pattern_name)
                     break
 
@@ -961,6 +1073,37 @@ class MultipleInterpretationService:
             pass
 
         return False
+
+    def _flexible_pattern_match(self, actual: str, pattern: str) -> bool:
+        """
+        Check if actual Roman numeral progression matches pattern with flexible
+        chord extensions.
+
+        Examples:
+        - "ii7-V7-I7" matches pattern "ii7-V7-I" (I can have extensions)
+        - "ii7-V7-Imaj7" matches pattern "ii7-V7-I"
+        - "ii-V-I" matches pattern "ii-V-I" (exact match)
+        """
+        # Split into individual chords
+        actual_chords = actual.split("-")
+        pattern_chords = pattern.split("-")
+
+        # Must have same number of chords
+        if len(actual_chords) != len(pattern_chords):
+            return False
+
+        # Check each chord pair
+        for actual_chord, pattern_chord in zip(actual_chords, pattern_chords):
+            # Remove extensions from actual chord for comparison
+            # ii7 -> ii, V7 -> V, Imaj7 -> I, etc.
+            actual_base = actual_chord.rstrip("7♭♯°majdim+sus")
+            pattern_base = pattern_chord.rstrip("7♭♯°majdim+sus")
+
+            # Base Roman numerals must match
+            if actual_base != pattern_base:
+                return False
+
+        return True
 
     # Helper methods for new test framework fields
 
@@ -1030,17 +1173,9 @@ class MultipleInterpretationService:
         functions = []
 
         for chord in functional_result.chords:
-            roman = chord.roman_numeral
-
-            # Map roman numerals to functions
-            if roman in ["I", "i", "vi", "VI"]:
-                functions.append("tonic")
-            elif roman in ["ii", "IV", "iv", "ii7"]:
-                functions.append("predominant")
-            elif roman in ["V", "V7", "vii", "viio", "viio7"]:
-                functions.append("dominant")
-            else:
-                functions.append("other")
+            # Use the actual function from the functional analysis instead of
+            #   hardcoded mapping
+            functions.append(chord.function.value)
 
         return functions
 
@@ -1072,6 +1207,40 @@ class MultipleInterpretationService:
         elif "Locrian" in mode_name:
             characteristics.append("Diminished tonic")
             characteristics.append("bII and b5")
+
+        return characteristics
+
+    def _extract_modal_characteristics_from_functional(
+        self,
+        functional_result: FunctionalAnalysisResult,
+        chromatic_elements: Dict[str, List[Dict[str, str]]],
+    ) -> List[str]:
+        """Extract modal characteristics from functional analysis with borrowed"""
+        characteristics = []
+
+        # Check roman numerals for modal borrowed chords
+        if hasattr(functional_result, "chords") and functional_result.chords:
+            roman_numerals = [chord.roman_numeral for chord in functional_result.chords]
+
+            # Check for common modal borrowed chords
+            if "bVII" in roman_numerals:
+                characteristics.append("bVII chord (modal characteristic)")
+                characteristics.append("Lowered 7th scale degree (Mixolydian)")
+            if "bVI" in roman_numerals:
+                characteristics.append("bVI chord (modal characteristic)")
+                characteristics.append("Lowered 6th scale degree (Aeolian)")
+
+            if "bII" in roman_numerals:
+                characteristics.append("bII chord (modal characteristic)")
+                characteristics.append("Lowered 2nd scale degree (Phrygian)")
+
+            if "#IV" in roman_numerals or "II" in roman_numerals:
+                characteristics.append("Raised 4th scale degree (Lydian)")
+
+        # Add information about borrowed chords
+        borrowed_chords = chromatic_elements.get("borrowed_chords", [])
+        if borrowed_chords:
+            characteristics.append(f"Contains {len(borrowed_chords)} borrowed chord(s)")
 
         return characteristics
 
@@ -1169,6 +1338,10 @@ class MultipleInterpretationService:
         options: AnalysisOptions,
     ) -> Optional[AnalysisSuggestions]:
         """Generate bidirectional suggestions for improving analysis quality."""
+        print(
+            f"🔍 MULTIPLE INTERPRETATION: Generating suggestions for {chords} "
+            f"with parent_key={options.parent_key}"
+        )
 
         try:
             # Extract current analysis metrics for bidirectional engine

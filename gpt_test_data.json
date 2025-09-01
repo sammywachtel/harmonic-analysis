@@ -1,0 +1,706 @@
+[
+  {
+    "composer": "Johann Pachelbel",
+    "title": "Canon in D",
+    "input_chords": [
+      "D",
+      "A",
+      "Bm",
+      "F#m",
+      "G",
+      "D",
+      "G",
+      "A"
+    ],
+    "primary_analysis": {
+      "type": "functional",
+      "confidence": 0.85,
+      "analysis": "A repeating functional progression: I–V–vi–iii–IV–I–IV–V. The pattern outlines a sequence of descending fifths typical of the Romanesca pattern.",
+      "roman_numerals": [
+        "I",
+        "V",
+        "vi",
+        "iii",
+        "IV",
+        "I",
+        "IV",
+        "V"
+      ],
+      "key_signature": "D major",
+      "mode": null,
+      "reasoning": "The progression cycles through the primary triads and their relatives in D major, forming a descending–fifths sequence (Romanesca) that keeps returning to the tonic. The ending IV–V acts as a half cadence setting up the return to I.",
+      "theoretical_basis": "Functional harmony using Roman numeral analysis; recognition of the Romanesca sequential pattern.",
+      "evidence": [
+        {
+          "type": "harmonic",
+          "strength": 0.8,
+          "description": "The Canon's eight‑chord ostinato is I–V–vi–iii–IV–I–IV–V, a Romanesca sequence【974062402216324⟠L341-L352】【974062402216324⟠L353-L356】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "The ostinato repeats the same harmonic pattern, allowing a clear mapping to Roman numerals."
+        },
+        {
+          "type": "cadential",
+          "strength": 0.6,
+          "description": "The final IV–V creates a half cadence before the progression repeats, preparing a return to I【974062402216324⟠L341-L352】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "A half cadence occurs when a progression ends on V【851998235519754⟠L843-L849】."
+        }
+      ],
+      "modal_characteristics": [],
+      "parent_key_relationship": null,
+      "secondary_dominants": [],
+      "borrowed_chords": [],
+      "chromatic_mediants": [],
+      "cadences": [
+        {
+          "type": "half",
+          "chords": "IV–V",
+          "strength": "0.6"
+        }
+      ],
+      "chord_functions": [
+        "tonic",
+        "dominant",
+        "submediant",
+        "mediant",
+        "subdominant",
+        "tonic",
+        "subdominant",
+        "dominant"
+      ],
+      "contextual_classification": null,
+      "functional_confidence": 0.85,
+      "modal_confidence": null,
+      "chromatic_confidence": null
+    },
+    "alternative_analyses": [
+      {
+        "type": "sequential",
+        "confidence": 0.6,
+        "analysis": "Descending–fifths sequence emphasising the circle of fifths rather than traditional tonic–dominant relationships.",
+        "roman_numerals": [
+          "I",
+          "V",
+          "ii",
+          "vi",
+          "iii",
+          "vii°",
+          "IV",
+          "I"
+        ],
+        "key_signature": "D major",
+        "mode": null,
+        "reasoning": "Viewing the canon as a circle‑of‑fifths sequence highlights the pattern of descending fifths without assigning functional labels to each chord.",
+        "theoretical_basis": "Sequence analysis focusing on intervallic repetition.",
+        "relationship_to_primary": "Emphasises the sequential nature of the pattern rather than functional harmony.",
+        "evidence": [
+          {
+            "type": "harmonic",
+            "strength": 0.7,
+            "description": "The Canon's progression is widely described as a Romanesca or descending‑fifths sequence【974062402216324⟠L353-L356】.",
+            "supported_interpretations": [
+              "sequential"
+            ],
+            "musical_basis": "Recognition of the repeating pattern as a sequence rather than a series of tonic–dominant relationships."
+          }
+        ],
+        "modal_characteristics": [],
+        "parent_key_relationship": null,
+        "secondary_dominants": [],
+        "borrowed_chords": [],
+        "chromatic_mediants": [],
+        "cadences": [],
+        "chord_functions": [],
+        "contextual_classification": null,
+        "functional_confidence": null,
+        "modal_confidence": null,
+        "chromatic_confidence": null
+      }
+    ],
+    "metadata": {
+      "total_interpretations_considered": 2,
+      "confidence_threshold": 0.5,
+      "show_alternatives": true,
+      "pedagogical_level": "intermediate",
+      "analysis_time_ms": 1.23
+    }
+  },
+  {
+    "composer": "Traditional",
+    "title": "Twelve‑Bar Blues in C",
+    "input_chords": [
+      "C7",
+      "C7",
+      "C7",
+      "C7",
+      "F7",
+      "F7",
+      "C7",
+      "C7",
+      "G7",
+      "F7",
+      "C7",
+      "G7"
+    ],
+    "primary_analysis": {
+      "type": "functional",
+      "confidence": 0.9,
+      "analysis": "Standard 12‑bar blues progression: I–I–I–I | IV–IV–I–I | V–IV–I–V. The pattern cycles through tonic, subdominant and dominant functions, with a turnaround (V–IV–I–V) leading back to the top.",
+      "roman_numerals": [
+        "I",
+        "I",
+        "I",
+        "I",
+        "IV",
+        "IV",
+        "I",
+        "I",
+        "V",
+        "IV",
+        "I",
+        "V"
+      ],
+      "key_signature": "C major",
+      "mode": null,
+      "reasoning": "The progression uses only the I, IV and V chords of C major, characteristic of blues. The final V–I constitutes an authentic cadence before the turnaround repeats.",
+      "theoretical_basis": "Blues harmony and functional analysis of I, IV, V chords.",
+      "evidence": [
+        {
+          "type": "harmonic",
+          "strength": 0.8,
+          "description": "The basic 12‑bar blues uses I, IV and V chords in the pattern I–I–I–I / IV–IV–I–I / V–IV–I–V【583027498882443⟠L191-L210】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "Roman numeral notation in the article shows the exact pattern."
+        },
+        {
+          "type": "cadential",
+          "strength": 0.7,
+          "description": "The V–I in the turnaround functions as an authentic cadence【851998235519754⟠L843-L849】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "An authentic cadence ends with V–I, establishing tonic closure."
+        }
+      ],
+      "modal_characteristics": [],
+      "parent_key_relationship": null,
+      "secondary_dominants": [],
+      "borrowed_chords": [],
+      "chromatic_mediants": [],
+      "cadences": [
+        {
+          "type": "authentic",
+          "chords": "V–I",
+          "strength": "0.7"
+        }
+      ],
+      "chord_functions": [
+        "tonic",
+        "tonic",
+        "tonic",
+        "tonic",
+        "subdominant",
+        "subdominant",
+        "tonic",
+        "tonic",
+        "dominant",
+        "subdominant",
+        "tonic",
+        "dominant"
+      ],
+      "contextual_classification": null,
+      "functional_confidence": 0.9,
+      "modal_confidence": null,
+      "chromatic_confidence": null
+    },
+    "alternative_analyses": [
+      {
+        "type": "modal",
+        "confidence": 0.5,
+        "analysis": "Mixolydian blues interpretation where each I, IV and V chord functions as a modal centre, reflecting the mixolydian scales often used in blues improvisation.",
+        "roman_numerals": [
+          "I",
+          "I",
+          "I",
+          "I",
+          "IV",
+          "IV",
+          "I",
+          "I",
+          "V",
+          "IV",
+          "I",
+          "V"
+        ],
+        "key_signature": "C mixolydian",
+        "mode": "mixolydian",
+        "reasoning": "Blues musicians frequently treat each dominant seventh chord as its own modal centre, leading to a mixolydian interpretation.",
+        "theoretical_basis": "Modal analysis focusing on the use of mixolydian scales over dominant chords.",
+        "relationship_to_primary": "Shifts focus from functional relationships to modal centers on each chord.",
+        "evidence": [
+          {
+            "type": "contextual",
+            "strength": 0.5,
+            "description": "Blues improvisation often uses mixolydian scales over dominant chords, supporting a modal view.",
+            "supported_interpretations": [
+              "modal"
+            ],
+            "musical_basis": "Practitioners use mixolydian modes on I, IV and V chords instead of strictly tonal functions."
+          }
+        ],
+        "modal_characteristics": [
+          "mixolydian usage"
+        ],
+        "parent_key_relationship": null,
+        "secondary_dominants": [],
+        "borrowed_chords": [],
+        "chromatic_mediants": [],
+        "cadences": [],
+        "chord_functions": [],
+        "contextual_classification": null,
+        "functional_confidence": null,
+        "modal_confidence": 0.5,
+        "chromatic_confidence": null
+      }
+    ],
+    "metadata": {
+      "total_interpretations_considered": 2,
+      "confidence_threshold": 0.5,
+      "show_alternatives": true,
+      "pedagogical_level": "intermediate",
+      "analysis_time_ms": 1.45
+    }
+  },
+  {
+    "composer": "Joseph Kosma",
+    "title": "Autumn Leaves",
+    "input_chords": [
+      "Cm7",
+      "F7",
+      "Bbmaj7",
+      "Ebmaj7",
+      "Am7b5",
+      "D7",
+      "Gm7"
+    ],
+    "primary_analysis": {
+      "type": "functional",
+      "confidence": 0.88,
+      "analysis": "The tune starts with a major ii–V–I–IV progression in Bb major followed by a minor ii–V–i in G minor, illustrating the relative major/minor relationship.",
+      "roman_numerals": [
+        "ii",
+        "V",
+        "I",
+        "IV",
+        "ii°",
+        "V",
+        "i"
+      ],
+      "key_signature": "Bb major / G minor",
+      "mode": null,
+      "reasoning": "C‑m7 and F7 function as ii and V in Bb major, resolving to the I (Bbmaj7) and moving to the IV (Ebmaj7). The subsequent Am7♭5 and D7 form a ii°–V in G minor, resolving authentically to Gm7 (i). This reflects the progression described in analyses of the song.",
+      "theoretical_basis": "Functional tonal harmony with modulation between relative major and minor keys.",
+      "evidence": [
+        {
+          "type": "harmonic",
+          "strength": 0.75,
+          "description": "Autumn Leaves is built from major and minor ii–V–I progressions with a switch between relative keys【57229094540833⟠L247-L355】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "The article notes that the tune uses ii–V–I in the relative major and ii–V–i in the relative minor【57229094540833⟠L359-L369】."
+        },
+        {
+          "type": "contextual",
+          "strength": 0.6,
+          "description": "The first bar begins on the tonic of G minor then moves to a dominant IV chord; the second bar is a ii–V progression to Eb (IV in Bb) before resolving to a minor ii–V–i【57229094540833⟠L338-L350】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "This description aligns with the ii–V–I–IV / ii°–V–i pattern used here."
+        },
+        {
+          "type": "cadential",
+          "strength": 0.8,
+          "description": "The Am7♭5–D7–Gm7 segment forms a minor authentic cadence (V–i)【851998235519754⟠L843-L849】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "An authentic cadence occurs when V resolves to I (or i in minor)."
+        }
+      ],
+      "modal_characteristics": [],
+      "parent_key_relationship": {
+        "relative_major": "Bb major",
+        "relative_minor": "G minor"
+      },
+      "secondary_dominants": [],
+      "borrowed_chords": [],
+      "chromatic_mediants": [],
+      "cadences": [
+        {
+          "type": "authentic (minor)",
+          "chords": "D7–Gm7",
+          "strength": "0.8"
+        }
+      ],
+      "chord_functions": [
+        "predominant",
+        "dominant",
+        "tonic",
+        "subdominant",
+        "predominant",
+        "dominant",
+        "tonic"
+      ],
+      "contextual_classification": null,
+      "functional_confidence": 0.88,
+      "modal_confidence": null,
+      "chromatic_confidence": null
+    },
+    "alternative_analyses": [
+      {
+        "type": "modal",
+        "confidence": 0.55,
+        "analysis": "Viewed as a G Aeolian modal progression: each chord relates to the G natural minor scale without emphasis on functional hierarchy.",
+        "roman_numerals": [
+          "iv",
+          "bVII",
+          "bIII",
+          "bVI",
+          "ii°",
+          "V",
+          "i"
+        ],
+        "key_signature": "G natural minor",
+        "mode": "G Aeolian",
+        "reasoning": "Treating the chords as belonging to the G Aeolian mode highlights their shared scale without imposing a major/minor tonal framework.",
+        "theoretical_basis": "Modal analysis focusing on characteristic scale degrees.",
+        "relationship_to_primary": "This interpretation emphasises modal colour over functional relationships.",
+        "evidence": [
+          {
+            "type": "intervallic",
+            "strength": 0.55,
+            "description": "The progression contains chords built on scale degrees of G natural minor (bIII, bVI, bVII), suggesting an Aeolian perspective.",
+            "supported_interpretations": [
+              "modal"
+            ],
+            "musical_basis": "In G Aeolian, Ebmaj7 (bVI) and F7 (bVII) are diatonic."
+          }
+        ],
+        "modal_characteristics": [
+          "lowered 3rd, 6th and 7th degrees"
+        ],
+        "parent_key_relationship": null,
+        "secondary_dominants": [],
+        "borrowed_chords": [],
+        "chromatic_mediants": [],
+        "cadences": [],
+        "chord_functions": [],
+        "contextual_classification": null,
+        "functional_confidence": null,
+        "modal_confidence": 0.55,
+        "chromatic_confidence": null
+      }
+    ],
+    "metadata": {
+      "total_interpretations_considered": 2,
+      "confidence_threshold": 0.5,
+      "show_alternatives": true,
+      "pedagogical_level": "intermediate",
+      "analysis_time_ms": 2.03
+    }
+  },
+  {
+    "composer": "Jerome Kern",
+    "title": "All the Things You Are",
+    "input_chords": [
+      "Fm7",
+      "Bb7",
+      "Ebmaj7",
+      "Abmaj7",
+      "Dbmaj7",
+      "Dm7",
+      "G7",
+      "Cmaj7"
+    ],
+    "primary_analysis": {
+      "type": "functional",
+      "confidence": 0.9,
+      "analysis": "The first five bars move through vi–ii–V–I–IV in Ab major before modulating via a ii–V–I into C major.",
+      "roman_numerals": [
+        "vi",
+        "ii",
+        "V",
+        "I",
+        "IV",
+        "ii",
+        "V",
+        "I"
+      ],
+      "key_signature": "Ab major → C major",
+      "mode": null,
+      "reasoning": "Fm7 (vi), Bb7 (ii), Ebmaj7 (V), Abmaj7 (I) and Dbmaj7 (IV) form a descending‑fifths progression in Ab. Dm7 and G7 create a ii–V that resolves authentically to Cmaj7 (I) in the new key. This matches analyses of the tune's key centres and Roman numeral patterns.",
+      "theoretical_basis": "Functional tonal harmony and key modulation through ii–V–I patterns.",
+      "evidence": [
+        {
+          "type": "harmonic",
+          "strength": 0.8,
+          "description": "The first five bars contain a 6–2–5–1–4 progression in Ab followed by a 2–5–1 progression in C【399858058302335⟠L146-L152】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "The article explicitly identifies these Roman numerals in the respective keys."
+        },
+        {
+          "type": "harmonic",
+          "strength": 0.75,
+          "description": "The A' section repeats the pattern transposed to Eb and G, demonstrating the tune's reliance on ii–V–I progressions【399858058302335⟠L154-L160】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "The concept of descending fifths and ii–V–I sequences is central to the tune【399858058302335⟠L219-L233】."
+        },
+        {
+          "type": "cadential",
+          "strength": 0.8,
+          "description": "The G7–Cmaj7 motion forms an authentic cadence in C major【851998235519754⟠L843-L849】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "V–I in a major key constitutes an authentic cadence."
+        }
+      ],
+      "modal_characteristics": [],
+      "parent_key_relationship": null,
+      "secondary_dominants": [],
+      "borrowed_chords": [],
+      "chromatic_mediants": [],
+      "cadences": [
+        {
+          "type": "authentic",
+          "chords": "G7–Cmaj7",
+          "strength": "0.8"
+        }
+      ],
+      "chord_functions": [
+        "predominant",
+        "dominant",
+        "dominant",
+        "tonic",
+        "subdominant",
+        "predominant",
+        "dominant",
+        "tonic"
+      ],
+      "contextual_classification": null,
+      "functional_confidence": 0.9,
+      "modal_confidence": null,
+      "chromatic_confidence": null
+    },
+    "alternative_analyses": [
+      {
+        "type": "sequential",
+        "confidence": 0.6,
+        "analysis": "Viewing the entire eight‑chord segment as a descending circle‑of‑fifths sequence (Fm7–Bb7–Ebmaj7–Abmaj7–Dbmaj7–G7–Cmaj7) without separating key centres.",
+        "roman_numerals": [
+          "vi",
+          "ii",
+          "V",
+          "I",
+          "IV",
+          "VII",
+          "III",
+          "VI"
+        ],
+        "key_signature": "Ab major (with tonicizations)",
+        "mode": null,
+        "reasoning": "By ignoring key boundaries, one can see the chords as part of a single cycle descending by fifths.",
+        "theoretical_basis": "Sequence analysis highlighting the circle‑of‑fifths motion rather than tonal functions.",
+        "relationship_to_primary": "This removes the tonal modulation into C and instead treats the progression as continuous fifths.",
+        "evidence": [
+          {
+            "type": "harmonic",
+            "strength": 0.6,
+            "description": "The article notes that ignoring key centres, the first eight bars share the numerals 6–2–5–1–4–2–5–1【399858058302335⟠L219-L233】.",
+            "supported_interpretations": [
+              "sequential"
+            ],
+            "musical_basis": "This interpretation aligns with the idea of a continuous descending‑fifths progression."
+          }
+        ],
+        "modal_characteristics": [],
+        "parent_key_relationship": null,
+        "secondary_dominants": [],
+        "borrowed_chords": [],
+        "chromatic_mediants": [],
+        "cadences": [],
+        "chord_functions": [],
+        "contextual_classification": null,
+        "functional_confidence": null,
+        "modal_confidence": null,
+        "chromatic_confidence": null
+      }
+    ],
+    "metadata": {
+      "total_interpretations_considered": 2,
+      "confidence_threshold": 0.5,
+      "show_alternatives": true,
+      "pedagogical_level": "intermediate",
+      "analysis_time_ms": 2.25
+    }
+  },
+  {
+    "composer": "Frédéric Chopin",
+    "title": "Prelude in E minor, Op. 28 No. 4",
+    "input_chords": [
+      "B7",
+      "Em"
+    ],
+    "primary_analysis": {
+      "type": "functional",
+      "confidence": 0.92,
+      "analysis": "A rare perfect cadence in the prelude: V7–i (B7–Em) in E minor.",
+      "roman_numerals": [
+        "V7",
+        "i"
+      ],
+      "key_signature": "E minor",
+      "mode": null,
+      "reasoning": "Chopin's prelude is known for delaying resolution. However, the B7–Em motion provides one of the only perfect cadences in the piece.",
+      "theoretical_basis": "Functional analysis of minor key cadences.",
+      "evidence": [
+        {
+          "type": "cadential",
+          "strength": 0.95,
+          "description": "The analysis notes that the prelude contains only two perfect cadences (B7–Em)【753479173699514⟠L91-L106】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "An authentic cadence is defined as V–I/i【851998235519754⟠L843-L849】."
+        },
+        {
+          "type": "harmonic",
+          "strength": 0.6,
+          "description": "Many dominant chords in the piece change quality instead of resolving, prolonging tension【753479173699514⟠L121-L133】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "This contrast highlights the significance of the rare authentic cadences."
+        }
+      ],
+      "modal_characteristics": [],
+      "parent_key_relationship": null,
+      "secondary_dominants": [],
+      "borrowed_chords": [],
+      "chromatic_mediants": [],
+      "cadences": [
+        {
+          "type": "authentic (minor)",
+          "chords": "B7–Em",
+          "strength": "0.95"
+        }
+      ],
+      "chord_functions": [
+        "dominant",
+        "tonic"
+      ],
+      "contextual_classification": null,
+      "functional_confidence": 0.92,
+      "modal_confidence": null,
+      "chromatic_confidence": null
+    },
+    "alternative_analyses": [],
+    "metadata": {
+      "total_interpretations_considered": 1,
+      "confidence_threshold": 0.5,
+      "show_alternatives": false,
+      "pedagogical_level": "intermediate",
+      "analysis_time_ms": 0.8
+    }
+  },
+  {
+    "composer": "Johann Sebastian Bach",
+    "title": "Prelude in C major, BWV 846",
+    "input_chords": [
+      "C",
+      "G",
+      "Dm",
+      "G",
+      "C"
+    ],
+    "primary_analysis": {
+      "type": "functional",
+      "confidence": 0.86,
+      "analysis": "Opening bars: tonic C is prolonged via dominant and ii chords, creating a tonic–dominant–predominant–dominant–tonic pattern.",
+      "roman_numerals": [
+        "I",
+        "V",
+        "ii",
+        "V",
+        "I"
+      ],
+      "key_signature": "C major",
+      "mode": null,
+      "reasoning": "The first four bars are governed by the C major chord, but Bach passes through the dominant (G) and predominant (ii) before returning to C, exemplifying a prolongation of the tonic.",
+      "theoretical_basis": "Schenkerian and functional analysis highlighting tonic prolongation.",
+      "evidence": [
+        {
+          "type": "harmonic",
+          "strength": 0.8,
+          "description": "The opening four bars are governed by the C major chord and the tonic is prolonged via the dominant and a ii chord【948900344973732⟠L110-L117】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "The analysis explains that I–V–ii–V–I forms the underlying harmonic structure."
+        },
+        {
+          "type": "cadential",
+          "strength": 0.7,
+          "description": "The return from G (V) to C (I) constitutes an authentic cadence【851998235519754⟠L843-L849】.",
+          "supported_interpretations": [
+            "functional"
+          ],
+          "musical_basis": "V–I is defined as an authentic cadence."
+        }
+      ],
+      "modal_characteristics": [],
+      "parent_key_relationship": null,
+      "secondary_dominants": [],
+      "borrowed_chords": [],
+      "chromatic_mediants": [],
+      "cadences": [
+        {
+          "type": "authentic",
+          "chords": "G–C",
+          "strength": "0.7"
+        }
+      ],
+      "chord_functions": [
+        "tonic",
+        "dominant",
+        "predominant",
+        "dominant",
+        "tonic"
+      ],
+      "contextual_classification": null,
+      "functional_confidence": 0.86,
+      "modal_confidence": null,
+      "chromatic_confidence": null
+    },
+    "alternative_analyses": [],
+    "metadata": {
+      "total_interpretations_considered": 1,
+      "confidence_threshold": 0.5,
+      "show_alternatives": false,
+      "pedagogical_level": "intermediate",
+      "analysis_time_ms": 1.1
+    }
+  }
+]

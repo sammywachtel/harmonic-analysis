@@ -6,7 +6,7 @@
   "scripts": {
     "start": "concurrently \"npm run backend\" \"npm run frontend\"",
     "frontend": "cd frontend && npm start",
-    "backend": "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port 8010 --reload --access-log --log-level info",
+    "backend": "cd backend && python -m uvicorn main:app --host 0.0.0.0 --port 8010 --reload --reload-dir ../.. --access-log --log-level info",
     "setup": "./setup.sh",
     "stop": "npm run backend:stop && npm run frontend:stop",
     "backend:stop": "pkill -f \"uvicorn main:app\" || true",

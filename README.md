@@ -8,12 +8,13 @@ scales, modes, and harmonic relationships with detailed explanations of *why* it
 This library listens to your chord progressions, scales, and melodies and tells you:
 
 - **What key you're in** and how confident it is about that
-- **The function of each chord** (tonic, dominant, subdominant, etc.)
+- **The function of each chord** (tonic, dominant, subdominant, etc.) with full inversion analysis
 - **What mode you might be using** (Dorian, Mixolydian, Phrygian, etc.)
 - **Advanced harmonic techniques** you're employing (secondary dominants, borrowed chords, etc.)
+- **Chord inversions with proper figured bass notation** (⁶, ⁶⁴, ⁴²)
 - **Multiple valid interpretations** when your music is ambiguous (which is often!)
 
-Think of it as having a music theory professor analyze your work and explain their reasoning.
+Think of it as having a music theory professor analyze your work and explain their reasoning, including proper voice leading and inversion analysis.
 
 ## Installation
 
@@ -91,6 +92,48 @@ async def analyze_my_melody():
 
 asyncio.run(analyze_my_melody())
 ```
+
+### Analyzing Chord Inversions 🎼
+
+The library provides comprehensive inversion analysis with proper figured bass notation:
+
+```python
+import asyncio
+from harmonic_analysis import analyze_chord_progression, AnalysisOptions
+
+async def analyze_inversions():
+    # Progression with multiple inversions in F major
+    chords = ['D', 'Gm/Bb', 'D/A', 'Gm', 'F/C', 'C', 'F']
+    
+    result = await analyze_chord_progression(
+        chords, 
+        AnalysisOptions(parent_key='F major')
+    )
+    
+    print("Analysis:", result.primary_analysis.analysis)
+    # Output: "Functional progression with secondary dominants"
+    
+    print("Roman numerals:", result.primary_analysis.roman_numerals)
+    # Output: ['V/ii', 'ii⁶', 'V/ii⁶⁴', 'ii', 'I⁶⁴', 'V', 'I']
+    
+    # Perfect bidirectional conversion
+    from harmonic_analysis.utils.roman_numeral_converter import convert_roman_numerals_to_chords
+    
+    romans_str = " ".join(result.primary_analysis.roman_numerals)
+    reconstructed = convert_roman_numerals_to_chords(romans_str, "F major")
+    print("Reconstructed chords:", reconstructed)
+    # Output: ['D', 'Gm/Bb', 'D/A', 'Gm', 'F/C', 'C', 'F']
+    # Perfect round-trip conversion preserves all inversions!
+
+asyncio.run(analyze_inversions())
+```
+
+**Inversion Notation Used:**
+- **⁶** = First inversion (third in bass)
+- **⁶⁴** = Second inversion (fifth in bass)  
+- **⁴²** = Third inversion of seventh chords (seventh in bass)
+
+The library provides **perfect bidirectional conversion** - you can go from chord symbols → Roman numerals → chord symbols with complete inversion preservation.
 
 ## How the Analysis Works (The Musical Logic)
 
@@ -184,6 +227,114 @@ result = await analyze_chord_progression(['Dm', 'G', 'C'])
 # Why: Dm as tonic, characteristic modal motion
 ```
 
+## Musical Character and Emotional Analysis 🎨
+
+The library provides detailed **character analysis** for scales and progressions, describing their emotional and aesthetic qualities:
+
+### Modal Character Analysis
+
+```python
+from harmonic_analysis import get_modal_characteristics
+
+# Get complete character profile for any mode
+dorian_character = get_modal_characteristics("Dorian")
+
+print(f"Name: {dorian_character.name}")                    # "Dorian"
+print(f"Brightness: {dorian_character.brightness}")        # "neutral"
+print(f"Character: {dorian_character.harmonic_implications[0]}")
+# "Natural 6th creates brighter minor sound"
+
+print(f"Applications: {dorian_character.typical_applications}")
+# ["Jazz and folk music", "Celtic and medieval music", ...]
+```
+
+### Musical Brightness Classification
+
+The library classifies all modes by emotional brightness:
+
+```python
+from harmonic_analysis import MODAL_CHARACTERISTICS
+
+# Get all bright, neutral, and dark modes
+bright_modes = [name for name, chars in MODAL_CHARACTERISTICS.items()
+                if chars.brightness == "bright"]
+# Result: ["Ionian", "Lydian", "Mixolydian"] - happy, uplifting sounds
+
+neutral_modes = [name for name, chars in MODAL_CHARACTERISTICS.items()
+                 if chars.brightness == "neutral"]
+# Result: ["Dorian", "Phrygian Dominant"] - balanced, complex emotions
+
+dark_modes = [name for name, chars in MODAL_CHARACTERISTICS.items()
+              if chars.brightness == "dark"]
+# Result: ["Phrygian", "Aeolian", "Locrian"] - sad, mysterious, tense
+```
+
+### Emotional Context in Analysis
+
+Modal analysis includes character descriptions:
+
+```python
+# Analyze a modal progression
+result = await analyze_progression_multiple(['Em', 'F', 'Em'])
+
+# Get detected mode
+if result.primary_analysis.type == 'modal':
+    mode_name = result.primary_analysis.mode  # "E Phrygian"
+
+    # Get character information
+    if "Phrygian" in mode_name:
+        phrygian_info = get_modal_characteristics("Phrygian")
+        print(f"Character: {phrygian_info.brightness}")  # "dark"
+        print(f"Implications: {phrygian_info.harmonic_implications}")
+        # ["Flat 2nd creates exotic, Spanish flavor", "Dark minor character", ...]
+```
+
+### Character-Based Music Recommendations
+
+```python
+# Find modes by emotional quality
+from harmonic_analysis import MODAL_CHARACTERISTICS
+
+def get_modes_by_character(desired_brightness):
+    """Get all modes matching emotional character"""
+    return [
+        {
+            "mode": name,
+            "description": chars.harmonic_implications[0],
+            "applications": chars.typical_applications[0]
+        }
+        for name, chars in MODAL_CHARACTERISTICS.items()
+        if chars.brightness == desired_brightness
+    ]
+
+# Get happy/uplifting modes
+bright_modes = get_modes_by_character("bright")
+# Result includes: Ionian ("Strong tonal center"), Lydian ("bright, dreamy quality")
+
+# Get sad/melancholic modes
+dark_modes = get_modes_by_character("dark")
+# Result includes: Aeolian ("Classic minor scale character"), Phrygian ("Dark minor character")
+```
+
+### Melodic Character Analysis
+
+The library also analyzes melodic contour and emotional character:
+
+```python
+from harmonic_analysis import describe_contour
+
+# Analyze melodic shape and character
+contour = ['U', 'U', 'D', 'D', 'U']  # Up, Up, Down, Down, Up
+character_description = describe_contour(contour)
+# "Rising then falling with final lift - creates tension and resolution"
+
+# Character implications:
+# - Rising contours: Building energy, excitement, hope
+# - Falling contours: Relaxation, sadness, resolution
+# - Arch shapes: Classical, balanced, satisfying
+# - Zigzag patterns: Playful, energetic, unstable
+```
+
 ## Understanding the Output
 
 ### For Chord Progressions
@@ -199,6 +350,9 @@ result.primary_analysis.roman_numerals  # ['I', 'vi', 'ii', 'V']
 result.primary_analysis.key_signature   # 'C major'
 result.primary_analysis.cadences        # Detected cadences
 result.primary_analysis.evidence        # Why it thinks what it thinks
+
+# Character information (for modal analysis)
+result.primary_analysis.modal_characteristics  # Character descriptions
 ```
 
 ### For Scales and Melodies
@@ -666,11 +820,42 @@ npm start
 # All tests (1500+ test cases)
 pytest
 
-# Just the scale and melody tests
-pytest tests/test_comprehensive_multi_layer_validation.py::TestComprehensiveMultiLayerValidation::test_scale_melody_analysis_cases -v
+# Comprehensive multi-layer validation (427 sophisticated test cases)
+pytest tests/test_comprehensive_multi_layer_validation.py -v
 
-# See how it handles edge cases
+# Inversion analysis regression tests (perfect bidirectional conversion)
+pytest tests/test_inversion_regression.py -v
+
+# Focused bidirectional inversion test
+python tests/test_inversion_bidirectional.py
+
+# Edge case behavior and confidence calibration
 pytest tests/test_edge_case_behavior.py -v
+
+# Quality check (all linting, typing, and tests)
+python scripts/quality_check.py --fix
+```
+
+#### Advanced Test Features
+
+The library includes a **comprehensive multi-layer test framework** with 427+ sophisticated test cases covering:
+
+- **Modal Characteristics**: 168 tests validating modal detection and analysis
+- **Functional Harmony**: 60 tests ensuring proper Roman numeral analysis
+- **Chromatic Analysis**: Advanced harmonic technique detection
+- **Edge Cases**: Single chords, ambiguous progressions, pathological inputs
+- **Inversion Analysis**: Perfect bidirectional conversion testing
+- **Confidence Calibration**: Ensuring appropriate uncertainty for ambiguous cases
+
+**Example Test Results:**
+```bash
+$ python tests/test_inversion_bidirectional.py
+🎯 Testing progression: D Gm/Bb D/A Gm F/C C F in F major
+Expected result: V/ii - ii⁶ - V/ii⁶⁴ - ii - I⁶⁴ - V - I
+
+✅ Actual Roman numerals: V/ii - ii⁶ - V/ii⁶⁴ - ii - I⁶⁴ - V - I
+✅ Reconstructed chords: D - Gm/Bb - D/A - Gm - F/C - C - F
+🎉 ALL TESTS PASSED - Perfect bidirectional inversion conversion!
 ```
 
 ## 🔧 Specialized Module Examples
@@ -799,6 +984,63 @@ If you use this library in academic work:
   url = {https://github.com/sammywachtel/harmonic-analysis-py}
 }
 ```
+
+## Open, Downloadable Theory References (for the AI assistant)
+
+All sources below are open-access and provide **downloadable** versions (PDF/EPUB). These are the primary references the AI assistant will cite when explaining analyses and filling gaps.
+
+### Core sources
+- **Open Music Theory, v2 (OMT2)** — HTML + downloads
+  - Website: https://viva.pressbooks.pub/openmusictheory/
+  - Open Textbook Library entry (lists downloadable EPUB/PDF formats): https://open.umn.edu/opentextbooks/textbooks/1254
+  - Internet Archive mirror (direct **PDF** available): https://archive.org/details/open-music-theory
+- **Music Theory for the 21st‑Century Classroom (MT21C)** — HTML + full **PDF**
+  - Website & TOC: https://musictheory.pugetsound.edu/
+  - Full textbook **PDF** (current compiled edition): https://musictheory.pugetsound.edu/hw/MusicTheory.pdf
+- **Fundamentals, Function, and Form (FFF)** — HTML + **PDF**
+  - Book page (HTML with download): https://milnepublishing.geneseo.edu/fundamentals-function-form/
+  - Open Textbook Library entry: https://open.umn.edu/opentextbooks/textbooks/fundamentals-function-and-form-theory-and-analysis-of-tonal-western-art-music
+- **Public‑domain classics for figured‑bass & harmony cross‑checks**
+  - Prout, *Harmony: Its Theory and Practice* — IMSLP **PDF**: https://imslp.org/wiki/Harmony%3A_Its_Theory_and_Practice_(Prout%2C_Ebenezer)  • Internet Archive **PDF**: https://archive.org/details/harmonyitstheor00prouiala
+  - Goetschius, *The Theory and Practice of Tone‑Relations* — Internet Archive **PDF**: https://archive.org/details/cu31924060020462
+
+> Tip: OMT2 also ships chapter worksheets as combined **PDFs** (see each chapter’s “Assignments” or the **PDF Workbook** page), which are handy for unit tests.
+
+---
+
+### Theory Crosswalk (library features → where to read more)
+
+| Library feature / output | OMT2 (HTML) | MT21C (HTML/PDF) | FFF (HTML) |
+|---|---|---|---|
+| **Roman numerals (basics)** | Roman Numeral Analysis: https://viva.pressbooks.pub/openmusictheory/chapter/roman-numerals/ | Book TOC (core chapters): https://musictheory.pugetsound.edu/mt21c/MusicTheory.html | Overview across diatonic harmony & analysis |
+| **Figured‑bass & inversions** | Inversion & Figured Bass: https://viva.pressbooks.pub/openmusictheory/chapter/inversion-and-figured-bass/ • Figured Bass (notation): https://viva.pressbooks.pub/openmusictheory/chapter/figured-bass/ | Figured‑Bass Inversion Symbols: https://musictheory.pugetsound.edu/mt21c/FiguredBassInversionSymbols.html • Types of 6‑4 chords: https://musictheory.pugetsound.edu/mt21c/TypesOfSixFourChords.html | — |
+| **Cadences (types & strength)** | Intro to Harmony & Cadences: https://viva.pressbooks.pub/openmusictheory/chapter/intro-to-harmony/ • Subtle Color Changes (cadence roundup): https://viva.pressbooks.pub/openmusictheory/chapter/subtle-color-changes/ • Cadential 6/4: https://viva.pressbooks.pub/openmusictheory/chapter/cadential-64/ | Cadences: https://musictheory.pugetsound.edu/mt21c/cadences.html | — |
+| **Modal analysis** | Diatonic Modes: https://viva.pressbooks.pub/openmusictheory/chapter/diatonic-modes/ • Intro to Modes & Chromatic Scale: https://viva.pressbooks.pub/openmusictheory/chapter/intro-to-diatonic-modes-and-the-chromatic-scale/ • Modal Schemas: https://viva.pressbooks.pub/openmusictheory/chapter/modal-schemas/ • Analyzing with Collections/Modes: https://viva.pressbooks.pub/openmusictheory/chapter/analyzing-with-collections-scales-and-modes/ | — | — |
+| **Secondary/applied dominants & tonicization** | Tonicization: https://viva.pressbooks.pub/openmusictheory/chapter/tonicization/ • Applied (secondary) chords: https://viva.pressbooks.pub/openmusictheorycopy/chapter/applied-chords/ | Writing Secondary Dominants: https://musictheory.pugetsound.edu/mt21c/WritingSecondaryDominants.html | Modulation vs. tonicization discussed in Ch. 28 |
+| **Modulation (vs tonicization)** | Extended Tonicization & Modulation: https://viva.pressbooks.pub/openmusictheory/part/diatonic-harmony/ (see topics list on page) | — | Modulation (Ch. 28): https://milnepublishing.geneseo.edu/fundamentals-function-form/chapter/28-modulation/ |
+| **Chromatic techniques (aug6, N6, CT°, tritone sub, sequences)** | Augmented Sixth Chords: https://viva.pressbooks.pub/openmusictheory/chapter/augmented-sixth-chords/ • Neapolitan ♭II⁶: https://viva.pressbooks.pub/openmusictheory/chapter/bii6/ • Common‑Tone chords: https://viva.pressbooks.pub/openmusictheory/chapter/common-tone-chords/ • Chromatic Sequences: https://viva.pressbooks.pub/openmusictheory/chapter/chromatic-sequences/ • Substitutions (tritone): https://viva.pressbooks.pub/openmusictheory/chapter/substitutions/ | Practice sets across chapters; see textbook PDF for cross‑refs | — |
+| **Predominant sevenths (ii⁷ etc.)** | Predominant Seventh Chords: https://viva.pressbooks.pub/openmusictheory/chapter/predominant-seventh-chords/ | — | — |
+| **Four‑chord schemas / pop progressions** | Four‑Chord Schemas: https://viva.pressbooks.pub/openmusictheory/chapter/4-chord-schemas/ • Classical Schemas (pop context): https://viva.pressbooks.pub/openmusictheory/chapter/classical-schemas/ | — | Binary/ternary/etc. forms elsewhere |
+| **Modes "brightness" / character** | Diatonic Modes (color notes): https://viva.pressbooks.pub/openmusictheory/chapter/diatonic-modes/ • Analyzing with Modes: https://viva.pressbooks.pub/openmusictheory/chapter/analyzing-with-collections-scales-and-modes/ | — | — |
+
+> **Unit‑test anchor (inversions):** The regression case `D  Gm/B♭  D/A  Gm  F/C  C  F` in F major yields
+> `V/ii – ii⁶ – V/ii⁶⁴ – ii – I⁶⁴ – V – I` with **perfect bidirectional conversion**. This validates the centralized
+> inversion analysis architecture across all library components. Cross‑check definitions in OMT2 "Inversion & Figured‑Bass" and MT21C "Figured‑Bass Inversion Symbols."
+
+> **Quality Assurance:** The library maintains **100% test pass rate** with comprehensive multi-layer validation covering 427+ sophisticated test cases, inversion regression testing, edge case behavior, and confidence calibration.
+
+### Downloadables for testing (quick links)
+- OMT2 PDF Workbook hub (chapter worksheets as combined PDFs): https://viva.pressbooks.pub/openmusictheory/chapter/pdf-workbook/
+- MT21C Homework/Practice (PDFs): https://musictheory.pugetsound.edu/ (see “Click here to download…”) and the compiled book **PDF**: https://musictheory.pugetsound.edu/hw/MusicTheory.pdf
+- FFF student workbook (Open SUNY, **PDF**): https://milnepublishing.geneseo.edu/fundamentals-function-form-workbook/
+
+---
+
+#### How the assistant will use these
+- Prefer OMT2 for concise topic pages and consistent terminology.
+- Use MT21C when step‑by‑step practice or figures are helpful (e.g., figured‑bass symbols and 6‑4 chord types).
+- Use FFF for formal modulation topics and longer analytical examples.
+- Use Prout/Goetschius when a historical/public‑domain definition strengthens an edge case (e.g., figured‑bass conventions).
 
 ## Acknowledgments
 

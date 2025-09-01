@@ -2,7 +2,7 @@
   "classifications": {
     "diatonic": "Diatonic within provided key context",
     "modal_borrowing": "Modal borrowing from parent scale",
-    "modal_candidate": "Modal characteristics without clear parent key"
+    "modal_candidate": "Modal interpretation of scale collection"
   },
   "harmonic_implications": {
     "diatonic": [
@@ -16,9 +16,9 @@
       "Suggests modal interchange possibilities"
     ],
     "modal_candidate": [
-      "Independent modal character without clear parent key",
-      "Establishes own harmonic framework",
-      "May suggest exotic or contemporary harmonic approaches"
+      "Uses notes from the identified scale collection",
+      "Tonic center requires harmonic context to confirm modal identity",
+      "May function as modal tonic or within traditional key framework"
     ]
   },
   "analysis_templates": {

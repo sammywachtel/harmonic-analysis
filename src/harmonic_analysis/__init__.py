@@ -10,9 +10,10 @@ For specialized functionality, see:
 - harmonic_analysis.scales - Complete scale matrix system
 - harmonic_analysis.theory - Music theory utilities
 - harmonic_analysis.algorithms - Advanced algorithmic analysis
+- harmonic_analysis.character - Musical character and emotional analysis
 """
 
-__version__ = "0.2.0rc3"
+__version__ = "0.2.0rc4"
 
 # =============================================================================
 # LAYER 1: MAIN API - Essential Functions for 90% of Users
@@ -20,6 +21,18 @@ __version__ = "0.2.0rc3"
 
 # Core analysis functions (4)
 from .analysis import analyze_chord_progression, analyze_melody, analyze_scale
+
+# Character and Emotional Analysis (6)
+from .character import (
+    CharacterSuggestion,
+    EmotionalProfile,
+    ProgressionCharacter,
+    analyze_progression_character,
+    describe_emotional_contour,
+    get_character_suggestions,
+    get_mode_emotional_profile,
+    get_modes_by_brightness,
+)
 
 # Utility functions (4)
 from .scale_melody_analysis import ScaleMelodyAnalysisResult, analyze_scale_melody
@@ -70,6 +83,15 @@ __all__ = [
     "get_interval_name",
     "get_modal_characteristics",
     "describe_contour",
+    # Character and Emotional Analysis (8)
+    "EmotionalProfile",
+    "ProgressionCharacter",
+    "CharacterSuggestion",
+    "get_mode_emotional_profile",
+    "analyze_progression_character",
+    "get_character_suggestions",
+    "get_modes_by_brightness",
+    "describe_emotional_contour",
     # Constants (4)
     "ALL_MAJOR_KEYS",
     "ALL_MINOR_KEYS",

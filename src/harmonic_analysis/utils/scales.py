@@ -157,3 +157,40 @@ def generate_scale_notes(tonic: str, intervals: List[int]) -> List[str]:
         scale_notes.append(PITCH_CLASS_NAMES[pitch_class])
 
     return scale_notes
+
+
+# Key signature definitions - moved from multiple locations to centralize
+KEY_SIGNATURES: Dict[str, List[str]] = {
+    # Major keys
+    "C major": [],  # No sharps or flats
+    "G major": ["F#"],
+    "D major": ["F#", "C#"],
+    "A major": ["F#", "C#", "G#"],
+    "E major": ["F#", "C#", "G#", "D#"],
+    "B major": ["F#", "C#", "G#", "D#", "A#"],
+    "F# major": ["F#", "C#", "G#", "D#", "A#", "E#"],
+    "C# major": ["F#", "C#", "G#", "D#", "A#", "E#", "B#"],
+    "F major": ["Bb"],
+    "Bb major": ["Bb", "Eb"],
+    "Eb major": ["Bb", "Eb", "Ab"],
+    "Ab major": ["Bb", "Eb", "Ab", "Db"],
+    "Db major": ["Bb", "Eb", "Ab", "Db", "Gb"],
+    "Gb major": ["Bb", "Eb", "Ab", "Db", "Gb", "Cb"],
+    "Cb major": ["Bb", "Eb", "Ab", "Db", "Gb", "Cb", "Fb"],
+    # Minor keys (relative to major keys)
+    "A minor": [],  # Same as C major
+    "E minor": ["F#"],  # Same as G major
+    "B minor": ["F#", "C#"],  # Same as D major
+    "F# minor": ["F#", "C#", "G#"],  # Same as A major
+    "C# minor": ["F#", "C#", "G#", "D#"],  # Same as E major
+    "G# minor": ["F#", "C#", "G#", "D#", "A#"],  # Same as B major
+    "D# minor": ["F#", "C#", "G#", "D#", "A#", "E#"],  # Same as F# major
+    "A# minor": ["F#", "C#", "G#", "D#", "A#", "E#", "B#"],  # Same as C# major
+    "D minor": ["Bb"],  # Same as F major
+    "G minor": ["Bb", "Eb"],  # Same as Bb major
+    "C minor": ["Bb", "Eb", "Ab"],  # Same as Eb major
+    "F minor": ["Bb", "Eb", "Ab", "Db"],  # Same as Ab major
+    "Bb minor": ["Bb", "Eb", "Ab", "Db", "Gb"],  # Same as Db major
+    "Eb minor": ["Bb", "Eb", "Ab", "Db", "Gb", "Cb"],  # Same as Gb major
+    "Ab minor": ["Bb", "Eb", "Ab", "Db", "Gb", "Cb", "Fb"],  # Same as Cb major
+}

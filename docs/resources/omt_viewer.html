@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Open Music Theory — Offline XML Viewer</title>
+  <style>
+    :root {
+      --bg: #0f1216;
+      --panel: #171b21;
+      --panel-2: #1c2229;
+      --text: #e8edf3;
+      --muted: #aeb7c2;
+      --accent: #5eb2ff;
+      --accent-2: #8be28b;
+      --border: #2a323c;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      line-height: 1.6;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      height: 100vh;
+    }
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .title {
+      margin: 0;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+    }
+    .search {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 8px;
+      width: 100%;
+      outline: none;
+      box-sizing: border-box;
+      margin-top: 10px;
+    }
+    .toc {
+      overflow: auto;
+      padding: 8px 0 16px;
+    }
+    .part {
+      padding: 10px 16px 0;
+    }
+    .part-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 12px 0 6px;
+    }
+    .chapters {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .chapter {
+      margin: 0;
+    }
+    .chapter > a {
+      display: block;
+      padding: 8px 12px;
+      margin: 2px 4px;
+      border-radius: 8px;
+      color: var(--text);
+    }
+    .chapter > a.active {
+      background: linear-gradient(180deg, rgba(94,178,255,0.18), rgba(94,178,255,0.06));
+      border: 1px solid #2b3b4e;
+    }
+    .chapter > a:hover {
+      background: #212a34;
+    }
+
+    .content {
+      overflow: auto;
+      background: linear-gradient(180deg, #0f1216, #0f1216 120px, #0f1216);
+    }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: rgba(15,18,22,0.9);
+      backdrop-filter: saturate(140%) blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+    }
+    .btn {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .btn:hover { background: #212a34; }
+
+    .article {
+      max-width: 920px;
+      margin: 18px auto 60px;
+      padding: 0 24px 40px;
+    }
+    .article h1, .article h2, .article h3, .article h4 {
+      scroll-margin-top: 72px;
+    }
+    .article img { max-width: 100%; height: auto; }
+    .article table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border);
+    }
+    .article table th, .article table td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+    }
+    .article blockquote {
+      margin: 0;
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+      color: var(--muted);
+    }
+
+    .chapter-title {
+      margin: 18px 0 8px;
+      font-size: 28px;
+      letter-spacing: 0.2px;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      padding: 10px 0 18px;
+      border-top: 1px dashed var(--border);
+      margin-top: 24px;
+    }
+
+    /* Glossary shortcode rendering */
+    .glossary {
+      border-bottom: 1px dotted var(--accent);
+      cursor: help;
+      padding-bottom: 1px;
+    }
+
+    /* WordPress/Pressbooks caption rendering */
+    figure.wp-caption {
+      margin: 16px auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+    }
+    figure.wp-caption img { display: block; margin: 0 auto; height: auto; max-width: 100%; }
+    figure.wp-caption figcaption {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+    .aligncenter { text-align: center; margin-left: auto; margin-right: auto; }
+    .alignleft { float: left; margin: 0 12px 8px 0; }
+    .alignright { float: right; margin: 0 0 8px 12px; }
+
+    /* TablePress placeholder styling */
+    .tablepress-placeholder {
+      margin: 16px 0;
+      background: var(--panel);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .tablepress-placeholder .tp-title {
+      font-weight: 600;
+      color: var(--text);
+      margin-right: 6px;
+    }
+    .tablepress-placeholder a { color: var(--accent); }
+ 
+     @media (max-width: 900px) {
+       .layout { grid-template-columns: 1fr; }
+       .sidebar { height: 46vh; }
+       .content { height: 54vh; }
+     }
+     /* LaTeX rendering */
+     .latex {
+       font-variant-ligatures: none;
+     }
+   </style>
+   <!-- KaTeX for LaTeX rendering -->
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="header">
+        <h1 class="title">Open Music Theory (XML)</h1>
+        <input id="search" class="search" type="search" placeholder="Filter chapters…" />
+      </div>
+      <nav id="toc" class="toc" aria-label="Chapters table of contents"></nav>
+      <div class="footer-note">Data source: docs/resources/OPEN-MUSIC-THEORY.xml</div>
+    </aside>
+    <main class="content">
+      <div class="toolbar">
+        <button id="prevBtn" class="btn" title="Previous chapter">⟵ Prev</button>
+        <button id="nextBtn" class="btn" title="Next chapter">Next ⟶</button>
+        <div id="position" style="margin-left: 8px; color: var(--muted); font-size: 13px;"></div>
+        <div style="margin-left: auto; color: var(--muted); font-size: 12px;">Tip: use the sidebar to jump chapters</div>
+      </div>
+      <article id="article" class="article">
+        <h1 class="chapter-title">Loading…</h1>
+        <div class="meta">Please wait while we parse the XML file.</div>
+        <div id="articleBody"></div>
+      </article>
+    </main>
+  </div>
+
+  <script>
+    // Utility to get text content of first matching child tag
+    function textOf(node, tag) {
+      const el = node.getElementsByTagName(tag)[0];
+      return el ? (el.textContent || '').trim() : '';
+    }
+
+    function numOf(node, tag, def = 0) {
+      const t = textOf(node, tag);
+      const n = parseInt(t, 10);
+      return Number.isFinite(n) ? n : def;
+    }
+
+    function firstNs(node, ns, tag) {
+      return node.getElementsByTagNameNS(ns, tag)[0] || null;
+    }
+
+    function getContentEncoded(item) {
+      // Try namespaced access first
+      const ns = 'http://purl.org/rss/1.0/modules/content/';
+      let el = firstNs(item, ns, 'encoded');
+      if (!el) {
+        // Fallback to qualified name
+        el = item.getElementsByTagName('content:encoded')[0];
+      }
+      return el ? el.textContent || '' : '';
+    }
+
+    function stripHTML(html) {
+      const div = document.createElement('div');
+      div.innerHTML = html || '';
+      return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function sanitizeAndExtract(html) {
+      // The content comes with a <header class="site-header"> followed by <section class="article"><article ...> … </article></section>
+      // We'll strip the outer header and keep inner article HTML only.
+      const container = document.createElement('div');
+      container.innerHTML = html;
+
+      // Prefer inner article if present
+      let article = container.querySelector('section.article > article') || container.querySelector('article') || container;
+
+      // Remove scripts for safety
+      article.querySelectorAll('script').forEach(s => s.remove());
+
+      // Ensure external links open in a new tab
+      article.querySelectorAll('a[href]').forEach(a => {
+        const href = a.getAttribute('href') || '';
+        if (/^https?:\/\//i.test(href)) {
+          a.setAttribute('target', '_blank');
+          a.setAttribute('rel', 'noopener noreferrer');
+        }
+      });
+
+      // Responsive images
+      article.querySelectorAll('img').forEach(img => {
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.style.maxWidth = '100%';
+        img.style.height = 'auto';
+      });
+
+      return article.innerHTML;
+    }
+
+    async function loadXML() {
+      const response = await fetch('OPEN-MUSIC-THEORY.xml');
+      if (!response.ok) throw new Error('Failed to load XML: ' + response.status);
+      const text = await response.text();
+      const dom = new DOMParser().parseFromString(text, 'application/xml');
+
+      // Collect items (RSS > channel > item)
+      const items = Array.from(dom.getElementsByTagName('item'));
+
+      // Build maps for parts, chapters, and glossary
+      const parts = [];
+      const chapters = [];
+      const glossary = new Map(); // id -> { title, html, text }
+
+      for (const it of items) {
+        const type = textOf(it, 'wp:post_type');
+        const status = textOf(it, 'wp:status');
+        const id = numOf(it, 'wp:post_id');
+        const parent = numOf(it, 'wp:post_parent');
+        const order = numOf(it, 'wp:menu_order');
+        const title = textOf(it, 'title');
+        const html = getContentEncoded(it);
+
+        if (type === 'part') {
+          parts.push({ id, title, order });
+        } else if (type === 'chapter') {
+          chapters.push({ id, parent, order, title, status, html });
+        } else if (type === 'glossary') {
+          glossary.set(String(id), { title, html, text: stripHTML(html) });
+        }
+      }
+
+      // Sort parts and chapters by menu_order
+      parts.sort((a, b) => a.order - b.order);
+      chapters.sort((a, b) => a.order - b.order);
+
+      // Group chapters by part id
+      const chaptersByPart = new Map();
+      for (const p of parts) chaptersByPart.set(p.id, []);
+      for (const ch of chapters) {
+        if (!chaptersByPart.has(ch.parent)) chaptersByPart.set(ch.parent, []);
+        chaptersByPart.get(ch.parent).push(ch);
+      }
+
+      return { parts, chaptersByPart, allChapters: chapters, glossary };
+    }
+
+    function buildTOC(parts, chaptersByPart) {
+      const toc = document.getElementById('toc');
+      toc.innerHTML = '';
+
+      for (const part of parts) {
+        const partEl = document.createElement('div');
+        partEl.className = 'part';
+
+        const partTitle = document.createElement('div');
+        partTitle.className = 'part-title';
+        partTitle.textContent = part.title.replace(/^\s*[IVXLCDM]+\.?\s*/i, ''); // clean roman numeral prefixes
+        partEl.appendChild(partTitle);
+
+        const ul = document.createElement('ul');
+        ul.className = 'chapters';
+
+        const list = chaptersByPart.get(part.id) || [];
+        for (const ch of list) {
+          const li = document.createElement('li');
+          li.className = 'chapter';
+          const a = document.createElement('a');
+          a.href = `#chapter-${ch.id}`;
+          a.textContent = ch.title || '(Untitled)';
+          a.dataset.id = String(ch.id);
+          li.appendChild(a);
+          ul.appendChild(li);
+        }
+
+        if (ul.children.length > 0) partEl.appendChild(ul);
+        toc.appendChild(partEl);
+      }
+    }
+
+    function setActiveLink(id) {
+      document.querySelectorAll('.chapter > a').forEach(a => a.classList.toggle('active', a.dataset.id === String(id)));
+    }
+
+    function replaceShortcodes(html, glossary) {
+      if (!html) return html;
+
+      // --- pb_glossary → tooltip span ---
+      const reGloss = /\[pb_glossary\s+id=\"(\d+)\"\](.*?)\[\/pb_glossary\]/gis;
+      html = html.replace(reGloss, (_m, id, label) => {
+        const g = glossary && glossary.get(String(id));
+        const safeLabel = stripHTML(label) || (g ? g.title : '') || 'term';
+        const title = g ? `${g.title}: ${g.text}` : safeLabel;
+        return `<span class="glossary" title="${title.replace(/\"/g, '&quot;')}">${safeLabel}</span>`;
+      });
+
+      // --- [latex] shortcode → placeholder span for KaTeX ---
+      // Supports [latex]...[/latex] including content like ^6_4 or (\downarrow\hat3)
+      const reLatex = /\[latex\]([\s\S]*?)\[\/latex\]/gi;
+      html = html.replace(reLatex, (_m, tex) => {
+        const encoded = encodeURIComponent(tex);
+        return `<span class="latex" data-tex="${encoded}"></span>`;
+      });
+
+      // --- [caption] shortcode → <figure> ---
+      // Pattern: [caption id="attachment_3744" align="aligncenter" width="514"]<a><img/></a> Caption text[/caption]
+      const reCaption = /\[caption([^\]]*)\]([\s\S]*?)\[\/caption\]/gi;
+
+      // --- [table id=XX /] (TablePress) → placeholder block ---
+      // Supports: [table id=37 /], [table id=37/], [table id="37" /]
+      const reTable = /\[table\s+id\s*=\s*"?(\d+)"?\s*\/\]/gi;
+      html = html.replace(reTable, (_m, id) => {
+        const num = String(id);
+        const live = `https://viva.pressbooks.pub/openmusictheory/?tablepress=${encodeURIComponent(num)}`;
+        return `<div class="tablepress-placeholder" role="region" aria-label="Table ${num}">
+  <span class="tp-title">Table ${num}</span>
+  <span>TablePress content from the original site. This offline export does not include the data for this table.</span>
+  <span>View online: <a href="${live}" target="_blank" rel="noopener noreferrer">open Table ${num}</a></span>
+</div>`;
+      });
+
+      function parseCaptionAttrs(attrStr) {
+        const attrs = {};
+        const reAttr = /(\w+)\s*=\s*\"([^\"]*)\"/gi;
+        let m;
+        while ((m = reAttr.exec(attrStr))) {
+          attrs[m[1].toLowerCase()] = m[2];
+        }
+        return attrs;
+      }
+
+      function buildFigure(innerHTML, attrs) {
+        // Extract image (or <a><img/></a>) and caption text using a DOM container
+        const tmp = document.createElement('div');
+        tmp.innerHTML = innerHTML || '';
+        const img = tmp.querySelector('img');
+        let mediaHTML = '';
+        if (img) {
+          let node = img;
+          const p = img.parentElement;
+          if (p && p.tagName && p.tagName.toLowerCase() === 'a' && p.querySelectorAll('img').length === 1 && p.childElementCount === 1) {
+            node = p;
+          }
+          mediaHTML = node.outerHTML;
+          node.remove();
+        }
+        const captionText = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
+
+        const classes = ['wp-caption'];
+        const align = (attrs.align || '').trim();
+        if (align) classes.push(align);
+        const style = (attrs.width && /^\d+$/.test(attrs.width)) ? ` style=\"max-width:${attrs.width}px\"` : '';
+        const classAttr = `class=\"${classes.join(' ')}\"`;
+        const figcaption = captionText ? `<figcaption>${captionText}</figcaption>` : '';
+        const figure = `<figure ${classAttr}${style}>${mediaHTML}${figcaption}</figure>`;
+        return figure;
+      }
+
+      html = html.replace(reCaption, (_m, attrStr, inner) => {
+        const attrs = parseCaptionAttrs(attrStr || '');
+        return buildFigure(inner, attrs);
+      });
+
+      return html;
+    }
+
+    function renderChapter(ch, index, total, glossary) {
+      const titleEl = document.querySelector('.chapter-title');
+      const metaEl = document.querySelector('.meta');
+      const bodyEl = document.getElementById('articleBody');
+
+      titleEl.textContent = ch.title || '(Untitled)';
+      metaEl.textContent = (ch.status && ch.status !== 'publish') ? `Status: ${ch.status}` : '';
+
+      let html = sanitizeAndExtract(ch.html || '<p>(No content)</p>');
+      html = replaceShortcodes(html, glossary);
+      bodyEl.innerHTML = html;
+
+      // Render LaTeX using KaTeX (if available)
+      renderLatex(bodyEl);
+
+      document.getElementById('position').textContent = `${index + 1} / ${total}`;
+      setActiveLink(ch.id);
+
+      // Fix in-page anchors to work with our viewer
+      bodyEl.querySelectorAll('a[href^="#"]').forEach(a => {
+        const hash = a.getAttribute('href');
+        if (!hash) return;
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const target = bodyEl.querySelector(hash);
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    }
+
+    function buildSearchIndex(allChapters) {
+      const index = new Map(); // id -> { title, text }
+      try {
+        for (const ch of allChapters) {
+          const html = sanitizeAndExtract(ch.html || '');
+          const text = stripHTML(html).toLowerCase();
+          const title = (ch.title || '').toLowerCase();
+          index.set(String(ch.id), { title, text });
+        }
+      } catch (e) {
+        // If anything goes wrong, fall back to empty index (title-only search will still work)
+      }
+      return index;
+    }
+
+    function wireSearch(searchIndex) {
+      const input = document.getElementById('search');
+      let timer = null;
+      input.addEventListener('input', () => {
+        const run = () => {
+          const q = input.value.toLowerCase().trim();
+          const links = document.querySelectorAll('.chapter > a');
+          links.forEach(a => {
+            const id = a.dataset.id || '';
+            const entry = searchIndex && searchIndex.get(String(id));
+            const titleMatch = (a.textContent || '').toLowerCase().includes(q);
+            const bodyMatch = q.length === 0 ? true : !!(entry && entry.text.includes(q));
+            const match = titleMatch || bodyMatch;
+            a.parentElement.style.display = match ? '' : 'none';
+          });
+        };
+        if (timer) cancelAnimationFrame(timer);
+        timer = requestAnimationFrame(run);
+      });
+    }
+
+    function renderLatex(container) {
+      try {
+        const nodes = container.querySelectorAll('span.latex');
+        nodes.forEach(el => {
+          const attr = el.getAttribute('data-tex');
+          const tex = attr ? decodeURIComponent(attr) : (el.textContent || '');
+          if (window.katex && typeof window.katex.render === 'function') {
+            try {
+              window.katex.render(tex, el, { throwOnError: false });
+            } catch (e) {
+              el.textContent = tex; // graceful fallback
+            }
+          } else {
+            el.textContent = tex; // fallback if KaTeX unavailable
+          }
+        });
+      } catch (e) {
+        // noop, keep raw text if anything goes wrong
+      }
+    }
+
+    (async function init() {
+      try {
+        const { parts, chaptersByPart, allChapters, glossary } = await loadXML();
+        buildTOC(parts, chaptersByPart);
+        const searchIndex = buildSearchIndex(allChapters);
+        wireSearch(searchIndex);
+
+        // Build a flat ordered list for prev/next navigation
+        const ordered = [];
+        for (const p of parts) {
+          for (const ch of (chaptersByPart.get(p.id) || [])) {
+            ordered.push(ch);
+          }
+        }
+
+        function findIndexById(id) {
+          return ordered.findIndex(c => String(c.id) === String(id));
+        }
+
+        function showByHash() {
+          const m = location.hash.match(/chapter-(\d+)/);
+          const id = m ? m[1] : (ordered[0] ? ordered[0].id : null);
+          if (!id) return;
+          const idx = findIndexById(id);
+          if (idx >= 0) renderChapter(ordered[idx], idx, ordered.length, glossary);
+        }
+
+        window.addEventListener('hashchange', showByHash);
+
+        document.getElementById('prevBtn').addEventListener('click', () => {
+          const m = location.hash.match(/chapter-(\d+)/);
+          const currId = m ? m[1] : (ordered[0] ? ordered[0].id : null);
+          if (!currId) return;
+          const idx = findIndexById(currId);
+          const nextIdx = Math.max(0, idx - 1);
+          location.hash = `#chapter-${ordered[nextIdx].id}`;
+        });
+        document.getElementById('nextBtn').addEventListener('click', () => {
+          const m = location.hash.match(/chapter-(\d+)/);
+          const currId = m ? m[1] : (ordered[0] ? ordered[0].id : null);
+          if (!currId) return;
+          const idx = findIndexById(currId);
+          const nextIdx = Math.min(ordered.length - 1, idx + 1);
+          location.hash = `#chapter-${ordered[nextIdx].id}`;
+        });
+
+        // Initial render
+        if (!location.hash && ordered.length) {
+          location.hash = `#chapter-${ordered[0].id}`;
+        } else {
+          showByHash();
+        }
+
+      } catch (err) {
+        console.error(err);
+        document.querySelector('.chapter-title').textContent = 'Failed to load viewer';
+        document.querySelector('.meta').textContent = String(err);
+      }
+    })();
+  </script>
+</body>
+</html>

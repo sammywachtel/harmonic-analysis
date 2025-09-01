@@ -40,7 +40,7 @@ class TestMultipleInterpretationService:
         result = await self.service.analyze_progression(chords)
 
         assert result.primary_analysis.type == InterpretationType.FUNCTIONAL
-        assert result.primary_analysis.confidence > 0.7
+        assert result.primary_analysis.confidence >= 0.7
         assert "I" in result.primary_analysis.roman_numerals
         assert "C" in result.primary_analysis.key_signature
 

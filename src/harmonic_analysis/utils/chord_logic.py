@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from ..types import ChordFunction
+from .chord_inversions import analyze_chord_inversion
 from .scales import NOTE_TO_PITCH_CLASS
 
 
@@ -97,7 +98,15 @@ class ChordParser:
                 raise ValueError(f"Invalid bass note: {bass}")
             bass_note = bass
             bass_pitch = NOTE_TO_PITCH_CLASS[bass]
-            inversion = self._calculate_inversion(root_pitch, bass_pitch, quality)
+            # Use centralized inversion analysis
+            inversion_info = analyze_chord_inversion(
+                root_pitch, bass_pitch, chord_symbol
+            )
+            inversion_value = inversion_info["inversion"]
+            if isinstance(inversion_value, int):
+                inversion = inversion_value
+            else:
+                inversion = 0  # Default fallback
 
         # Parse extensions
         extensions = []
@@ -119,23 +128,7 @@ class ChordParser:
             inversion=inversion,
         )
 
-    def _calculate_inversion(
-        self, root_pitch: int, bass_pitch: int, quality: str
-    ) -> int:
-        """Calculate inversion number based on root and bass notes."""
-        interval = (bass_pitch - root_pitch) % 12
-
-        # Simplified inversion detection
-        if interval == 0:
-            return 0  # Root position
-        elif interval == 4:  # Major third
-            return 1  # First inversion
-        elif interval == 3:  # Minor third
-            return 1  # First inversion
-        elif interval == 7:  # Perfect fifth
-            return 2  # Second inversion
-        else:
-            return 1  # Default to first inversion for unknown intervals
+    # Removed _calculate_inversion method - now using centralized utility
 
     def _parse_alterations(self, alterations: str) -> List[str]:
         """Parse chord alterations and extensions."""

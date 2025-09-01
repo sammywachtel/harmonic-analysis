@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 from ..core.enhanced_modal_analyzer import EnhancedModalAnalyzer
 from ..core.functional_harmony import FunctionalHarmonyAnalyzer
 from ..types import AnalysisOptions, AnalysisSuggestions
+from ..utils.scales import KEY_SIGNATURES
 
 if TYPE_CHECKING:
     pass
@@ -44,6 +45,7 @@ class KeyRelevanceScore:
     confidence_improvement: float
     analysis_type_improvement: float
     pattern_clarity_improvement: float
+    chord_key_validity: float  # NEW: How well chords fit in the key signature
 
     # Analysis details
     without_key_confidence: float
@@ -136,13 +138,28 @@ class BidirectionalSuggestionEngine:
 
         parent_key_suggestions = []
         for bidirectional_suggestion in suggestions[:3]:
-            # Only create KeySuggestion for suggestions that have a suggested_key
+            # Handle both ADD_KEY/CHANGE_KEY (with suggested_key) and
+            # REMOVE_KEY (suggested_key=None)
             if bidirectional_suggestion.suggested_key is not None:
+                # ADD_KEY or CHANGE_KEY suggestion
                 key_suggestion = KeySuggestion(
                     suggested_key=bidirectional_suggestion.suggested_key,
                     confidence=bidirectional_suggestion.confidence,
                     reason=bidirectional_suggestion.reason,
                     detected_pattern=bidirectional_suggestion.detected_pattern,
+                    potential_improvement=(
+                        bidirectional_suggestion.potential_improvement
+                    ),
+                )
+                parent_key_suggestions.append(key_suggestion)
+            elif bidirectional_suggestion.suggestion_type == SuggestionType.REMOVE_KEY:
+                # REMOVE_KEY suggestion - use "auto-detect" as suggested key
+                key_suggestion = KeySuggestion(
+                    suggested_key="auto-detect",
+                    confidence=bidirectional_suggestion.confidence,
+                    reason=bidirectional_suggestion.reason,
+                    detected_pattern=bidirectional_suggestion.detected_pattern
+                    or "Invalid parent key detected",
                     potential_improvement=(
                         bidirectional_suggestion.potential_improvement
                     ),
@@ -173,6 +190,13 @@ class BidirectionalSuggestionEngine:
         relevance = self._calculate_key_relevance(
             without_key_result, with_key_result, chords
         )
+
+        # DEBUG: Log relevance calculation for invalid parent keys
+        print(f"🔍 RELEVANCE CALCULATION for {chords} with {provided_key}:")
+        print(f"   Total score: {relevance.total_score:.3f}")
+        print(f"   Chord validity: {relevance.chord_key_validity:.3f}")
+        print(f"   Roman improvement: {relevance.roman_numeral_improvement:.3f}")
+        print(f"   Confidence improvement: {relevance.confidence_improvement:.3f}")
 
         # Determine suggestion type based on relevance
         if relevance.total_score < 0.15:
@@ -366,17 +390,24 @@ class BidirectionalSuggestionEngine:
         elif without_type == with_type:
             type_score = 0.2  # Same type - minimal type benefit
 
-        # Component 4: Pattern clarity improvement (0.3 weight)
+        # Component 4: Pattern clarity improvement (0.2 weight)
         pattern_score = self._calculate_pattern_clarity_score(
             chords, without_key, with_key
         )
 
-        # Weighted total score
+        # Component 5: Chord-key validity (0.3 weight) - NEW!
+        # Penalize keys that don't actually contain the chords
+        chord_validity_score = self._calculate_chord_key_validity(
+            chords, with_key.get("key_signature")
+        )
+
+        # Weighted total score (adjusted weights to include chord validity)
         total_score = (
-            roman_score * 0.3
-            + confidence_score * 0.2
-            + type_score * 0.2
-            + pattern_score * 0.3
+            roman_score * 0.25
+            + confidence_score * 0.15
+            + type_score * 0.15
+            + pattern_score * 0.15
+            + chord_validity_score * 0.3  # Heavy weight on actual chord validity
         )
 
         return KeyRelevanceScore(
@@ -385,6 +416,7 @@ class BidirectionalSuggestionEngine:
             confidence_improvement=confidence_score,
             analysis_type_improvement=type_score,
             pattern_clarity_improvement=pattern_score,
+            chord_key_validity=chord_validity_score,  # NEW field
             without_key_confidence=without_key["confidence"],
             with_key_confidence=with_key["confidence"],
             without_key_romans=without_romans,
@@ -473,6 +505,73 @@ class BidirectionalSuggestionEngine:
             patterns.append("circle of fifths")
 
         return patterns
+
+    def _calculate_chord_key_validity(
+        self, chords: List[str], key_signature: Optional[str]
+    ) -> float:
+        """
+        Calculate how well the chords actually fit within the specified key signature.
+        Returns 0.0 for completely invalid keys, 1.0 for perfect matches.
+        """
+        if not key_signature:
+            # No key specified - neutral score
+            return 0.5
+
+        key_accidentals = KEY_SIGNATURES.get(key_signature, [])
+
+        valid_chords = 0
+        total_chords = len(chords)
+
+        for chord in chords:
+            # Extract root note from chord symbol
+            root = chord.strip()
+            if len(root) > 1 and root[1] in ["#", "b"]:
+                chord_root = root[:2]  # Include accidental
+            else:
+                chord_root = root[0]  # Just the letter
+
+            # Check if chord root fits in the key signature
+            if self._chord_fits_key_signature(chord_root, key_accidentals):
+                valid_chords += 1
+
+        # Calculate validity ratio and convert to score
+        validity_ratio = valid_chords / total_chords if total_chords > 0 else 0
+
+        # Score interpretation:
+        # 1.0 = All chords fit perfectly in key
+        # 0.7 = Most chords fit (1-2 chromatic)
+        # 0.3 = Some chords fit (modal mixture)
+        # 0.0 = No chords fit (completely invalid key)
+
+        if validity_ratio >= 1.0:
+            return 1.0  # Perfect match
+        elif validity_ratio >= 0.8:
+            return 0.7  # Very good match
+        elif validity_ratio >= 0.5:
+            return 0.3  # Some chromatic elements
+        else:
+            return 0.0  # Invalid key
+
+    def _chord_fits_key_signature(
+        self, chord_root: str, key_accidentals: List[str]
+    ) -> bool:
+        """Check if a chord root fits within a key signature's accidentals."""
+        # Natural notes that should have accidentals in this key
+        natural_note = chord_root[0] if len(chord_root) > 0 else chord_root
+
+        # Check what accidental this note should have in this key
+        expected_accidental = None
+        for accidental in key_accidentals:
+            if accidental.startswith(natural_note):
+                expected_accidental = accidental
+                break
+
+        # If no expected accidental, note should be natural
+        if expected_accidental is None:
+            return len(chord_root) == 1  # Should be just the letter (natural)
+
+        # If there is an expected accidental, chord should match it
+        return chord_root == expected_accidental
 
     async def _find_better_keys(
         self, chords: List[str], current_key: str

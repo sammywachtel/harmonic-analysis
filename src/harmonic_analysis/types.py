@@ -14,6 +14,8 @@ class ChordFunction(Enum):
     PREDOMINANT = "predominant"
     DOMINANT = "dominant"
     SUBDOMINANT = "subdominant"
+    MEDIANT = "mediant"
+    SUBMEDIANT = "submediant"
     LEADING_TONE = "leading_tone"
     CHROMATIC = "chromatic"
 
@@ -87,6 +89,11 @@ class AnalysisOptions:
     confidence_threshold: float = 0.5
     max_alternatives: int = 3
     force_multiple_interpretations: bool = False
+    analysis_type: str = "progression"
+    include_borrowed: bool = True
+    include_secondary: bool = True
+    include_character: bool = True
+    include_enhancements: bool = True
 
 
 @dataclass

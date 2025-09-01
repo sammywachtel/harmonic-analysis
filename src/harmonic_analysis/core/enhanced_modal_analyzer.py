@@ -16,6 +16,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from ..types import EvidenceType
+from ..utils.chord_inversions import analyze_chord_inversion
+from ..utils.scales import KEY_SIGNATURES
 
 # EvidenceType moved to types.py for shared usage
 
@@ -52,6 +54,7 @@ class ChordAnalysis:
     root: str
     quality: str
     pitch_class: int
+    bass_pitch_class: Optional[int] = None  # For inversions
 
 
 @dataclass
@@ -171,6 +174,8 @@ class EnhancedModalAnalyzer:
             return None
 
         # FUNCTIONAL HARMONY PRE-SCREENING
+        # This is here to prevent returning a modal analysis if the functional
+        # analysis is very strong. CONSIDER... letting it do modal analysis anyway?
         if parent_key:
             functional_roman_numerals = self._generate_functional_roman_numerals(
                 chord_symbols, parent_key
@@ -204,6 +209,18 @@ class EnhancedModalAnalyzer:
         if len(chord_analyses) < 2:
             return None
 
+        # PARENT KEY VALIDATION
+        validation_result = None
+        if parent_key:
+            validation_result = self._validate_chords_against_parent_key(
+                chord_analyses, parent_key
+            )
+
+            # If too many chords are outside the key, reject analysis
+            if validation_result["outside_key_ratio"] > 0.7:
+                # More than 70% of chords are outside the key - invalid parent key
+                return None
+
         # Detect potential tonal centers
         tonic_candidates = self._detect_tonic_candidates(chord_analyses, parent_key)
 
@@ -215,6 +232,7 @@ class EnhancedModalAnalyzer:
                 candidate["tonic"],
                 candidate["parent_key"],
                 parent_key is not None,
+                validation_result,
             )
             if result:
                 results.append(result)
@@ -292,6 +310,7 @@ class EnhancedModalAnalyzer:
         tonic: str,
         parent_key: str,
         was_parent_key_provided: bool = True,
+        validation_result: Optional[Dict[str, Any]] = None,
     ) -> Optional[ModalAnalysisResult]:
         """Analyze progression with specific tonic center"""
         tonic_pitch_class = self.NOTE_TO_PITCH_CLASS.get(tonic)
@@ -346,9 +365,53 @@ class EnhancedModalAnalyzer:
                 final_confidence, 0.65
             )  # Cap confidence for ambiguous cases
 
+        # PARENT KEY VALIDATION PENALTIES
+        if validation_result is not None:
+            outside_key_ratio = validation_result["outside_key_ratio"]
+            print(
+                f"🔍 MODAL VALIDATOR: outside_key_ratio={outside_key_ratio:.3f}, "
+                f"confidence before penalty={final_confidence:.3f}"
+            )
+
+            # Apply confidence penalties based on how many chords are outside the key
+            if outside_key_ratio > 0.5:
+                final_confidence *= 0.3  # Heavy penalty for >50% outside key
+                print(
+                    f"🔍 MODAL VALIDATOR: Applied heavy penalty (0.3), "
+                    f"new confidence={final_confidence:.3f}"
+                )
+            elif outside_key_ratio > 0.3:
+                final_confidence *= 0.5  # Moderate penalty for >30% outside key
+                print(
+                    f"🔍 MODAL VALIDATOR: Applied moderate penalty (0.5), "
+                    f"new confidence={final_confidence:.3f}"
+                )
+            elif outside_key_ratio > 0.1:
+                final_confidence *= 0.7  # Light penalty for >10% outside key
+                print(
+                    f"🔍 MODAL VALIDATOR: Applied light penalty (0.7), "
+                    f"new confidence={final_confidence:.3f}"
+                )
+
+            # Add contextual evidence about key validation
+            if outside_key_ratio > 0.1:
+                key_evidence = ModalEvidence(
+                    type=EvidenceType.CONTEXTUAL,
+                    description=f"{int(outside_key_ratio * 100)}% of chords fall "
+                    f"outside {parent_key}",
+                    strength=0.3
+                    + (outside_key_ratio * 0.4),  # Strength increases with violations
+                )
+                evidence.append(key_evidence)
+
+        # FIX: Correct parent key based on determined mode
+        corrected_parent_key = self._get_correct_parent_key(
+            mode_name, tonic, parent_key
+        )
+
         return ModalAnalysisResult(
             detected_tonic_center=tonic,
-            parent_key_signature=parent_key,
+            parent_key_signature=corrected_parent_key,
             mode_name=mode_name,
             roman_numerals=roman_numerals,
             confidence=min(final_confidence, 0.95),  # Cap at 0.95 to show uncertainty
@@ -383,19 +446,35 @@ class EnhancedModalAnalyzer:
             return f"?{interval}"
 
         # Choose appropriate Roman numeral based on chord quality
+        base_roman = ""
         if chord.quality in ["major", "major7", "dominant7"]:
-            return roman_options["major"]
+            base_roman = roman_options["major"]
         elif chord.quality in ["minor", "minor7"]:
-            return roman_options["minor"]
+            base_roman = roman_options["minor"]
         elif chord.quality in ["diminished", "half_diminished"]:
-            return roman_options["diminished"]
+            base_roman = roman_options["diminished"]
         elif chord.quality == "augmented":
-            return roman_options["major"] + "+"
+            base_roman = roman_options["major"] + "+"
         elif chord.quality == "suspended":
-            return roman_options["major"] + "sus"
+            base_roman = roman_options["major"] + "sus"
         else:
             # Default to major/minor based on interval position
-            return roman_options["major"] if interval == 0 else roman_options["minor"]
+            base_roman = (
+                roman_options["major"] if interval == 0 else roman_options["minor"]
+            )
+
+        # Add inversion notation if present
+        if chord.bass_pitch_class is not None:
+            inversion_info = analyze_chord_inversion(
+                chord.pitch_class,
+                chord.bass_pitch_class,
+                chord.symbol,  # Pass original symbol for 7th chord detection
+            )
+            figured_bass = inversion_info["figured_bass"]
+            if isinstance(figured_bass, str):
+                base_roman += figured_bass
+
+        return base_roman
 
     def _detect_modal_patterns(self, roman_numerals: List[str]) -> List[Dict[str, Any]]:
         """Detect known modal patterns in Roman numeral sequence"""
@@ -488,6 +567,28 @@ class EnhancedModalAnalyzer:
                     type=EvidenceType.INTERVALLIC,
                     description="Contains bII chord (modal characteristic)",
                     strength=0.7,
+                )
+            )
+
+        # FIX: Add weak evidence for basic tonic relationships that could be modal
+        # This ensures progressions like I-iii get at least minimal modal alternatives
+        roman_string = "-".join(roman_numerals)
+        if "I-iii" in roman_string or "i-III" in roman_string:
+            evidence.append(
+                ModalEvidence(
+                    type=EvidenceType.INTERVALLIC,
+                    description="Contains tonic-mediant relationship (weak modal"
+                    "character)",
+                    strength=0.25,  # Low strength - enough to generate an alternative
+                )
+            )
+        if "I-vi" in roman_string or "i-VI" in roman_string:
+            evidence.append(
+                ModalEvidence(
+                    type=EvidenceType.INTERVALLIC,
+                    description="Contains tonic-submediant relationship (weak modal"
+                    "character)",
+                    strength=0.25,
                 )
             )
 
@@ -637,6 +738,17 @@ class EnhancedModalAnalyzer:
         # Add diminished symbol
         if expected_quality == "diminished":
             roman_numeral += "°"
+
+        # Add inversion notation if present
+        if chord.bass_pitch_class is not None:
+            inversion_info = analyze_chord_inversion(
+                chord.pitch_class,
+                chord.bass_pitch_class,
+                chord.symbol,  # Pass original symbol for 7th chord detection
+            )
+            figured_bass = inversion_info["figured_bass"]
+            if isinstance(figured_bass, str):
+                roman_numeral += figured_bass
 
         return roman_numeral
 
@@ -957,6 +1069,15 @@ class EnhancedModalAnalyzer:
         if not clean_symbol:
             raise ValueError("Empty chord symbol")
 
+        # Check for slash chord notation
+        bass_pitch_class = None
+        if "/" in clean_symbol:
+            chord_part, bass_part = clean_symbol.split("/", 1)
+            bass_part = bass_part.strip()
+            bass_pitch_class = self.NOTE_TO_PITCH_CLASS.get(bass_part)
+            # Continue parsing with just the chord part
+            clean_symbol = chord_part.strip()
+
         # Extract root note (handles sharps and flats)
         root_match = re.match(r"^([A-G][#b]?)", clean_symbol)
         if not root_match:
@@ -991,13 +1112,157 @@ class EnhancedModalAnalyzer:
             raise ValueError(f"Unknown root note: {root}")
 
         return ChordAnalysis(
-            symbol=clean_symbol, root=root, quality=quality, pitch_class=pitch_class
+            symbol=symbol,  # Keep original symbol
+            root=root,
+            quality=quality,
+            pitch_class=pitch_class,
+            bass_pitch_class=bass_pitch_class,
         )
+
+    def _validate_chords_against_parent_key(
+        self, chord_analyses: List[ChordAnalysis], parent_key: str
+    ) -> Dict[str, Any]:
+        """
+        Validate how well chords fit within the specified parent key.
+
+        Returns:
+            Dict with validation metrics including outside_key_ratio
+        """
+        if parent_key not in KEY_SIGNATURES:
+            # Unknown key signature - assume valid
+            return {
+                "outside_key_ratio": 0.0,
+                "outside_key_chords": [],
+                "key_signature_notes": [],
+            }
+
+        key_signature_accidentals = KEY_SIGNATURES[parent_key]
+
+        # Build the complete set of notes in this key
+        natural_notes = ["C", "D", "E", "F", "G", "A", "B"]
+        key_notes = set()
+
+        for note in natural_notes:
+            # Start with natural note
+            final_note = note
+
+            # Apply accidentals from key signature
+            sharp_note = note + "#"
+            flat_note = note + "b"
+
+            if sharp_note in key_signature_accidentals:
+                final_note = sharp_note
+            elif flat_note in key_signature_accidentals:
+                final_note = flat_note
+
+            key_notes.add(final_note)
+
+        # Also add enharmonic equivalents for edge cases
+        enharmonic_map = {
+            "E#": "F",
+            "B#": "C",
+            "Cb": "B",
+            "Fb": "E",
+            "F#": "Gb",
+            "C#": "Db",
+            "G#": "Ab",
+            "D#": "Eb",
+            "A#": "Bb",
+        }
+
+        expanded_key_notes = set(key_notes)
+        for note in key_notes:
+            if note in enharmonic_map:
+                expanded_key_notes.add(enharmonic_map[note])
+            # Add reverse mappings
+            for enharmonic, equivalent in enharmonic_map.items():
+                if note == equivalent:
+                    expanded_key_notes.add(enharmonic)
+
+        # Check each chord's root against the key
+        outside_key_chords = []
+        total_chords = len(chord_analyses)
+
+        for chord in chord_analyses:
+            chord_root = chord.root
+
+            # Check if chord root is in the key
+            if chord_root not in expanded_key_notes:
+                outside_key_chords.append(chord.symbol)
+
+        outside_key_ratio = (
+            len(outside_key_chords) / total_chords if total_chords > 0 else 0
+        )
+
+        return {
+            "outside_key_ratio": outside_key_ratio,
+            "outside_key_chords": outside_key_chords,
+            "key_signature_notes": list(expanded_key_notes),
+            "total_chords": total_chords,
+        }
 
     def _infer_parent_key(self, tonic: str) -> str:
         """Infer parent key from tonic"""
         # Simple heuristic: assume major key for parent
         return f"{tonic} major"
+
+    def _get_correct_parent_key(
+        self, mode_name: str, tonic: str, current_parent_key: str
+    ) -> str:
+        """Get correct parent key based on detected mode"""
+        # Extract mode type from mode name
+        if "Ionian" in mode_name:
+            # Ionian: tonic IS the parent key
+            return f"{tonic} major"
+        elif "Dorian" in mode_name:
+            # Dorian: tonic is 2nd degree, parent is whole step down
+            parent_root = self._transpose_note(tonic, -2)
+            return f"{parent_root} major"
+        elif "Phrygian" in mode_name:
+            # Phrygian: tonic is 3rd degree, parent is major 3rd down
+            parent_root = self._transpose_note(tonic, -4)
+            return f"{parent_root} major"
+        elif "Lydian" in mode_name:
+            # Lydian: tonic is 4th degree, parent is perfect 4th down
+            parent_root = self._transpose_note(tonic, -5)
+            return f"{parent_root} major"
+        elif "Mixolydian" in mode_name:
+            # Mixolydian: tonic is 5th degree, parent is perfect 4th up
+            parent_root = self._transpose_note(tonic, 5)
+            return f"{parent_root} major"
+        elif "Aeolian" in mode_name:
+            # Aeolian: tonic is 6th degree, parent is minor 3rd up
+            parent_root = self._transpose_note(tonic, 3)
+            return f"{parent_root} major"
+        elif "Locrian" in mode_name:
+            # Locrian: tonic is 7th degree, parent is semitone up
+            parent_root = self._transpose_note(tonic, 1)
+            return f"{parent_root} major"
+        else:
+            # Unknown mode, return current parent key
+            return current_parent_key
+
+    def _transpose_note(self, note: str, semitones: int) -> str:
+        """Transpose a note by given number of semitones"""
+        # Circle of fifths for clean enharmonic spelling
+        notes_sharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        notes_flat = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
+
+        # Use sharp notation for F# and related keys, flat for others
+        use_sharps = "#" in note or note in ["F#", "C#", "G#", "D#", "A#"]
+        note_list = notes_sharp if use_sharps else notes_flat
+
+        # Find current note index
+        try:
+            current_index = note_list.index(note)
+        except ValueError:
+            # Try the other notation
+            note_list = notes_flat if use_sharps else notes_sharp
+            current_index = note_list.index(note)
+
+        # Calculate new index
+        new_index = (current_index + semitones) % 12
+        return note_list[new_index]
 
     def _extract_key_root(self, key_signature: str) -> str:
         """Extract root note from key signature string"""

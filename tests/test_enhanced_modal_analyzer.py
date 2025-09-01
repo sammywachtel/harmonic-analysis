@@ -10,6 +10,7 @@ Tests the sophisticated modal detection capabilities including:
 
 import pytest
 
+from harmonic_analysis import AnalysisOptions, analyze_progression_multiple
 from harmonic_analysis.chromatic import analyze_modal_progression
 from harmonic_analysis.core.enhanced_modal_analyzer import (
     EnhancedModalAnalyzer,
@@ -145,9 +146,9 @@ class TestEnhancedModalAnalyzer:
         ]
         assert any("bVII chord" in e.description for e in intervallic_evidence)
 
-    @pytest.mark.skip(
-        reason="TODO: Resolve parent key context inconsistency - Both C major and G major contexts return identical G Mixolydian results instead of showing different parent key signatures. Need to fix modal analyzer to properly reflect different parent key interpretations."
-    )
+    # @pytest.mark.skip(
+    #     reason="TODO: Resolve parent key context inconsistency - Both C major and G major contexts return identical G Mixolydian results instead of showing different parent key signatures. Need to fix modal analyzer to properly reflect different parent key interpretations."
+    # )
     def test_parent_key_context(self):
         """Test that parent key context influences mode determination"""
         # Same progression, different parent keys should yield different modes
@@ -166,6 +167,110 @@ class TestEnhancedModalAnalyzer:
             result1.mode_name != result2.mode_name
             or result1.confidence != result2.confidence
         )
+
+    def test_completely_invalid_parent_key_should_fail(self):
+        """
+        TEST CASE: G-F-C-G progression with F# major parent key
+
+        PROBLEM: F# major contains F#, G#, A#, B, C#, D#, E#
+        The chords G, F, C don't exist in this key at all!
+
+        EXPECTED: Very low confidence (<0.3) or rejection (None)
+        ACTUAL: Returns 95% confidence (BUG!)
+        """
+        chords = ["G", "F", "C", "G"]
+        invalid_parent_key = "F# major"
+
+        result = self.analyzer.analyze_modal_characteristics(chords, invalid_parent_key)
+
+        # BUG: Currently this test fails because confidence is 0.95
+        # FIX: Should either return None or very low confidence
+        if result is not None:
+            assert result.confidence < 0.3, (
+                f"Invalid parent key '{invalid_parent_key}' should have very low confidence. "
+                f"Got {result.confidence:.3f} for progression {chords}. "
+                f"None of these chords exist in {invalid_parent_key}!"
+            )
+
+    @pytest.mark.parametrize(
+        "invalid_key,chords",
+        [
+            (
+                "B major",
+                ["C", "F", "G"],
+            ),  # B major has 5 sharps, C-F-G all have naturals
+            (
+                "Db major",
+                ["D", "E", "A"],
+            ),  # Db major has 5 flats, D-E-A all have naturals
+            (
+                "F# major",
+                ["G", "F", "C"],
+            ),  # F# major has 6 sharps, G-F-C all have naturals
+            (
+                "Gb major",
+                ["A", "B", "E"],
+            ),  # Gb major has 6 flats, A-B-E all have naturals
+        ],
+    )
+    def test_extreme_key_signature_mismatches(self, invalid_key, chords):
+        """Test progressions that are completely outside the parent key"""
+        result = self.analyzer.analyze_modal_characteristics(chords, invalid_key)
+
+        if result is not None:
+            assert result.confidence < 0.4, (
+                f"Chords {chords} are completely outside {invalid_key}. "
+                f"Got confidence {result.confidence:.3f}, expected <0.4"
+            )
+
+    @pytest.mark.asyncio
+    async def test_multiple_interpretation_service_bug(self):
+        """Test the same bug in the multiple interpretation service"""
+        chords = ["G", "F", "C", "G"]
+        options = AnalysisOptions(parent_key="F# major")
+
+        result = await analyze_progression_multiple(chords, options)
+
+        # BUG: Currently returns high confidence for invalid parent key
+        # The primary analysis should have low confidence or suggest better keys
+        primary_confidence = result.primary_analysis.confidence
+
+        assert primary_confidence < 0.5, (
+            f"Multiple interpretation service should have low confidence for invalid parent key. "
+            f"Got {primary_confidence:.3f} for {chords} in F# major"
+        )
+
+        # Should also provide suggestions for better parent keys
+        if result.suggestions and result.suggestions.parent_key_suggestions:
+            suggested_keys = [
+                s.suggested_key for s in result.suggestions.parent_key_suggestions
+            ]
+            # Accept either "C major" or "auto-detect" as valid suggestions
+            assert any(
+                "C major" in key or "auto-detect" in key for key in suggested_keys
+            ), f"Should suggest C major or auto-detect as better parent key. Got suggestions: {suggested_keys}"
+
+    def test_parent_key_confidence_should_differ(self):
+        """Test that different parent keys should yield different confidence levels"""
+        chords = ["G", "F", "G"]
+
+        # Valid parent key - should have high confidence
+        valid_result = self.analyzer.analyze_modal_characteristics(chords, "C major")
+
+        # Invalid parent key - should have much lower confidence
+        invalid_result = self.analyzer.analyze_modal_characteristics(chords, "F# major")
+
+        assert valid_result is not None, "Valid parent key should return result"
+
+        if invalid_result is not None:
+            # BUG: Currently both have same confidence (0.95)
+            # FIX: Invalid parent key should have significantly lower confidence
+            confidence_diff = valid_result.confidence - invalid_result.confidence
+            assert confidence_diff > 0.3, (
+                f"Valid parent key should have much higher confidence than invalid one. "
+                f"C major: {valid_result.confidence:.3f}, F# major: {invalid_result.confidence:.3f}, "
+                f"Difference: {confidence_diff:.3f} (expected >0.3)"
+            )
 
     def test_chord_parsing(self):
         """Test chord parsing with various qualities"""

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from ..types import ChordFunction, ChromaticType, ProgressionType
+from ..utils.chord_inversions import analyze_chord_inversion
 from ..utils.chord_logic import ChordMatch
 from ..utils.scales import NOTE_TO_PITCH_CLASS
 
@@ -52,14 +53,10 @@ CHORD_FUNCTIONS: Dict[int, Dict[str, ChordFunction]] = {
         "major": ChordFunction.PREDOMINANT,
         "minor": ChordFunction.PREDOMINANT,
     },  # ii/ii°
-    3: {
-        "major": ChordFunction.CHROMATIC,
-        "minor": ChordFunction.TONIC,
-    },  # iii/III - chromatic in major, tonic in minor
     4: {
-        "major": ChordFunction.PREDOMINANT,
-        "minor": ChordFunction.PREDOMINANT,
-    },  # iii/III
+        "major": ChordFunction.MEDIANT,
+        "minor": ChordFunction.MEDIANT,
+    },  # iii/III - mediant in major and minor
     5: {
         "major": ChordFunction.SUBDOMINANT,
         "minor": ChordFunction.SUBDOMINANT,
@@ -71,9 +68,9 @@ CHORD_FUNCTIONS: Dict[int, Dict[str, ChordFunction]] = {
         "minor": ChordFunction.CHROMATIC,
     },  # Chromatic
     9: {
-        "major": ChordFunction.TONIC,
+        "major": ChordFunction.SUBMEDIANT,
         "minor": ChordFunction.SUBDOMINANT,
-    },  # vi/VI - relative minor/submediant
+    },  # vi/VI - submediant in major, subdominant in minor
     10: {
         "major": ChordFunction.CHROMATIC,
         "minor": ChordFunction.SUBDOMINANT,
@@ -228,18 +225,24 @@ class FunctionalHarmonyAnalyzer:
                     "is_minor": parsed["is_minor"],
                 }
 
-        # Analyze first chord for tonal center
-        first_chord = self._parse_chord_symbol(chord_symbols[0])
+        # SMART KEY DETECTION: Check for common functional patterns first
+        detected_key = self._detect_functional_patterns(chord_symbols)
+        if detected_key:
+            suggested_root = NOTE_TO_PITCH_CLASS.get(detected_key["tonic"], 0)
+            is_minor = detected_key["is_minor"]
+        else:
+            # Fallback: Analyze first chord for tonal center
+            first_chord = self._parse_chord_symbol(chord_symbols[0])
 
-        # Assume first/last chord suggests key (simple heuristic for now)
-        suggested_root = first_chord["root"] if first_chord else 0
-        is_minor = bool(
-            first_chord
-            and (
-                "m" in first_chord["chord_name"]
-                and "M" not in first_chord["chord_name"]
+            # Assume first/last chord suggests key (simple heuristic)
+            suggested_root = first_chord["root"] if first_chord else 0
+            is_minor = bool(
+                first_chord
+                and (
+                    "m" in first_chord["chord_name"]
+                    and "M" not in first_chord["chord_name"]
+                )
             )
-        )
         root_name = next(
             (
                 name
@@ -708,20 +711,12 @@ class FunctionalHarmonyAnalyzer:
         self, chord_info: Dict[str, Any], roman_numeral: str
     ) -> Dict[str, Any]:
         """Analyze chord inversion and generate precise figured bass notation."""
-        # Simplified inversion analysis for now
-        # In a full implementation, you'd analyze the bass note relative to
-        # the chord tones
+        bass_note = chord_info.get("bass_note")
+        root_note = chord_info.get("root")
+        chord_name = chord_info.get("chord_name", "")
 
-        if (
-            chord_info.get("bass_note") is not None
-            and chord_info["bass_note"] != chord_info["root"]
-        ):
-            # There's a bass note different from root - some kind of inversion
-            # This is a simplified approach - full implementation would analyze
-            # specific intervals
-            return {"inversion": 1, "figured_bass": "⁶"}
-
-        return {"inversion": 0, "figured_bass": ""}
+        # Use the shared utility function
+        return analyze_chord_inversion(root_note, bass_note, chord_name)
 
     def _determine_chromatic_type(
         self, interval_from_key: int, is_minor: bool, chord_name: str
@@ -871,14 +866,14 @@ class FunctionalHarmonyAnalyzer:
             if resolution:
                 return (
                     f"Secondary dominant {chord.roman_numeral} resolves to "
-                    f"{resolution.roman_numeral}"
+                    f"{resolution.roman_numeral}."
                 )
             else:
-                return f"Secondary dominant {chord.roman_numeral} (unresolved)"
+                return f"Secondary dominant {chord.roman_numeral} (unresolved)."
         elif chord.chromatic_type == ChromaticType.BORROWED_CHORD:
-            return f"Borrowed chord {chord.roman_numeral} from parallel mode"
+            return f"Borrowed chord {chord.roman_numeral} from parallel mode."
         else:
-            return f"Chromatic chord {chord.roman_numeral}"
+            return f"Chromatic chord {chord.roman_numeral}."
 
     def _calculate_confidence(
         self,
@@ -916,14 +911,14 @@ class FunctionalHarmonyAnalyzer:
         """Generate human-readable explanation of analysis."""
         romans = " - ".join(c.roman_numeral for c in chords)
 
-        explanation = f"Functional progression: {romans}"
+        explanation = f"Functional progression: {romans}."
 
         if progression_type != ProgressionType.OTHER:
             explanation += f" ({progression_type.value.replace('_', ' ')})"
 
         if chromatic_elements:
             chromatic_count = len(chromatic_elements)
-            explanation += f". Contains {chromatic_count} chromatic element(s)"
+            explanation += f". Contains {chromatic_count} chromatic element(s)."
 
         return explanation
 
@@ -1078,3 +1073,147 @@ class FunctionalHarmonyAnalyzer:
         """Generate human-readable explanation of analysis."""
         romans = " - ".join(c.roman_numeral for c in chords)
         return f"Functional progression in {key_center} {mode}: {romans}"
+
+    def _detect_functional_patterns(
+        self, chord_symbols: List[str]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Detect common functional patterns and infer the correct key center.
+
+        This fixes the critical issue where ii-V-I progressions are analyzed in
+        the wrong key because the first chord is assumed to be tonic.
+
+        Returns:
+            Dictionary with tonic and is_minor if pattern detected, None otherwise
+        """
+        if len(chord_symbols) < 3:
+            return None
+
+        # ii-V-I PATTERN DETECTION (most critical)
+        # Check if progression has intervallic pattern of ii-V-I
+        try:
+            # Extract chord roots
+            roots = []
+            qualities = []
+
+            for chord_symbol in chord_symbols[-3:]:  # Last 3 chords
+                # Parse chord root
+                root = chord_symbol[0]
+                if len(chord_symbol) > 1 and chord_symbol[1] in ["#", "b"]:
+                    root = chord_symbol[:2]
+                roots.append(root)
+
+                # Parse chord quality
+                chord_lower = chord_symbol.lower()
+                if "m7b5" in chord_lower or "ø" in chord_symbol:
+                    qualities.append("half_dim")
+                elif "m7" in chord_lower or (
+                    chord_lower.endswith("m") and "7" not in chord_lower
+                ):
+                    qualities.append("minor")
+                elif (
+                    "7" in chord_lower
+                    and "maj7" not in chord_lower
+                    and "M7" not in chord_symbol
+                ):
+                    qualities.append("dominant")
+                elif "maj7" in chord_lower or "M7" in chord_symbol:
+                    qualities.append("major7")
+                elif "m" in chord_lower and "M" not in chord_symbol:
+                    qualities.append("minor")
+                else:
+                    qualities.append("major")
+
+            # Convert to semitones for interval analysis
+            root_to_semitone = {
+                "C": 0,
+                "C#": 1,
+                "Db": 1,
+                "D": 2,
+                "D#": 3,
+                "Eb": 3,
+                "E": 4,
+                "F": 5,
+                "F#": 6,
+                "Gb": 6,
+                "G": 7,
+                "G#": 8,
+                "Ab": 8,
+                "A": 9,
+                "A#": 10,
+                "Bb": 10,
+                "B": 11,
+            }
+
+            if len(roots) >= 3:
+                root1_st = root_to_semitone.get(roots[-3], 0)  # ii
+                root2_st = root_to_semitone.get(roots[-2], 0)  # V
+                root3_st = root_to_semitone.get(roots[-1], 0)  # I
+
+                # ii-V-I intervals: ii->V (up 5 semitones), V->I (up 5 semitones)
+                interval_ii_to_v = (root2_st - root1_st) % 12
+                interval_v_to_i = (root3_st - root2_st) % 12
+
+                if interval_ii_to_v == 5 and interval_v_to_i == 5:  # Perfect 4ths up
+                    # This is a ii-V-I pattern!
+                    tonic_root = roots[-1]  # Last chord is tonic
+
+                    # Determine major/minor from V chord quality and final chord
+                    is_minor = False
+                    if qualities[-1] == "minor":  # Final chord is minor = minor key
+                        is_minor = True
+                    elif qualities[-2] == "dominant" and qualities[-1] in [
+                        "major",
+                        "major7",
+                    ]:
+                        is_minor = False  # V7->I = major key
+
+                    return {
+                        "tonic": tonic_root,
+                        "is_minor": is_minor,
+                        "pattern": "ii-V-I",
+                        "confidence": 0.9,
+                    }
+
+        except (KeyError, IndexError):
+            pass
+
+        # AUTHENTIC CADENCE DETECTION (V-I, V7-I)
+        if len(chord_symbols) >= 2:
+            try:
+                last_two = chord_symbols[-2:]
+
+                # Parse last two chord roots
+                roots = []
+                qualities = []
+                for chord_symbol in last_two:
+                    root = chord_symbol[0]
+                    if len(chord_symbol) > 1 and chord_symbol[1] in ["#", "b"]:
+                        root = chord_symbol[:2]
+                    roots.append(root)
+
+                    chord_lower = chord_symbol.lower()
+                    if "7" in chord_lower and "maj7" not in chord_lower:
+                        qualities.append("dominant")
+                    elif "m" in chord_lower:
+                        qualities.append("minor")
+                    else:
+                        qualities.append("major")
+
+                # Check for V-I relationship (up 5 semitones)
+                root1_st = root_to_semitone.get(roots[0], 0)
+                root2_st = root_to_semitone.get(roots[1], 0)
+                interval = (root2_st - root1_st) % 12
+
+                if interval == 5 and qualities[0] == "dominant":  # V or V7 to I
+                    return {
+                        "tonic": roots[1],
+                        "is_minor": qualities[1] == "minor",
+                        "pattern": "V-I",
+                        "confidence": 0.8,
+                    }
+
+            except (KeyError, IndexError):
+                pass
+
+        return None
