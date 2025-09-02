@@ -606,10 +606,9 @@ def analyze_melody_notes(
     max_pc = max(pitch_classes)
     melodic_range = (max_pc - min_pc) % 12
 
-    # Find largest leap
-    largest_leap = max(intervals) if intervals else 0
-    if largest_leap > 6:
-        largest_leap = 12 - largest_leap  # Convert to smaller interval
+    # Find largest leap (convert to ascending interval)
+    largest_leap_raw = max([abs(interval) if abs(interval) <= 6 else 12 - abs(interval) for interval in intervals]) if intervals else 0
+    largest_leap = largest_leap_raw
 
     # Determine directional tendency
     up_movements = contour.count("U")
@@ -622,21 +621,27 @@ def analyze_melody_notes(
     else:
         direction = "Balanced movement"
 
-    # Analyze scale context using unique notes
+    # Analyze scale context using unique notes with proper library function
     unique_notes = list(
         dict.fromkeys(melody_notes)
     )  # Preserve order, remove duplicates
-    scale_analysis = analyze_scale_notes(" ".join(unique_notes), parent_key)
+    try:
+        # Use the proper library function for scale/melody analysis
+        scale_analysis = analyze_scale_melody(unique_notes, parent_key)
+        if hasattr(scale_analysis, 'mode_name'):
+            scale_mode = scale_analysis.mode_name or "Unknown mode"
+        else:
+            scale_mode = "Unknown mode"
+    except Exception as e:
+        print(f"Scale melody analysis failed: {e}")
+        scale_mode = "Unknown mode"
+        scale_analysis = {}
 
     # Determine harmonic implications
-    if (
-        "primary_analysis" in scale_analysis
-        and "mode_name" in scale_analysis["primary_analysis"]
-    ):
-        scale_mode = scale_analysis["primary_analysis"]["mode_name"]
+    if scale_mode and scale_mode != "Unknown mode":
         harmonic_implications = f"Suggests {scale_mode} tonality based on note content"
     else:
-        harmonic_implications = "Chromatic or atonal harmonic implications"
+        harmonic_implications = "Unable to determine clear modal implications from note content"
 
     # Analyze phrase structure
     phrase_length = len(melody_notes)
@@ -666,10 +671,7 @@ def analyze_melody_notes(
             "confidence": 0.8,
             "analysis": f"Melodic analysis of {len(melody_notes)}-note sequence with {contour_description}",
             "melodic_contour": contour_description,
-            "scale_context": scale_analysis.get("primary_analysis", {}).get(
-                "mode_name", "Undetermined"
-            )
-            + " context",
+            "scale_context": f"{scale_mode} context",
             "modal_characteristics": f"Melody exhibits {direction.lower()} motion with stepwise analysis",
             "phrase_analysis": f"{phrase_type} ({phrase_length} notes) with {direction.lower()}",
             "harmonic_implications": harmonic_implications,
@@ -686,8 +688,8 @@ def analyze_melody_notes(
             ],
         },
         "intervallic_analysis": {
-            "intervals": [get_interval_name(abs(interval)) for interval in intervals],
-            "largest_leap": get_interval_name(abs(largest_leap)),
+            "intervals": [get_interval_name(abs(interval) if abs(interval) <= 6 else 12 - abs(interval)) for interval in intervals],
+            "largest_leap": get_interval_name(largest_leap),
             "melodic_range": f"{melodic_range} semitones",
             "directional_tendency": direction,
         },

@@ -10,7 +10,7 @@ function App() {
     const [backendAvailable, setBackendAvailable] = useState(true);
     const [showJsonModal, setShowJsonModal] = useState(false);
     const [userIsEditing, setUserIsEditing] = useState(false);
-    
+
     // Advanced analysis options - ported from static HTML demo
     const [pedagogicalLevel, setPedagogicalLevel] = useState('intermediate');
     const [confidenceThreshold, setConfidenceThreshold] = useState(0.1);
@@ -103,7 +103,7 @@ function App() {
     // Helper function to detect Roman numeral progressions
     const isRomanNumeralProgression = useCallback((progression) => {
         if (!progression || typeof progression !== 'string') return false;
-        
+
         const tokens = progression.trim().split(/\s+/);
         if (tokens.length === 0) return false;
 
@@ -118,7 +118,7 @@ function App() {
                 romanIndicators++;
             } else if (/\//.test(token) && /[ivxIVX]/.test(token)) { // Secondary dominants
                 romanIndicators++;
-            } 
+            }
             // Check for chord symbol patterns
             else if (/^[A-G][#b]?/.test(token)) { // Starts with note name
                 chordSymbolIndicators++;
@@ -143,6 +143,18 @@ function App() {
                 message: "Parent key is required for Roman numeral analysis. Please specify a parent key (e.g., 'C major', 'A minor') above."
             });
             return;
+        }
+
+        // Validate parent key format
+        if (parentKey && parentKey.trim()) {
+            const validKeyPattern = /^[A-G][#b]?\s+(major|minor)$/i;
+            if (!validKeyPattern.test(parentKey.trim())) {
+                setResult({
+                    error: true,
+                    message: `Invalid parent key format: "${parentKey}". Please use format like "C major", "A minor", "F# major", or "Bb minor".`
+                });
+                return;
+            }
         }
 
         setLoading(true);
@@ -202,6 +214,18 @@ function App() {
         // If backend not available, don't analyze - user will see connection message
         if (!backendAvailable) {
             return;
+        }
+
+        // Validate parent key format
+        if (specificParentKey && specificParentKey.trim()) {
+            const validKeyPattern = /^[A-G][#b]?\s+(major|minor)$/i;
+            if (!validKeyPattern.test(specificParentKey.trim())) {
+                setResult({
+                    error: true,
+                    message: `Invalid parent key format: "${specificParentKey}". Please use format like "C major", "A minor", "F# major", or "Bb minor".`
+                });
+                return;
+            }
         }
 
         setLoading(true);
@@ -585,9 +609,9 @@ function App() {
 
                 {analysisType === 'scale' && (
                     <>
-                        {analysis.scale_degrees && (
-                            <div className="scale-degrees">
-                                <strong>Scale Degrees:</strong> {analysis.scale_degrees.join(' - ')}
+                        {analysis.mode_name && (
+                            <div className="mode-name">
+                                <strong>Mode:</strong> {analysis.mode_name}
                             </div>
                         )}
 
@@ -595,6 +619,42 @@ function App() {
                             <div className="key-info">
                                 <strong>Parent Key:</strong> {analysis.parent_key}
                                 {analysis.mode && <span> ({analysis.mode})</span>}
+                            </div>
+                        )}
+
+                        {analysis.classification && (
+                            <div className="scale-classification">
+                                <strong>Classification:</strong> {analysis.classification.charAt(0).toUpperCase() + analysis.classification.slice(1).replace('_', ' ')}
+                            </div>
+                        )}
+
+                        {analysis.scale_degrees && (
+                            <div className="scale-degrees">
+                                <strong>Scale Degrees:</strong> {analysis.scale_degrees.join(' - ')}
+                            </div>
+                        )}
+
+                        {analysis.modal_labels && (
+                            <div className="modal-labels">
+                                <strong>Modal Labels:</strong>
+                                <div className="modal-labels-grid">
+                                    {Object.entries(analysis.modal_labels).map(([note, mode]) => (
+                                        <div key={note} className="modal-label-item">
+                                            <span className="note">{note}:</span> <span className="mode">{mode}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {analysis.harmonic_implications && analysis.harmonic_implications.length > 0 && (
+                            <div className="scale-harmonic-implications">
+                                <strong>Harmonic Implications:</strong>
+                                <ul className="implications-list">
+                                    {analysis.harmonic_implications.map((implication, idx) => (
+                                        <li key={idx}>• {implication}</li>
+                                    ))}
+                                </ul>
                             </div>
                         )}
 
@@ -657,6 +717,13 @@ function App() {
                     <div className="theoretical-basis">
                         <h4>Theoretical Basis</h4>
                         <div>{analysis.theoretical_basis}</div>
+                    </div>
+                )}
+
+                {analysis.rationale && (
+                    <div className="rationale">
+                        <h4>Analysis Rationale</h4>
+                        <div>{analysis.rationale}</div>
                     </div>
                 )}
 
@@ -737,8 +804,8 @@ function App() {
 
                 {/* Advanced Settings Toggle */}
                 <div className="advanced-settings-toggle">
-                    <button 
-                        type="button" 
+                    <button
+                        type="button"
                         onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
                         className="toggle-button"
                     >
@@ -751,9 +818,9 @@ function App() {
                     <div className="advanced-settings-panel">
                         <div className="input-group">
                             <label htmlFor="pedagogicalLevel">Pedagogical Level:</label>
-                            <select 
-                                id="pedagogicalLevel" 
-                                value={pedagogicalLevel} 
+                            <select
+                                id="pedagogicalLevel"
+                                value={pedagogicalLevel}
                                 onChange={(e) => {
                                     setPedagogicalLevel(e.target.value);
                                     setUserIsEditing(true);
@@ -770,13 +837,13 @@ function App() {
                         <div className="input-group">
                             <label htmlFor="confidenceThreshold">Confidence Threshold:</label>
                             <div className="threshold-control">
-                                <input 
-                                    id="confidenceThreshold" 
-                                    type="range" 
-                                    min="0.1" 
-                                    max="0.9" 
-                                    step="0.1" 
-                                    value={confidenceThreshold} 
+                                <input
+                                    id="confidenceThreshold"
+                                    type="range"
+                                    min="0.1"
+                                    max="0.9"
+                                    step="0.1"
+                                    value={confidenceThreshold}
                                     onChange={(e) => {
                                         setConfidenceThreshold(parseFloat(e.target.value));
                                         setUserIsEditing(true);
@@ -792,12 +859,12 @@ function App() {
                         <div className="input-group">
                             <label htmlFor="maxAlternatives">Max Alternatives:</label>
                             <div className="alternatives-control">
-                                <input 
-                                    id="maxAlternatives" 
-                                    type="number" 
-                                    min="1" 
-                                    max="10" 
-                                    value={maxAlternatives} 
+                                <input
+                                    id="maxAlternatives"
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    value={maxAlternatives}
                                     onChange={(e) => {
                                         setMaxAlternatives(parseInt(e.target.value));
                                         setUserIsEditing(true);
@@ -814,10 +881,10 @@ function App() {
                                 <label>Analysis Depth:</label>
                                 <div className="radio-group">
                                     <label className="radio-option">
-                                        <input 
-                                            type="radio" 
-                                            name="analysisDepth" 
-                                            value="basic" 
+                                        <input
+                                            type="radio"
+                                            name="analysisDepth"
+                                            value="basic"
                                             checked={analysisDepth === 'basic'}
                                             onChange={(e) => {
                                                 setAnalysisDepth(e.target.value);
@@ -831,10 +898,10 @@ function App() {
                                         </div>
                                     </label>
                                     <label className="radio-option">
-                                        <input 
-                                            type="radio" 
-                                            name="analysisDepth" 
-                                            value="comprehensive" 
+                                        <input
+                                            type="radio"
+                                            name="analysisDepth"
+                                            value="comprehensive"
                                             checked={analysisDepth === 'comprehensive'}
                                             onChange={(e) => {
                                                 setAnalysisDepth(e.target.value);
@@ -926,6 +993,16 @@ function App() {
                         </div>
                     </div>
 
+                    {/* Analysis Rationale - Top level rationale from backend */}
+                    {result.rationale && (
+                        <div className="section">
+                            <h3>🔍 Analysis Rationale</h3>
+                            <div className="analysis-rationale">
+                                {result.rationale}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Suggestions Section - Show first for immediate visibility */}
                     {result.suggestions && renderSuggestions(result.suggestions)}
 
@@ -947,7 +1024,7 @@ function App() {
                             </div>
 
                             {/* Alternative Analyses - Side by Side */}
-                            {result.alternative_analyses && result.alternative_analyses.length > 0 && 
+                            {result.alternative_analyses && result.alternative_analyses.length > 0 &&
                                 result.alternative_analyses.map((alt, index) => (
                                     <div key={index} className="analysis-panel alternative-analysis">
                                         <div className="panel-header">
@@ -1078,6 +1155,21 @@ function App() {
                                 {result.metadata.scale_type && (
                                     <div className="metadata-item">
                                         <strong>Scale Type:</strong> {result.metadata.scale_type}
+                                    </div>
+                                )}
+                                {result.metadata.parent_scales && result.metadata.parent_scales.length > 0 && (
+                                    <div className="metadata-item">
+                                        <strong>Parent Scales:</strong> {result.metadata.parent_scales.join(', ')}
+                                    </div>
+                                )}
+                                {result.metadata.non_diatonic_pitches && result.metadata.non_diatonic_pitches.length > 0 && (
+                                    <div className="metadata-item">
+                                        <strong>Non-diatonic Pitches:</strong> {result.metadata.non_diatonic_pitches.join(', ')}
+                                    </div>
+                                )}
+                                {result.metadata.analysis_depth && (
+                                    <div className="metadata-item">
+                                        <strong>Analysis Depth:</strong> {result.metadata.analysis_depth}
                                     </div>
                                 )}
                                 {result.metadata.melody_type && (

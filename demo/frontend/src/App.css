@@ -1452,34 +1452,34 @@
   .analyses-container {
     flex-direction: column;
   }
-  
+
   .analysis-panel {
     min-width: 100%;
   }
-  
+
   .panel-header {
     padding: 12px 15px;
   }
-  
+
   .analysis-content {
     padding: 15px;
   }
-  
+
   .analysis-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 5px;
   }
-  
+
   .advanced-settings-panel {
     padding: 15px;
   }
-  
+
   .threshold-control {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .alternatives-control {
     flex-direction: column;
     align-items: stretch;
@@ -1507,4 +1507,98 @@
   margin: 0;
   font-size: 1.1em;
   font-weight: 500;
+}
+
+/* Scale Analysis UI Enhancements */
+.mode-name {
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 6px;
+  border-left: 4px solid #3498db;
+  margin-bottom: 10px;
+}
+
+.scale-classification {
+  background: #e8f5e8;
+  padding: 8px;
+  border-radius: 6px;
+  border-left: 4px solid #27ae60;
+  margin-bottom: 10px;
+}
+
+.modal-labels {
+  margin: 15px 0;
+}
+
+.modal-labels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.modal-label-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: white;
+  border-radius: 4px;
+  font-size: 0.9em;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.modal-label-item .note {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.modal-label-item .mode {
+  color: #7f8c8d;
+  font-size: 0.85em;
+}
+
+.scale-harmonic-implications {
+  margin: 15px 0;
+}
+
+.scale-harmonic-implications .implications-list {
+  background: #fff8dc;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #f39c12;
+  margin: 10px 0;
+}
+
+.scale-harmonic-implications .implications-list li {
+  margin: 5px 0;
+  color: #8b4513;
+}
+
+.analysis-rationale {
+  background: #f0f8ff;
+  padding: 15px;
+  border-radius: 6px;
+  border-left: 4px solid #3498db;
+  font-style: italic;
+  color: #2c3e50;
+  line-height: 1.5;
+}
+
+.rationale h4 {
+  color: #2980b9;
+  margin-bottom: 10px;
+}
+
+.rationale div {
+  background: #f0f8ff;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid #3498db;
+  font-style: italic;
+  line-height: 1.5;
 }
