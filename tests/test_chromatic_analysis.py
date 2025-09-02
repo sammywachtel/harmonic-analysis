@@ -11,7 +11,7 @@ Tests the chromatic harmony analysis capabilities including:
 import pytest
 
 # Updated imports for new layered API structure
-from harmonic_analysis.chromatic import (
+from harmonic_analysis.specialized.chromatic import (
     BorrowedChord,
     ChromaticAnalysisResult,
     ChromaticAnalyzer,

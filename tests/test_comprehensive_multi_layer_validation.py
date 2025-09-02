@@ -14,7 +14,7 @@ from harmonic_analysis import (
     AnalysisOptions,
     analyze_progression_multiple,
 )
-from harmonic_analysis.chromatic import ChromaticAnalyzer
+from harmonic_analysis.specialized.chromatic import ChromaticAnalyzer
 from harmonic_analysis.core.enhanced_modal_analyzer import EnhancedModalAnalyzer
 from harmonic_analysis.core.functional_harmony import FunctionalHarmonyAnalyzer
 from harmonic_analysis.services.multiple_interpretation_service import (
@@ -748,7 +748,7 @@ Consider reviewing confidence thresholds and behavioral expectations.
     @pytest.mark.asyncio
     async def test_scale_melody_analysis_cases(self):
         """Test scale/melody analysis with the comprehensive mode family fixtures"""
-        from harmonic_analysis.scale_melody_analysis import analyze_scale_melody
+        from harmonic_analysis.core.scale_melody_analysis import analyze_scale_melody
 
         # Get all scale/melody test cases
         scale_melody_cases = [

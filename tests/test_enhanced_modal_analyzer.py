@@ -11,7 +11,7 @@ Tests the sophisticated modal detection capabilities including:
 import pytest
 
 from harmonic_analysis import AnalysisOptions, analyze_progression_multiple
-from harmonic_analysis.chromatic import analyze_modal_progression
+from harmonic_analysis.specialized.chromatic import analyze_modal_progression
 from harmonic_analysis.core.enhanced_modal_analyzer import (
     EnhancedModalAnalyzer,
     EvidenceType,

@@ -102,11 +102,56 @@ HARMONIC_MINOR_MODES: Dict[str, List[int]] = {
     "Super Locrian": [0, 1, 3, 4, 6, 7, 9],
 }
 
+# Harmonic major modes
+HARMONIC_MAJOR_MODES: Dict[str, List[int]] = {
+    "Harmonic Major": [0, 2, 4, 5, 7, 8, 11],
+    "Dorian b5": [0, 2, 3, 5, 6, 9, 10],
+    "Phrygian b4": [0, 1, 3, 4, 7, 8, 10],
+    "Lydian b3": [0, 2, 3, 6, 7, 9, 11],
+    "Mixolydian b2": [0, 1, 4, 5, 7, 9, 10],
+    "Lydian Augmented #2": [0, 3, 4, 7, 9, 10, 11],
+    "Locrian bb7": [0, 1, 3, 5, 6, 8, 9],
+}
+
+# Double harmonic major modes (Byzantine scale)
+DOUBLE_HARMONIC_MAJOR_MODES: Dict[str, List[int]] = {
+    "Double Harmonic Major": [0, 1, 4, 5, 7, 8, 11],  # Byzantine
+    "Lydian #2 #6": [0, 3, 4, 6, 7, 10, 11],
+    "Ultraphrygian": [0, 1, 3, 4, 7, 9, 10],
+    "Hungarian Minor": [0, 2, 3, 6, 7, 8, 10],
+    "Oriental": [0, 1, 4, 5, 6, 9, 10],
+    "Ionian Augmented #2": [0, 3, 4, 5, 8, 9, 11],
+    "Ultra Locrian": [0, 1, 2, 4, 5, 7, 8],
+}
+
+# Major pentatonic modes
+MAJOR_PENTATONIC_MODES: Dict[str, List[int]] = {
+    "Major Pentatonic": [0, 2, 4, 7, 9],
+    "Suspended": [0, 2, 5, 7, 10],
+    "Jue": [0, 3, 5, 8, 10],  # Man Gong
+    "Zhi": [0, 2, 5, 7, 9],  # Shang
+    "Minor Pentatonic": [0, 3, 5, 7, 10],  # Gong
+}
+
+# Blues scale modes
+BLUES_SCALE_MODES: Dict[str, List[int]] = {
+    "Blues Scale": [0, 3, 5, 6, 7, 10],
+    "Blues Mode II": [0, 2, 3, 4, 7, 9],
+    "Blues Mode III": [0, 1, 2, 5, 7, 10],
+    "Blues Mode IV": [0, 1, 4, 6, 9, 11],
+    "Blues Mode V": [0, 3, 5, 8, 10, 11],
+    "Blues Mode VI": [0, 2, 3, 7, 8, 9],
+}
+
 # All scale systems combined
 ALL_SCALE_SYSTEMS: Dict[str, Dict[str, List[int]]] = {
     "Major": MAJOR_SCALE_MODES,
     "Melodic Minor": MELODIC_MINOR_MODES,
     "Harmonic Minor": HARMONIC_MINOR_MODES,
+    "Harmonic Major": HARMONIC_MAJOR_MODES,
+    "Double Harmonic Major": DOUBLE_HARMONIC_MAJOR_MODES,
+    "Major Pentatonic": MAJOR_PENTATONIC_MODES,
+    "Blues Scale": BLUES_SCALE_MODES,
 }
 
 

@@ -4,7 +4,7 @@ Tests for musical character and emotional analysis functionality.
 
 import pytest
 
-from harmonic_analysis.character import (
+from harmonic_analysis.api.character import (
     CHORD_EMOTIONAL_QUALITIES,
     MODE_EMOTIONAL_PROFILES,
     SCALE_EMOTIONAL_PROFILES,

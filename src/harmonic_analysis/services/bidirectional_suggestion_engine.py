@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 from ..core.enhanced_modal_analyzer import EnhancedModalAnalyzer
 from ..core.functional_harmony import FunctionalHarmonyAnalyzer
-from ..types import AnalysisOptions, AnalysisSuggestions
+from ..analysis_types import AnalysisOptions, AnalysisSuggestions
 from ..utils.scales import KEY_SIGNATURES
 
 if TYPE_CHECKING:
@@ -134,7 +134,7 @@ class BidirectionalSuggestionEngine:
         # Convert BidirectionalSuggestion list to AnalysisSuggestions format
         # For now, we'll put all suggestions in parent_key_suggestions
         # TODO: Implement proper categorization based on suggestion type
-        from ..types import KeySuggestion
+        from ..analysis_types import KeySuggestion
 
         parent_key_suggestions = []
         for bidirectional_suggestion in suggestions[:3]:

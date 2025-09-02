@@ -127,9 +127,9 @@ Dict:
 
 #### Analysis Modes
 - **Comprehensive** - All analysis types with confidence ranking
-- **Pedagogical Levels**: 
+- **Pedagogical Levels**:
   - `beginner` - Simple functional analysis
-  - `intermediate` - Modal and secondary dominant analysis  
+  - `intermediate` - Modal and secondary dominant analysis
   - `advanced` - Full chromatic analysis with alternatives
 
 #### Expected Outputs
@@ -168,7 +168,7 @@ ProgressionCharacter:
 ```python
 EmotionalProfile:
   - brightness: EmotionalBrightness (very_bright/bright/neutral/dark/very_dark)
-  - energy: EmotionalEnergy (high/medium_high/medium/medium_low/low)  
+  - energy: EmotionalEnergy (high/medium_high/medium/medium_low/low)
   - tension: EmotionalTension (very_tense/tense/moderate/relaxed/very_relaxed)
   - primary_emotions: List[str]
   - typical_genres: List[str]
@@ -271,13 +271,13 @@ ModalCharacteristics:
 
 ### REST API Functions
 
-#### 1. `POST /api/analyze` 
+#### 1. `POST /api/analyze`
 Maps to: `analyze_progression_multiple()`
 
 #### 2. `POST /api/analyze-scale`
 Maps to: `analyze_scale_notes()`
 
-#### 3. `POST /api/analyze-melody` 
+#### 3. `POST /api/analyze-melody`
 Maps to: `analyze_melody_notes()`
 
 #### 4. `POST /api/analyze/unified`
@@ -343,7 +343,7 @@ Maps to: `analyze_melody_notes()`
    ↓
 2. FUNCTIONAL ANALYSIS (Primary)
    ├─ Roman Numeral Analysis
-   ├─ Chord Function Identification  
+   ├─ Chord Function Identification
    └─ Cadence Detection
    ↓
 3. MODAL ENHANCEMENT (If Applicable)
@@ -373,7 +373,7 @@ Maps to: `analyze_melody_notes()`
 
 ### Available Constants
 - `ALL_MAJOR_KEYS` - All major key signatures
-- `ALL_MINOR_KEYS` - All minor key signatures  
+- `ALL_MINOR_KEYS` - All minor key signatures
 - `ALL_MODES` - Complete modal system
 - `MODAL_CHARACTERISTICS` - Mode characteristic degrees
 - Scale systems, pitch class names, interval mappings

@@ -8,7 +8,7 @@ generation, chromatic chord detection, and figured bass notation.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from ..types import ChordFunction, ChromaticType, ProgressionType
+from ..analysis_types import ChordFunction, ChromaticType, ProgressionType
 from ..utils.chord_inversions import analyze_chord_inversion
 from ..utils.chord_logic import ChordMatch
 from ..utils.scales import NOTE_TO_PITCH_CLASS
@@ -1212,6 +1212,58 @@ class FunctionalHarmonyAnalyzer:
                         "pattern": "V-I",
                         "confidence": 0.8,
                     }
+
+            except (KeyError, IndexError):
+                pass
+
+        # vi-IV-I-V PATTERN DETECTION (very common pop progression)
+        if len(chord_symbols) == 4:
+            try:
+                # Extract all four chord roots
+                roots = []
+                qualities = []
+
+                for chord_symbol in chord_symbols:
+                    root = chord_symbol[0]
+                    if len(chord_symbol) > 1 and chord_symbol[1] in ["#", "b"]:
+                        root = chord_symbol[:2]
+                    roots.append(root)
+
+                    chord_lower = chord_symbol.lower()
+                    if "m" in chord_lower and "M" not in chord_symbol:
+                        qualities.append("minor")
+                    else:
+                        qualities.append("major")
+
+                # Convert to semitones
+                semitones = [root_to_semitone.get(root, 0) for root in roots]
+
+                # Check for vi-IV-I-V intervallic pattern in a major key
+                # If we assume the 3rd chord (index 2) is the tonic (I):
+                if len(semitones) == 4:
+                    tonic_st = semitones[2]  # Third chord as potential tonic
+
+                    # Calculate expected positions relative to this tonic
+                    expected_vi = (tonic_st + 9) % 12  # vi is 9 semitones above I
+                    expected_iv = (tonic_st + 5) % 12  # IV is 5 semitones above I
+                    expected_v = (tonic_st + 7) % 12   # V is 7 semitones above I
+
+                    # Check if progression matches vi-IV-I-V pattern
+                    if (semitones[0] == expected_vi and  # First chord is vi
+                        semitones[1] == expected_iv and  # Second chord is IV
+                        semitones[2] == tonic_st and     # Third chord is I
+                        semitones[3] == expected_v and   # Fourth chord is V
+                        qualities[0] == "minor" and      # vi should be minor
+                        qualities[1] == "major" and      # IV should be major
+                        qualities[2] == "major" and      # I should be major
+                        qualities[3] == "major"):        # V should be major
+
+                        return {
+                            "tonic": roots[2],  # Third chord is tonic
+                            "is_minor": False,  # This is a major key pattern
+                            "pattern": "vi-IV-I-V",
+                            "confidence": 0.85,
+                        }
 
             except (KeyError, IndexError):
                 pass

@@ -5,7 +5,7 @@
 ### Basic Chord Progression Analysis
 ```python
 from harmonic_analysis import analyze_progression_multiple
-from harmonic_analysis.types import AnalysisOptions
+from harmonic_analysis.analysis_types import AnalysisOptions
 
 # Simple analysis
 result = await analyze_progression_multiple(['C', 'F', 'G', 'C'])

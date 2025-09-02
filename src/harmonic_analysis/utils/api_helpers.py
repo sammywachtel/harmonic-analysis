@@ -8,7 +8,7 @@ the harmonic analysis library.
 
 from typing import Any, Dict, List, Optional
 
-from ..types import AnalysisSuggestions, KeySuggestion
+from ..analysis_types import AnalysisSuggestions, KeySuggestion
 from .analysis_helpers import get_scale_reference_data
 from .music_theory_constants import (
     ALL_KEYS,

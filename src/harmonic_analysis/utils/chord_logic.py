@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import List, Optional
 
-from ..types import ChordFunction
+from ..analysis_types import ChordFunction
 from .chord_inversions import analyze_chord_inversion
 from .scales import NOTE_TO_PITCH_CLASS
 

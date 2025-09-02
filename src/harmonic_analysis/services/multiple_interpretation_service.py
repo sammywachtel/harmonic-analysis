@@ -24,7 +24,7 @@ from ..core.functional_harmony import (
     FunctionalAnalysisResult,
     FunctionalHarmonyAnalyzer,
 )
-from ..types import (
+from ..analysis_types import (
     AnalysisOptions,
     AnalysisSuggestions,
     EvidenceType,
@@ -347,21 +347,8 @@ class MultipleInterpretationService:
 
         outside_count = 0
         for chord in chords:
-            chord_root = (
-                chord.replace("m", "")
-                .replace("7", "")
-                .replace("maj", "")
-                .replace("dim", "")
-                .replace("aug", "")
-                .replace("sus", "")
-                .replace("add", "")
-                .replace("6", "")
-                .replace("9", "")
-                .replace("11", "")
-                .replace("13", "")
-                .replace("b", "")
-                .replace("#", "")[0]
-            )
+            # Extract chord root properly - preserve accidentals that are part of root
+            chord_root = self._extract_chord_root(chord)
 
             if not self._chord_fits_key_signature(
                 chord_root, key_signature_accidentals
@@ -589,7 +576,8 @@ class MultipleInterpretationService:
                 functional_result
             )
 
-            # Only create chromatic interpretation if significant chromatic elements found
+            # Only create chromatic interpretation if significant chromatic elements
+            # are found
             if not chromatic_result or not self._has_significant_chromatic_elements(
                 chromatic_result
             ):
@@ -964,12 +952,207 @@ class MultipleInterpretationService:
     def _rank_interpretations(
         self, interpretations: List[InterpretationAnalysis]
     ) -> List[InterpretationAnalysis]:
-        """Rank interpretations by confidence (no filtering)"""
+        """Rank interpretations by confidence with theoretical appropriateness adjustments"""
+
+        def calculate_ranking_score(interp: InterpretationAnalysis) -> float:
+            """Calculate ranking score using generalized functional strength analysis"""
+            base_confidence = interp.confidence
+
+            # Use generalized functional analysis instead of hardcoded patterns
+            if interp.roman_numerals and len(interp.roman_numerals) >= 2:
+                functional_strength = self._calculate_functional_strength(interp.roman_numerals)
+
+                # Boost functional analysis for high functional strength
+                if interp.type.value == "functional" and functional_strength > 0.7:
+                    base_confidence += min(0.1, functional_strength * 0.15)
+
+                # Penalize modal analysis when functional strength is very high
+                elif interp.type.value == "modal" and functional_strength > 0.8:
+                    base_confidence -= min(0.08, (functional_strength - 0.8) * 0.4)
+
+            return base_confidence
+
         return sorted(
             interpretations,
-            key=lambda x: x.confidence,
+            key=calculate_ranking_score,
             reverse=True,
         )
+
+    def _calculate_functional_strength(self, romans: List[str]) -> float:
+        """
+        Calculate functional strength using T-PD-D role analysis.
+
+        This is the foundation for the pattern-based approach - replaces hardcoded
+        pattern matching with generalized functional role analysis.
+
+        Returns:
+            float: Functional strength from 0.0 to 1.0
+        """
+        if not romans or len(romans) < 2:
+            return 0.0
+
+        # Step 1: Classify each chord's functional role
+        functions = [self._classify_chord_function(roman) for roman in romans]
+
+        # Step 2: Score the functional progression
+        return self._score_functional_progression(functions, romans)
+
+    def _classify_chord_function(self, roman: str) -> str:
+        """
+        Classify a Roman numeral chord into functional role.
+
+        Args:
+            roman: Roman numeral (e.g., "I", "ii", "V7", "vi")
+
+        Returns:
+            str: Function - "T" (tonic), "PD" (predominant), "D" (dominant)
+        """
+        if not roman:
+            return "OTHER"
+
+        # Extract base roman numeral (remove quality/inversion markings)
+        base_roman = roman.split('/')[0]  # Remove slash bass
+        base_roman = base_roman.replace('7', '').replace('°', '').replace('ø', '').replace('+', '')
+        base_roman = base_roman.strip()
+
+        # Tonic function
+        tonic_chords = {"I", "i", "vi", "VI"}  # Include relative minor
+        if base_roman in tonic_chords:
+            return "T"
+
+        # Dominant function
+        dominant_chords = {"V", "vii°", "viio", "vii", "♭II7", "bII7"}  # Include tritone sub
+        if base_roman in dominant_chords:
+            return "D"
+
+        # Predominant function
+        predominant_chords = {"ii", "IV", "iv", "♭II6", "bII6", "N6", "♭VI", "bVI"}
+        if base_roman in predominant_chords:
+            return "PD"
+
+        # Less common but functional
+        if base_roman in {"iii", "III"}:
+            return "T"  # Mediant can be tonic substitute
+
+        return "OTHER"
+
+    def _score_functional_progression(self, functions: List[str], romans: List[str]) -> float:
+        """
+        Score the functional strength of a progression.
+
+        Args:
+            functions: List of functional roles ["T", "PD", "D", ...]
+            romans: Original roman numerals for additional context
+
+        Returns:
+            float: Functional strength score 0.0-1.0
+        """
+        if len(functions) < 2:
+            return 0.0
+
+        score = 0.0
+        total_possible = 0.0
+
+        # Score each functional transition
+        for i in range(len(functions) - 1):
+            current = functions[i]
+            next_func = functions[i + 1]
+
+            # Strong functional progressions get higher scores
+            transition_strength = self._get_transition_strength(current, next_func)
+            score += transition_strength
+            total_possible += 1.0
+
+        # Bonus for cadential patterns
+        cadential_bonus = self._detect_cadential_patterns(functions, romans)
+        score += cadential_bonus
+
+        # Normalize to 0-1 range
+        if total_possible > 0:
+            base_score = score / total_possible
+        else:
+            base_score = 0.0
+
+        return min(1.0, base_score + cadential_bonus)
+
+    def _get_transition_strength(self, from_func: str, to_func: str) -> float:
+        """Get strength of functional transition."""
+        # Strong functional transitions
+        strong_transitions = {
+            ("T", "PD"): 0.8,   # I → ii, I → IV
+            ("PD", "D"): 0.9,   # ii → V, IV → V
+            ("D", "T"): 1.0,    # V → I (strongest)
+            ("T", "D"): 0.7,    # I → V (less common but functional)
+            ("PD", "T"): 0.6,   # IV → I (plagal)
+            ("T", "T"): 0.3,    # Tonic prolongation
+        }
+
+        # Weak or non-functional transitions
+        weak_transitions = {
+            ("D", "PD"): 0.2,   # V → IV (retrogression)
+            ("D", "D"): 0.3,    # V → vii° (dominant area)
+            ("PD", "PD"): 0.4,  # ii → IV (predominant area)
+        }
+
+        transition = (from_func, to_func)
+
+        if transition in strong_transitions:
+            return strong_transitions[transition]
+        elif transition in weak_transitions:
+            return weak_transitions[transition]
+        else:
+            return 0.1  # Unknown/weak transition
+
+    def _detect_cadential_patterns(self, functions: List[str], romans: List[str]) -> float:
+        """Detect and score cadential patterns for bonus points."""
+        if len(functions) < 2:
+            return 0.0
+
+        bonus = 0.0
+
+        # Authentic cadence patterns (D → T)
+        if len(functions) >= 2 and functions[-2:] == ["D", "T"]:
+            # Check if it's specifically V → I
+            if len(romans) >= 2 and romans[-2].startswith("V") and romans[-1] in ["I", "i"]:
+                bonus += 0.3  # Strong authentic cadence bonus
+            else:
+                bonus += 0.2  # General dominant to tonic
+
+        # Plagal cadence patterns (PD → T)
+        if len(functions) >= 2 and functions[-2:] == ["PD", "T"]:
+            if len(romans) >= 2 and romans[-2].startswith("IV") and romans[-1] in ["I", "i"]:
+                bonus += 0.25  # Plagal cadence bonus
+
+        # ii-V-I progression
+        if len(functions) >= 3 and functions[-3:] == ["PD", "D", "T"]:
+            if (len(romans) >= 3 and
+                romans[-3].startswith("ii") and
+                romans[-2].startswith("V") and
+                romans[-1] in ["I", "i"]):
+                bonus += 0.35  # Strong ii-V-I bonus
+
+        return bonus
+
+    def _extract_chord_root(self, chord: str) -> str:
+        """
+        Extract chord root properly, preserving accidentals that are part of the root.
+
+        Examples:
+            "Bb" → "Bb"
+            "Bbmaj7" → "Bb"
+            "F#m" → "F#"
+            "C7" → "C"
+        """
+        if not chord:
+            return ""
+
+        # Handle two-character roots (with accidentals)
+        if len(chord) >= 2 and chord[1] in ['b', '#']:
+            root = chord[:2]  # Take first two characters (e.g., "Bb", "F#")
+        else:
+            root = chord[0]   # Take first character (e.g., "C", "G")
+
+        return root
 
     def _filter_alternatives(
         self,
@@ -1376,7 +1559,10 @@ class MultipleInterpretationService:
             return "modal_candidate"
 
         # Use scale/melody analysis to determine classification
-        from ..scale_melody_analysis import analyze_scale_melody
+        from ..core.scale_melody_analysis import (
+            ScaleMelodyAnalysisResult,
+            analyze_scale_melody,
+        )
 
         # Extract unique notes from chords (simplified)
         notes = []
@@ -1388,7 +1574,9 @@ class MultipleInterpretationService:
             notes.append(root)
 
         if notes:
-            result = analyze_scale_melody(notes, parent_key, melody=False)
+            result: ScaleMelodyAnalysisResult = analyze_scale_melody(
+                notes, parent_key, melody=False
+            )
             return result.classification
 
         return "modal_candidate"
@@ -1522,7 +1710,8 @@ class MultipleInterpretationService:
                     strength=0.85,  # Secondary dominants are strong chromatic evidence
                     description=f"Contains {num_secondary} secondary dominant(s)",
                     supported_interpretations=[InterpretationType.CHROMATIC],
-                    musical_basis="Secondary dominants create chromatic voice leading and tonicization",
+                    musical_basis="Secondary dominants create chromatic voice leading "
+                    "and tonicization",
                 )
             )
 
@@ -1535,7 +1724,8 @@ class MultipleInterpretationService:
                     strength=0.75,  # Borrowed chords indicate modal mixture
                     description=f"Contains {num_borrowed} borrowed chord(s)",
                     supported_interpretations=[InterpretationType.CHROMATIC],
-                    musical_basis="Borrowed chords indicate modal mixture and chromatic harmony",
+                    musical_basis="Borrowed chords indicate modal mixture and "
+                    "chromatic harmony",
                 )
             )
 
@@ -1545,10 +1735,13 @@ class MultipleInterpretationService:
             evidence.append(
                 AnalysisEvidence(
                     type=EvidenceType.HARMONIC,
-                    strength=0.80,  # Chromatic mediants are sophisticated harmonic relationships
-                    description=f"Contains {num_mediants} chromatic mediant relationship(s)",
+                    strength=0.80,  # Chromatic mediants are sophisticated
+                    # harmonic relationships
+                    description=f"Contains {num_mediants} chromatic mediant "
+                    f"relationship(s)",
                     supported_interpretations=[InterpretationType.CHROMATIC],
-                    musical_basis="Chromatic mediants create sophisticated harmonic color",
+                    musical_basis="Chromatic mediants create sophisticated "
+                    "harmonic color",
                 )
             )
 
@@ -1659,45 +1852,42 @@ class MultipleInterpretationService:
         chord_roots = []
         for chord in chords:
             # Extract root note (handle complex chord symbols)
-            root = chord.split('/')[0]  # Remove slash bass
-            root = root.rstrip('0123456789')  # Remove numbers
-            root = root.rstrip('majmindimaugaddsusmMsus24679b#°')  # Remove extensions
+            root = chord.split("/")[0]  # Remove slash bass
+            root = root.rstrip("0123456789")  # Remove numbers
+            root = root.rstrip("majmindimaugaddsusmMsus24679b#°")  # Remove extensions
             chord_roots.append(root)
 
         # Common modal patterns
         modal_patterns = [
             # Mixolydian patterns (I-bVII-I, bVII-I)
-            (['G', 'F', 'G'], 'mixolydian'),
-            (['D', 'C', 'D'], 'mixolydian'),
-            (['A', 'G', 'A'], 'mixolydian'),
-            (['E', 'D', 'E'], 'mixolydian'),
-
+            (["G", "F", "G"], "mixolydian"),
+            (["D", "C", "D"], "mixolydian"),
+            (["A", "G", "A"], "mixolydian"),
+            (["E", "D", "E"], "mixolydian"),
             # Dorian patterns (i-IV-i, i-bVII-i)
-            (['Dm', 'G', 'Dm'], 'dorian'),
-            (['Em', 'A', 'Em'], 'dorian'),
-            (['Am', 'D', 'Am'], 'dorian'),
-
+            (["Dm", "G", "Dm"], "dorian"),
+            (["Em", "A", "Em"], "dorian"),
+            (["Am", "D", "Am"], "dorian"),
             # Phrygian patterns (i-bII-i)
-            (['Em', 'F', 'Em'], 'phrygian'),
-            (['Am', 'Bb', 'Am'], 'phrygian'),
-
+            (["Em", "F", "Em"], "phrygian"),
+            (["Am", "Bb", "Am"], "phrygian"),
             # Simplified root-based patterns (case insensitive)
-            (['G', 'F'], 'mixolydian_simple'),
-            (['D', 'C'], 'mixolydian_simple'),
-            (['E', 'F'], 'phrygian_simple'),
-            (['A', 'G'], 'mixolydian_simple'),
+            (["G", "F"], "mixolydian_simple"),
+            (["D", "C"], "mixolydian_simple"),
+            (["E", "F"], "phrygian_simple"),
+            (["A", "G"], "mixolydian_simple"),
         ]
 
         # Check exact matches first
-        chord_str = '-'.join(chords)
         for pattern, mode_type in modal_patterns:
             if chords == pattern:
                 return True
 
         # Check root-based patterns
-        root_str = '-'.join(chord_roots)
         for pattern, mode_type in modal_patterns:
-            pattern_roots = [p.rstrip('majmindimaugaddsusmMsus24679b#°') for p in pattern]
+            pattern_roots = [
+                p.rstrip("majmindimaugaddsusmMsus24679b#°") for p in pattern
+            ]
             if chord_roots == pattern_roots:
                 return True
 

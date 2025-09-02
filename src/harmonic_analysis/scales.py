@@ -19,7 +19,11 @@ from .scale_melody_analysis import (
 # Data structures; Scale systems; Modal relationships; Constants; Utility functions
 from .utils.scales import (
     ALL_SCALE_SYSTEMS,
+    BLUES_SCALE_MODES,
+    DOUBLE_HARMONIC_MAJOR_MODES,
+    HARMONIC_MAJOR_MODES,
     HARMONIC_MINOR_MODES,
+    MAJOR_PENTATONIC_MODES,
     MAJOR_SCALE_MODES,
     MELODIC_MINOR_MODES,
     MODAL_PARENT_KEYS,
@@ -43,6 +47,10 @@ __all__ = [
     "MAJOR_SCALE_MODES",
     "MELODIC_MINOR_MODES",
     "HARMONIC_MINOR_MODES",
+    "HARMONIC_MAJOR_MODES",
+    "DOUBLE_HARMONIC_MAJOR_MODES",
+    "MAJOR_PENTATONIC_MODES",
+    "BLUES_SCALE_MODES",
     "ALL_SCALE_SYSTEMS",
     # Modal relationships
     "MODAL_PARENT_KEYS",

@@ -627,15 +627,35 @@ def analyze_melody_notes(
     )  # Preserve order, remove duplicates
     try:
         # Use the proper library function for scale/melody analysis
-        scale_analysis = analyze_scale_melody(unique_notes, parent_key)
-        if hasattr(scale_analysis, 'mode_name'):
-            scale_mode = scale_analysis.mode_name or "Unknown mode"
+        scale_analysis = analyze_scale_melody(unique_notes, parent_key, melody=True)
+
+        # Build mode name from suggested_tonic and modal_labels
+        if hasattr(scale_analysis, 'suggested_tonic') and scale_analysis.suggested_tonic:
+            tonic = scale_analysis.suggested_tonic
+
+            # Look up the mode for the suggested tonic in modal_labels
+            if hasattr(scale_analysis, 'modal_labels') and tonic in scale_analysis.modal_labels:
+                scale_mode = scale_analysis.modal_labels[tonic]
+            else:
+                # Fallback: try to determine mode from parent key context
+                if parent_key and "minor" in parent_key.lower():
+                    # Analyze relationship to minor key
+                    if tonic == parent_key.split()[0]:
+                        scale_mode = f"{tonic} Aeolian"  # Natural minor
+                    else:
+                        scale_mode = f"{tonic} mode (within {parent_key})"
+                elif parent_key and "major" in parent_key.lower():
+                    # Analyze relationship to major key
+                    scale_mode = f"{tonic} mode (within {parent_key})"
+                else:
+                    scale_mode = f"{tonic} mode"
         else:
             scale_mode = "Unknown mode"
+
     except Exception as e:
         print(f"Scale melody analysis failed: {e}")
         scale_mode = "Unknown mode"
-        scale_analysis = {}
+        scale_analysis = None
 
     # Determine harmonic implications
     if scale_mode and scale_mode != "Unknown mode":

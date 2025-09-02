@@ -14,7 +14,7 @@ from harmonic_analysis.services.bidirectional_suggestion_engine import (
     KeyRelevanceScore,
     SuggestionType,
 )
-from harmonic_analysis.types import AnalysisOptions
+from harmonic_analysis.analysis_types import AnalysisOptions
 
 
 class TestBidirectionalSuggestionEngine:

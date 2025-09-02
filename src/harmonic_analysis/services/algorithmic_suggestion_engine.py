@@ -18,7 +18,7 @@ from typing import Any, List, Optional
 from ..core.chromatic_analysis import ChromaticAnalyzer
 from ..core.enhanced_modal_analyzer import EnhancedModalAnalyzer
 from ..core.functional_harmony import FunctionalHarmonyAnalyzer
-from ..types import KeySuggestion
+from ..analysis_types import KeySuggestion
 
 
 @dataclass

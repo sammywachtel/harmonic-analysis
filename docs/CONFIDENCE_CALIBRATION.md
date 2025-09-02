@@ -206,7 +206,7 @@ for i, evidence in enumerate(functional_analysis.evidence):
 
 ### Performance Considerations
 - **Pattern matching**: O(n) where n = number of patterns (currently ~20)
-- **Evidence calculation**: O(m) where m = number of evidence pieces (typically 2-4)  
+- **Evidence calculation**: O(m) where m = number of evidence pieces (typically 2-4)
 - **Performance**: Optimized algorithms maintain <2ms analysis time
 - **Memory usage**: Minimal additional overhead (~100KB for pattern definitions)
 

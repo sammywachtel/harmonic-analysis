@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from ..types import EvidenceType
+from ..analysis_types import EvidenceType
 from ..utils.chord_inversions import analyze_chord_inversion
 from ..utils.scales import KEY_SIGNATURES
 

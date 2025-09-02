@@ -18,7 +18,7 @@ from harmonic_analysis import (
 from harmonic_analysis.services.multiple_interpretation_service import (
     MultipleInterpretationService,
 )
-from harmonic_analysis.types import (
+from harmonic_analysis.analysis_types import (
     EvidenceType,
     InterpretationType,
     PedagogicalLevel,

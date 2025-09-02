@@ -32,7 +32,7 @@ import sys
 from harmonic_analysis.multiple_interpretation_service import (
     analyze_progression_multiple,
 )
-from harmonic_analysis.types import AnalysisOptions
+from harmonic_analysis.analysis_types import AnalysisOptions
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 

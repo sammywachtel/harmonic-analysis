@@ -6,7 +6,7 @@ processing multiple parent scales, ensuring the most musically appropriate
 modal interpretation is preserved.
 """
 
-from harmonic_analysis.scale_melody_analysis import analyze_scale_melody
+from harmonic_analysis.core.scale_melody_analysis import analyze_scale_melody
 
 
 class TestModalLabelOverwriting:

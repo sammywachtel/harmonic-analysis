@@ -16,7 +16,7 @@ from harmonic_analysis import analyze_progression_multiple
 from harmonic_analysis.services.multiple_interpretation_service import (
     InterpretationType,
 )
-from harmonic_analysis.types import AnalysisOptions
+from harmonic_analysis.analysis_types import AnalysisOptions
 
 
 class TestFailureExporter:

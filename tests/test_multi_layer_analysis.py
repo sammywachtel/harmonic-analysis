@@ -18,13 +18,13 @@ from typing import List
 
 import pytest
 
-from harmonic_analysis.scale_melody_analysis import analyze_scale_melody
+from harmonic_analysis.core.scale_melody_analysis import analyze_scale_melody
 
 # Import the harmonic analysis library
 from harmonic_analysis.services.multiple_interpretation_service import (
     analyze_progression_multiple,
 )
-from harmonic_analysis.types import AnalysisOptions
+from harmonic_analysis.analysis_types import AnalysisOptions
 
 
 class TestMultiLayerAnalysis:
