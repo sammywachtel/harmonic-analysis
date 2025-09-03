@@ -1,0 +1,292 @@
+"""
+Token Converter - Bridge between functional analysis and pattern engine.
+
+Converts the output from FunctionalHarmonyAnalyzer into Token objects
+that can be processed by the pattern matching engine.
+"""
+
+from typing import List, Dict, Optional, Any
+import re
+from .matcher import Token
+
+
+class TokenConverter:
+    """Converts functional harmony analysis results to pattern engine tokens."""
+
+    def __init__(self):
+        # Note name to pitch class mapping for bass motion calculation
+        self.note_to_pc = {
+            'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4,
+            'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9,
+            'A#': 10, 'Bb': 10, 'B': 11
+        }
+
+        # Roman numeral patterns for extraction
+        self.roman_pattern = re.compile(r'([b#]*)([ivxIVX]+)([°ø+]?)(\d*)')
+
+    def convert_analysis_to_tokens(
+        self,
+        chord_symbols: List[str],
+        analysis_result: Any  # FunctionalAnalysisResult object
+    ) -> List[Token]:
+        """
+        Convert functional harmony analysis result to Token objects.
+
+        Args:
+            chord_symbols: List of chord symbols (e.g., ['Am', 'F', 'C', 'G'])
+            analysis_result: FunctionalAnalysisResult object from FunctionalHarmonyAnalyzer
+
+        Returns:
+            List of Token objects for pattern matching
+        """
+        tokens = []
+
+        # Extract key information from FunctionalAnalysisResult
+        key_center = getattr(analysis_result, 'key_center', 'C major')
+        chords_analysis = getattr(analysis_result, 'chords', [])
+        mode = getattr(analysis_result, 'mode', 'major')
+
+        # Extract roman numerals and roles from chord analysis
+        roman_numerals = [chord.roman_numeral for chord in chords_analysis] if chords_analysis else []
+        chord_roles = [self._function_to_role(chord.function, chord.roman_numeral) for chord in chords_analysis] if chords_analysis else []
+
+        # Handle the case where we don't have pre-computed Roman numerals
+        if not roman_numerals:
+            roman_numerals = self._generate_roman_numerals(chord_symbols, key_center)
+
+        # Handle the case where we don't have pre-computed roles
+        if not chord_roles:
+            chord_roles = self._generate_chord_roles(roman_numerals)
+
+        # Convert each chord to a Token
+        for i, (chord, roman, role) in enumerate(zip(chord_symbols, roman_numerals, chord_roles)):
+            # Calculate bass motion from previous chord
+            bass_motion = None
+            if i > 0:
+                bass_motion = self._calculate_bass_motion(chord_symbols[i-1], chord)
+
+            # Extract mode information (use extracted mode or fallback to key_center)
+            token_mode = mode if mode != 'modal' else self._extract_mode(key_center)
+
+            # Parse roman numeral for additional information
+            quality, inversion, flags = self._parse_roman_numeral(roman)
+
+            # Extract soprano degree (placeholder - would need melodic information)
+            soprano_degree = self._estimate_soprano_degree(roman, i == len(chord_symbols) - 1)
+
+            # Check for secondary dominants
+            secondary_of = self._detect_secondary_of(roman)
+
+            token = Token(
+                roman=roman,
+                role=role,
+                flags=flags,
+                mode=token_mode,
+                bass_motion_from_prev=bass_motion,
+                soprano_degree=soprano_degree,
+                secondary_of=secondary_of
+            )
+
+            tokens.append(token)
+
+        return tokens
+
+    def _generate_roman_numerals(self, chord_symbols: List[str], key_center: str) -> List[str]:
+        """Generate Roman numerals from chord symbols and key center."""
+        # This is a simplified implementation - in practice, we'd use
+        # the existing roman numeral analysis from the library
+        romans = []
+
+        # Extract key root and mode
+        key_parts = key_center.split()
+        key_root = key_parts[0] if key_parts else 'C'
+        is_minor = len(key_parts) > 1 and 'minor' in key_parts[1].lower()
+
+        # Simple mapping (this would be much more sophisticated in practice)
+        key_pc = self.note_to_pc.get(key_root, 0)
+
+        for chord in chord_symbols:
+            # Extract chord root
+            chord_root = self._extract_chord_root(chord)
+            chord_pc = self.note_to_pc.get(chord_root, 0)
+
+            # Calculate interval from key root
+            interval = (chord_pc - key_pc) % 12
+
+            # Map to roman numeral (simplified)
+            roman = self._interval_to_roman(interval, is_minor, chord)
+            romans.append(roman)
+
+        return romans
+
+    def _generate_chord_roles(self, roman_numerals: List[str]) -> List[str]:
+        """Generate T/PD/D roles from Roman numerals."""
+        roles = []
+
+        for roman in roman_numerals:
+            # Extract the base roman numeral
+            base_roman = re.sub(r'[^ivxIVX]', '', roman.lower())
+
+            # Map to functional roles
+            if base_roman in ['i', 'iii', 'vi']:
+                role = 'T'  # Tonic
+            elif base_roman in ['ii', 'iv']:
+                role = 'PD'  # Predominant
+            elif base_roman in ['v', 'vii']:
+                role = 'D'  # Dominant
+            else:
+                # Default based on position - common in pop progressions
+                role = 'T'
+
+            roles.append(role)
+
+        return roles
+
+    def _calculate_bass_motion(self, prev_chord: str, curr_chord: str) -> Optional[int]:
+        """Calculate semitone bass motion between chords."""
+        prev_root = self._extract_chord_root(prev_chord)
+        curr_root = self._extract_chord_root(curr_chord)
+
+        prev_pc = self.note_to_pc.get(prev_root)
+        curr_pc = self.note_to_pc.get(curr_root)
+
+        if prev_pc is not None and curr_pc is not None:
+            motion = (curr_pc - prev_pc) % 12
+            # Convert to signed motion (-6 to +6 range)
+            if motion > 6:
+                motion -= 12
+            return motion
+
+        return None
+
+    def _extract_chord_root(self, chord: str) -> str:
+        """Extract chord root, preserving accidentals."""
+        if not chord:
+            return ""
+
+        # Handle two-character roots (with accidentals)
+        if len(chord) >= 2 and chord[1] in ['b', '#']:
+            return chord[:2]
+        else:
+            return chord[0]
+
+    def _extract_mode(self, key_center: str) -> str:
+        """Extract mode from key center string."""
+        if 'minor' in key_center.lower():
+            return 'minor'
+        else:
+            return 'major'
+
+    def _parse_roman_numeral(self, roman: str) -> tuple:
+        """Parse roman numeral for quality, inversion, and flags."""
+        quality = 'triad'  # Default
+        inversion = None
+        flags = []
+
+        # Check for 7th chords
+        if '7' in roman:
+            quality = '7'
+
+        # Check for diminished/half-diminished
+        if '°' in roman:
+            quality = 'dim'
+            flags.append('diminished')
+        elif 'ø' in roman:
+            quality = 'half_dim'
+            flags.append('half_diminished')
+
+        # Check for inversions (simplified)
+        if '6' in roman and '64' not in roman:
+            inversion = '6'
+            flags.append('first_inversion')
+        elif '64' in roman:
+            inversion = '64'
+            flags.append('second_inversion')
+            # Check for cadential 6/4
+            if roman.startswith('I') or roman.startswith('i'):
+                flags.append('cadential_64')
+
+        return quality, inversion, flags
+
+    def _estimate_soprano_degree(self, roman: str, is_final: bool) -> Optional[int]:
+        """Estimate soprano scale degree (placeholder implementation)."""
+        # This is a very simplified estimation - real implementation would
+        # require melodic analysis or voice-leading information
+
+        if is_final:
+            # Final chords often end on tonic (scale degree 1)
+            if roman.upper().startswith('I'):
+                return 1
+
+        # Could be enhanced with voice-leading analysis
+        return None
+
+    def _detect_secondary_of(self, roman: str) -> Optional[str]:
+        """Detect secondary dominants in roman numeral notation."""
+        # Look for V/x or vii°/x patterns
+        if '/' in roman:
+            parts = roman.split('/')
+            if len(parts) == 2:
+                return parts[1]  # Return the target of the secondary
+
+        return None
+
+    def _interval_to_roman(self, interval: int, is_minor: bool, chord: str) -> str:
+        """Convert interval to roman numeral (simplified mapping)."""
+        # This is a very basic mapping - real implementation would be more sophisticated
+        major_romans = ['I', 'bII', 'II', 'bIII', 'III', 'IV', 'bV', 'V', 'bVI', 'VI', 'bVII', 'VII']
+        minor_romans = ['i', 'bII', 'ii', 'III', 'iv', 'IV', 'bVI', 'v', 'VI', 'bVII', 'VII', 'vii°']
+
+        if is_minor:
+            base_roman = minor_romans[interval]
+        else:
+            base_roman = major_romans[interval]
+
+        # Add chord quality indicators
+        if 'm' in chord.lower() and not is_minor and interval in [0, 2, 4, 5, 7, 9]:
+            # Minor chord in major key
+            base_roman = base_roman.lower()
+        elif chord.endswith('7'):
+            base_roman += '7'
+
+        return base_roman
+
+    def _function_to_role(self, function, roman: str = "") -> str:
+        """Convert ChordFunction enum to T/PD/D role string."""
+        # Import here to avoid circular imports
+        try:
+            from ...analysis_types import ChordFunction
+
+            if function == ChordFunction.TONIC:
+                return 'T'
+            elif function in [ChordFunction.PREDOMINANT, ChordFunction.SUBDOMINANT]:
+                return 'PD'
+            elif function == ChordFunction.DOMINANT:
+                return 'D'
+            elif function == ChordFunction.SUBMEDIANT:
+                return 'T'  # vi often functions as tonic substitute
+            elif function == ChordFunction.MEDIANT:
+                return 'T'  # iii often functions as tonic substitute
+            elif function == ChordFunction.LEADING_TONE:
+                return 'D'  # vii° functions as dominant
+            elif function == ChordFunction.CHROMATIC:
+                # Check if this is a chromatic dominant (like V7)
+                if 'V' in roman and '7' in roman:
+                    return 'D'
+                else:
+                    return 'T'  # Default for other chromatic functions
+            else:
+                return 'T'
+        except ImportError:
+            # Fallback if analysis_types not available
+            function_str = str(function).lower()
+            if 'tonic' in function_str:
+                return 'T'
+            elif 'predominant' in function_str or 'subdominant' in function_str:
+                return 'PD'
+            elif 'dominant' in function_str or 'leading_tone' in function_str:
+                return 'D'
+            elif 'mediant' in function_str or 'submediant' in function_str:
+                return 'T'  # Mediant/submediant often function as tonic substitutes
+            else:
+                return 'T'

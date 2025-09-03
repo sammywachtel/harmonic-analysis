@@ -1,0 +1,1277 @@
+[
+  {
+    "id": "cadence_pac_root",
+    "family": "cadence",
+    "name": "Perfect Authentic Cadence (root)",
+    "window": {
+      "min": 2,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V"
+        ],
+        "quality_any_of": [
+          "7",
+          "triad",
+          "sus",
+          "add"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      }
+    ],
+    "constraints": {
+      "finality_boost": true,
+      "soprano_any_of": [
+        1,
+        3,
+        5
+      ],
+      "cadential_64_counts_as_D": true
+    },
+    "score": {
+      "base": 1.0,
+      "bonuses": {
+        "voiceleading_hits": 0.2,
+        "rootmotion_-5": 0.1
+      }
+    }
+  },
+  {
+    "id": "cadence_iac",
+    "family": "cadence",
+    "name": "Imperfect Authentic Cadence",
+    "window": {
+      "min": 2,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V"
+        ],
+        "quality_any_of": [
+          "7",
+          "triad"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      }
+    ],
+    "constraints": {
+      "weaker_close": true
+    }
+  },
+  {
+    "id": "cadence_half",
+    "family": "cadence",
+    "name": "Half Cadence",
+    "window": {
+      "min": 1,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V64"
+        ]
+      }
+    ],
+    "constraints": {
+      "ends_on_D": true
+    }
+  },
+  {
+    "id": "cadence_plagal",
+    "family": "cadence",
+    "name": "Plagal Cadence",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "IV",
+          "iv"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cadence_deceptive",
+    "family": "cadence",
+    "name": "Deceptive Cadence",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "vi",
+          "VI"
+        ]
+      }
+    ],
+    "constraints": {
+      "bass_motion_any_of": [
+        -3,
+        6
+      ]
+    }
+  },
+  {
+    "id": "cadence_phrygian",
+    "family": "cadence",
+    "name": "Phrygian Cadence (minor)",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "iv6"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V"
+        ]
+      }
+    ],
+    "constraints": {
+      "mode": "minor",
+      "bass_motion_any_of": [
+        -1
+      ]
+    }
+  },
+  {
+    "id": "cadential_64",
+    "family": "cadence",
+    "name": "Cadential 6-4 to V to I",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "I64"
+        ],
+        "flags_any_of": [
+          "cadential_64"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ],
+        "optional": true
+      }
+    ],
+    "constraints": {
+      "treat_I64_as_D": true
+    }
+  },
+  {
+    "id": "cadence_pac_soprano1",
+    "family": "cadence",
+    "name": "PAC with soprano on 1",
+    "window": {
+      "min": 2,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      }
+    ],
+    "constraints": {
+      "soprano_any_of": [
+        1
+      ]
+    }
+  },
+  {
+    "id": "cadence_pac_soprano3",
+    "family": "cadence",
+    "name": "PAC with soprano on 3",
+    "window": {
+      "min": 2,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      }
+    ],
+    "constraints": {
+      "soprano_any_of": [
+        3
+      ]
+    }
+  },
+  {
+    "id": "cadence_pac_soprano5",
+    "family": "cadence",
+    "name": "PAC with soprano on 5",
+    "window": {
+      "min": 2,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      }
+    ],
+    "constraints": {
+      "soprano_any_of": [
+        5
+      ]
+    }
+  },
+  {
+    "id": "chain_ii_V_I",
+    "family": "pd_d_chain",
+    "name": "ii–V–I (classical core)",
+    "window": {
+      "min": 2,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "ii",
+          "ii6",
+          "ii65",
+          "iiø65"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ],
+        "optional": true
+      }
+    ]
+  },
+  {
+    "id": "chain_secondary_ii_V_V_I",
+    "family": "pd_d_chain",
+    "name": "ii/V – V/V – V – I",
+    "window": {
+      "min": 3,
+      "max": 5
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "secondary_of": "V",
+        "roman_root_any_of": [
+          "ii"
+        ]
+      },
+      {
+        "role": "D",
+        "secondary_of": "V",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ],
+        "optional": true
+      }
+    ]
+  },
+  {
+    "id": "minor_iiø_V_i",
+    "family": "pd_d_chain",
+    "name": "Minor iiø–V–i",
+    "window": {
+      "min": 3,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "iiø65",
+          "iiø7",
+          "iiø43"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "i"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pd_prep_ii_IV_V",
+    "family": "pd_d_chain",
+    "name": "ii or IV → V",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "ii",
+          "IV",
+          "ii6"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sec_lt_vii_dim_to_x",
+    "family": "pd_d_chain",
+    "name": "Secondary leading-tone vii°/x → x",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "vii°",
+          "vii°7"
+        ],
+        "secondary_of": "*"
+      },
+      {
+        "role": "T_or_D",
+        "roman_root_any_of": [
+          "I",
+          "ii",
+          "iii",
+          "IV",
+          "V",
+          "vi",
+          "i",
+          "iv",
+          "v"
+        ],
+        "optional": true
+      }
+    ],
+    "constraints": {
+      "requires_secondary": true
+    }
+  },
+  {
+    "id": "chromatic_N6",
+    "family": "chromatic_pd",
+    "name": "Neapolitan Cadence",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "N6",
+          "♭II6"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ],
+        "optional": true
+      }
+    ],
+    "constraints": {
+      "bass_degree_any_of": [
+        "♭2"
+      ]
+    }
+  },
+  {
+    "id": "chromatic_aug6",
+    "family": "chromatic_pd",
+    "name": "Augmented Sixth to V",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "flags_any_of": [
+          "It+6",
+          "Fr+6",
+          "Ger+6"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      }
+    ],
+    "constraints": {
+      "tendency_tones": [
+        "le->sol",
+        "fi->sol"
+      ]
+    }
+  },
+  {
+    "id": "chromatic_ctdim7",
+    "family": "chromatic_pd",
+    "name": "Common-Tone °7 to I or V",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "flags_any_of": [
+          "CTdim7"
+        ]
+      },
+      {
+        "role": "T_or_D",
+        "roman_root_any_of": [
+          "I",
+          "V"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seq_circle_of_fifths_len3",
+    "family": "sequence",
+    "name": "Circle of fifths (≥3 links)",
+    "window": {
+      "min": 3,
+      "max": 12
+    },
+    "sequence": [
+      {
+        "descriptor": "root_motion_-5_chain_min3"
+      }
+    ]
+  },
+  {
+    "id": "schema_prinner",
+    "family": "schema",
+    "name": "Prinner (galant)",
+    "window": {
+      "min": 3,
+      "max": 6
+    },
+    "sequence": [
+      {
+        "descriptor": "prinner"
+      }
+    ]
+  },
+  {
+    "id": "schema_romanescafull",
+    "family": "schema",
+    "name": "Romanesca",
+    "window": {
+      "min": 6,
+      "max": 8
+    },
+    "sequence": [
+      {
+        "descriptor": "romanesca"
+      }
+    ]
+  },
+  {
+    "id": "schema_monte_fonte",
+    "family": "schema",
+    "name": "Monte/ Fonte",
+    "window": {
+      "min": 4,
+      "max": 8
+    },
+    "sequence": [
+      {
+        "descriptor": "monte_or_fonte"
+      }
+    ]
+  },
+  {
+    "id": "schema_lament",
+    "family": "schema",
+    "name": "Lament Bass (descending tetrachord)",
+    "window": {
+      "min": 4,
+      "max": 8
+    },
+    "sequence": [
+      {
+        "descriptor": "lament_tetrachord"
+      }
+    ]
+  },
+  {
+    "id": "pachelbel_canon_core",
+    "family": "schema",
+    "name": "Pachelbel canon core (I–V–vi–iii–IV–I–IV–V)",
+    "window": {
+      "min": 8,
+      "max": 8
+    },
+    "sequence": [
+      {
+        "descriptor": "pachelbel_core"
+      }
+    ]
+  },
+  {
+    "id": "prog_tonic_I_V6_I6",
+    "family": "prolongation",
+    "name": "Tonic Prolongation I–V6–I6",
+    "window": {
+      "min": 3,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V6",
+          "V65"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I6",
+          "i6"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "prog_I_IV_I",
+    "family": "prolongation",
+    "name": "Tonic Prolongation I–IV–I",
+    "window": {
+      "min": 3,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "IV",
+          "iv"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "prog_dominant_pedal",
+    "family": "prolongation",
+    "name": "Dominant Pedal with suspensions",
+    "window": {
+      "min": 2,
+      "max": 8
+    },
+    "sequence": [
+      {
+        "descriptor": "dominant_pedal_43_76"
+      }
+    ]
+  },
+  {
+    "id": "chromatic_mediant_tonic_prolong",
+    "family": "prolongation",
+    "name": "Chromatic mediant tonic coloration (T → CM → T)",
+    "window": {
+      "min": 3,
+      "max": 5
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ]
+      },
+      {
+        "descriptor": "chromatic_mediant"
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ],
+        "optional": true
+      }
+    ]
+  },
+  {
+    "id": "mix_I_bVII_IV",
+    "family": "mixture_modal",
+    "name": "I–♭VII–IV (Mixolydian pop)",
+    "window": {
+      "min": 3,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      },
+      {
+        "role": "PD_like",
+        "roman_root_any_of": [
+          "♭VII"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "IV"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mix_I_iv_I",
+    "family": "mixture_modal",
+    "name": "I–iv–I (modal mixture)",
+    "window": {
+      "min": 3,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "iv"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "andalusian_minor",
+    "family": "mixture_modal",
+    "name": "Andalusian Cadence i–♭VII–♭VI–V",
+    "window": {
+      "min": 4,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "i"
+        ]
+      },
+      {
+        "role": "PD_like",
+        "roman_root_any_of": [
+          "♭VII"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "♭VI"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pop_bVI_bVII_I",
+    "family": "mixture_modal",
+    "name": "♭VI–♭VII–I (rock lift)",
+    "window": {
+      "min": 3,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "♭VI"
+        ]
+      },
+      {
+        "role": "D_like",
+        "roman_root_any_of": [
+          "♭VII"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "modal_aeolian_i_bVII_bVI",
+    "family": "mixture_modal",
+    "name": "Aeolian i–♭VII–♭VI (loop)",
+    "window": {
+      "min": 3,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "i"
+        ]
+      },
+      {
+        "role": "PD_like",
+        "roman_root_any_of": [
+          "♭VII"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "♭VI"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "jazz_iiviV",
+    "family": "jazz_pop",
+    "name": "I–vi–ii–V turnaround",
+    "window": {
+      "min": 4,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      },
+      {
+        "role": "T_sub",
+        "roman_root_any_of": [
+          "vi",
+          "VI7"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "ii",
+          "ii7"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "jazz_iiV_I",
+    "family": "jazz_pop",
+    "name": "ii–V–I (major/minor)",
+    "window": {
+      "min": 2,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "ii",
+          "iiø7",
+          "ii7"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V",
+          "V7",
+          "♭II7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ],
+        "optional": true
+      }
+    ],
+    "substitutions": {
+      "V": [
+        "♭II7"
+      ]
+    }
+  },
+  {
+    "id": "jazz_backdoor",
+    "family": "jazz_pop",
+    "name": "Backdoor cadence (iv^maj6–♭VII7–I)",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "iv^maj6",
+          "iv6",
+          "iv^6"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "♭VII7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      }
+    ],
+    "constraints": {
+      "mode": "major"
+    }
+  },
+  {
+    "id": "jazz_backdoor_variant",
+    "family": "jazz_pop",
+    "name": "Backdoor variant (ii–♭VII7–I)",
+    "window": {
+      "min": 3,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "ii",
+          "ii7"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "♭VII7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      }
+    ],
+    "constraints": {
+      "mode": "major"
+    }
+  },
+  {
+    "id": "jazz_tritone_sub_chain",
+    "family": "jazz_pop",
+    "name": "ii – ♭II7 – I (tritone sub)",
+    "window": {
+      "min": 2,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "ii",
+          "ii7"
+        ]
+      },
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "♭II7"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I",
+          "i"
+        ],
+        "optional": true
+      }
+    ]
+  },
+  {
+    "id": "jazz_rhythm_changes_A",
+    "family": "jazz_pop",
+    "name": "Rhythm Changes A (core)",
+    "window": {
+      "min": 4,
+      "max": 8
+    },
+    "sequence": [
+      {
+        "descriptor": "rhythm_changes_A_core"
+      }
+    ]
+  },
+  {
+    "id": "blues_cadence",
+    "family": "jazz_pop",
+    "name": "Blues V–IV–I cadence",
+    "window": {
+      "min": 3,
+      "max": 3
+    },
+    "sequence": [
+      {
+        "role": "D",
+        "roman_root_any_of": [
+          "V7"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "IV7",
+          "IV"
+        ]
+      },
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I7",
+          "I"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pop_I_V_vi_IV",
+    "family": "jazz_pop",
+    "name": "Pop loop I–V–vi–IV",
+    "window": {
+      "min": 4,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      },
+      {
+        "role": "D_like",
+        "roman_root_any_of": [
+          "V"
+        ]
+      },
+      {
+        "role": "T_sub",
+        "roman_root_any_of": [
+          "vi"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "IV"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pop_I_vi_IV_V",
+    "family": "jazz_pop",
+    "name": "I–vi–IV–V loop",
+    "window": {
+      "min": 4,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      },
+      {
+        "role": "T_sub",
+        "roman_root_any_of": [
+          "vi"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "IV"
+        ]
+      },
+      {
+        "role": "D_like",
+        "roman_root_any_of": [
+          "V"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pop_I_V_IV_V",
+    "family": "jazz_pop",
+    "name": "I–V–IV–V loop",
+    "window": {
+      "min": 4,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "T",
+        "roman_root_any_of": [
+          "I"
+        ]
+      },
+      {
+        "role": "D_like",
+        "roman_root_any_of": [
+          "V"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "IV"
+        ]
+      },
+      {
+        "role": "D_like",
+        "roman_root_any_of": [
+          "V"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pop_vi_V_IV_V",
+    "family": "jazz_pop",
+    "name": "vi–V–IV–V loop",
+    "window": {
+      "min": 4,
+      "max": 4
+    },
+    "sequence": [
+      {
+        "role": "T_sub",
+        "roman_root_any_of": [
+          "vi"
+        ]
+      },
+      {
+        "role": "D_like",
+        "roman_root_any_of": [
+          "V"
+        ]
+      },
+      {
+        "role": "PD",
+        "roman_root_any_of": [
+          "IV"
+        ]
+      },
+      {
+        "role": "D_like",
+        "roman_root_any_of": [
+          "V"
+        ]
+      }
+    ]
+  }
+]
