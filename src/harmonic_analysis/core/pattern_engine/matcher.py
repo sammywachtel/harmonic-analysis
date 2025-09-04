@@ -256,6 +256,9 @@ class SequenceMatchStrategy(MatchStrategy):
             if step.role == "T_or_D":
                 if eff_role not in ("T", "D"):
                     return False
+            elif step.role == "any":
+                # "any" role matches any token - no restriction
+                pass
             elif eff_role != step.role:
                 return False
 
@@ -448,6 +451,11 @@ class ModeConstraint(ConstraintChecker):
         modes = [t.mode for t in tokens if t.mode is not None]
         if not modes:
             return True
+
+        # Special case: "both" means pattern works in major OR minor
+        if constraint_value == "both":
+            return any(m in ["major", "minor"] for m in modes)
+
         return any(m == constraint_value for m in modes)
 
 
@@ -537,6 +545,88 @@ class ForbidFlagConstraint(ConstraintChecker):
         return not any(forbidden.intersection(t.flags) for t in tokens)
 
 
+# Event-based constraint checkers for Stage B
+class EventsAnyConstraint(ConstraintChecker):
+    """Passes if any of the specified events are present at specified positions.
+
+    Format: ["cadential64@0", "pedal@1"] = cadential64 at position 0 OR pedal at position 1
+    """
+    def check(self, tokens: List[Token], constraint_value: Any) -> bool:
+        if not constraint_value or not hasattr(self, '_events'):
+            return True
+
+        events = self._events
+        required_events = constraint_value if isinstance(constraint_value, list) else [constraint_value]
+
+        for event_spec in required_events:
+            if '@' in event_spec:
+                event_type, pos_str = event_spec.split('@')
+                pos = int(pos_str)
+
+                # Check if event is present at specified position
+                if pos < len(tokens):
+                    if event_type == 'cadential64' and pos < len(events.has_cadential64):
+                        if events.has_cadential64[pos]:
+                            return True
+                    elif event_type == 'pedal' and pos < len(events.has_pedal_bass):
+                        if events.has_pedal_bass[pos]:
+                            return True
+
+        return False
+
+
+class BassDegreeAtConstraint(ConstraintChecker):
+    """Passes if bass degree matches at specified positions.
+
+    Format: {"0": "♭2", "2": "1"} = ♭2 at position 0 AND 1 at position 2
+    """
+
+    def check(self, tokens: List[Token], constraint_value: Any) -> bool:
+        if not constraint_value:
+            return True
+
+        events = getattr(self, "_events", None)
+        if events is None:
+            return True
+
+        def _norm_accidental_symbol(s: str) -> str:
+            if not s:
+                return s
+            return s.replace("♭", "b").replace("♯", "#")
+
+        for pos_str, expected_degree in constraint_value.items():
+            pos = int(pos_str)
+            if pos < len(events.bass_degree):
+                actual_degree = events.bass_degree[pos]
+                if _norm_accidental_symbol(actual_degree) != _norm_accidental_symbol(
+                    expected_degree
+                ):
+                    return False
+
+        return True
+
+class ChainDescriptorConstraint(ConstraintChecker):
+    """Passes if root motion chain descriptor matches requirements.
+
+    Format: {"type": "circle5", "min_len": 3}
+    """
+    def check(self, tokens: List[Token], constraint_value: Any) -> bool:
+        if not constraint_value or not hasattr(self, '_events'):
+            return True
+
+        from .low_level_events import get_circle_of_fifths_descriptor
+
+        events = self._events
+        chain_type = constraint_value.get("type")
+        min_len = constraint_value.get("min_len", 3)
+
+        if chain_type == "circle5":
+            descriptor = get_circle_of_fifths_descriptor(events, min_len)
+            return descriptor["found"]
+
+        return False
+
+
 class ConstraintValidator:
     """Registry-based constraint validation system."""
 
@@ -552,11 +642,24 @@ class ConstraintValidator:
             "arrival_soprano": ArrivalSopranoConstraint(),
             "require_flag_any_of": RequireFlagConstraint(),
             "forbid_flag_any_of": ForbidFlagConstraint(),
+            # Stage B event constraints
+            "events_any": EventsAnyConstraint(),
+            "bass_degree_at": BassDegreeAtConstraint(),
+            "chain_descriptor": ChainDescriptorConstraint(),
         }
+        self._events = None  # Store events for constraint checking
 
     def register_checker(self, name: str, checker: ConstraintChecker):
         """Register new constraint checker - plugin architecture."""
         self.checkers[name] = checker
+
+    def set_events(self, events):
+        """Set low-level events for constraint checking."""
+        self._events = events
+        # Propagate events to constraint checkers that need them
+        for checker in self.checkers.values():
+            # All event-based checkers need events
+            checker._events = events
 
     def validate_all(self, constraints: Dict[str, Any], tokens: List[Token]) -> bool:
         """Validate all constraints against tokens."""
@@ -911,6 +1014,10 @@ class PatternMatcher:
         self.substitution_engine = SubstitutionEngine()
         self.descriptor_registry = DescriptorRegistry()
         self.interval_solver = IntervalSchedulingSolver()
+
+        # Stage B: Low-level event extraction for enhanced constraints
+        from .low_level_events import LowLevelEventExtractor
+        self.event_extractor = LowLevelEventExtractor()
 
         # Initialize matching strategies
         self.strategies = [

@@ -100,6 +100,14 @@ class PatternAnalysisService:
             self._pattern_matcher = self.matcher
             # ---- END DEBUG EXPOSURE ----
 
+        # Stage B: Extract low-level events for enhanced pattern constraints
+        from ..core.pattern_engine.low_level_events import LowLevelEventExtractor
+        event_extractor = LowLevelEventExtractor()
+        events = event_extractor.extract_events(tokens, chord_symbols, functional_result.key_center)
+
+        # Set events in matcher's constraint validator
+        self.matcher.constraint_validator.set_events(events)
+
         # Find pattern matches
         pattern_matches = self.matcher.match(tokens, best_cover=best_cover)
 

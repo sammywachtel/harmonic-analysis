@@ -1341,8 +1341,8 @@
     "window": { "min": 4, "max": 4 },
     "sequence": [
       { "roman_root_any_of": ["i"] },
-      { "roman_root_any_of": ["bVII", "♭VII"] },
-      { "roman_root_any_of": ["VI", "bVI", "♭VI"] },
+      { "roman_root_any_of": ["bVII"] },
+      { "roman_root_any_of": ["VI", "bVI"] },
       { "roman_root_any_of": ["V", "V7"] }
     ],
     "constraints": { "mode": "minor" },
@@ -1355,7 +1355,7 @@
     "window": { "min": 4, "max": 4 },
     "sequence": [
       { "roman_root_any_of": ["i", "vi"] },
-      { "roman_root_any_of": ["bVII", "♭VII", "V"] },
+      { "roman_root_any_of": ["bVII", "V"] },
       { "roman_root_any_of": ["VI", "bVI", "♭VI", "IV"] },
       { "roman_root_any_of": ["V", "V7", "III"] }
     ],
@@ -1370,10 +1370,68 @@
     "window": { "min": 3, "max": 3 },
     "sequence": [
       { "roman_root_any_of": ["iv", "iv7"] },
-      { "roman_root_any_of": ["bVII", "bVII7", "♭VII", "♭VII7"] },
+      { "roman_root_any_of": ["bVII", "bVII7"] },
       { "roman_root_any_of": ["I", "Imaj7"] }
     ],
     "constraints": { "mode": "major" },
     "score": { "base": 1.0 }
+  },
+  {
+    "id": "neapolitan_cadence",
+    "family": "cadence",
+    "name": "Neapolitan Sixth Cadence",
+    "aliases": ["N6"],
+    "profiles": ["classical", "romantic"],
+    "window": { "min": 3, "max": 3 },
+    "sequence": [
+      {
+        "role": "PD",
+        "roman_root_any_of": ["bII6", "N6"],
+        "quality_any_of": ["triad"]
+      },
+      { "roman_root_any_of": ["V", "V7"] },
+      { "roman_root_any_of": ["I", "i"] }
+    ],
+    "constraints": {
+      "bass_degree_at": {"0": "♭2"},
+      "mode": "both"
+    },
+    "score": { "base": 1.0 }
+  },
+  {
+    "id": "cadential_64_authentic",
+    "family": "cadence",
+    "name": "Cadential 6/4 - V - I",
+    "aliases": ["cad64"],
+    "profiles": ["classical", "romantic"],
+    "window": { "min": 3, "max": 3 },
+    "sequence": [
+      { "roman_root_any_of": ["I64", "I6/4"] },
+      { "roman_root_any_of": ["V", "V7"] },
+      { "roman_root_any_of": ["I"] }
+    ],
+    "constraints": {
+      "events_any": ["cadential64@0"],
+      "bass_degree_at": {"0": "5", "1": "5", "2": "1"},
+      "treat_I64_as_D": true
+    },
+    "score": { "base": 1.0 }
+  },
+  {
+    "id": "circle_of_fifths_sequence",
+    "family": "sequence",
+    "name": "Circle of Fifths (≥3 links)",
+    "aliases": ["circle5"],
+    "profiles": ["classical", "jazz", "pop"],
+    "window": { "min": 3, "max": 8 },
+    "sequence": [
+      { "role": "any" },
+      { "role": "any" },
+      { "role": "any" }
+    ],
+    "constraints": {
+      "chain_descriptor": {"type": "circle5", "min_len": 3}
+    },
+    "score": { "base": 0.8, "bonuses": {"chain_length": 0.1} }
   }
 ]
