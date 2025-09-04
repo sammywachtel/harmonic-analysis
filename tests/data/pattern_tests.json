@@ -1,0 +1,94 @@
+{
+  "$schema": "https://example.com/harmonic-test-schema/v1",
+  "meta": {
+    "description": "Core and extended harmonic pattern tests (data-driven).",
+    "version": "1.0"
+  },
+  "aliases": {
+    "vi-iv-i-v": ["vi–iv–i–v", "i–v–vi–iv", "i–vi–iv–v", "pop loop", "jazz_pop"],
+    "ii-v-i": ["ii–v–i", "ii–v–i (macro)", "jazz ii–v–i"],
+    "pac": ["perfect authentic cadence", "authentic cadence", "pac with soprano on 1", "pac with soprano on 3", "pac with soprano on 5"],
+    "iac": ["imperfect authentic cadence"],
+    "half_cadence": ["half cadence"],
+    "phrygian": ["phrygian cadence"],
+    "pachelbel": ["pachelbel", "pachelbel canon core", "pachelbel canon core (root template)"],
+    "andalusian": ["andalusian cadence", "spanish cadence", "i–♭vii–♭vi–v", "i-bVII-bVI-V"],
+    "backdoor": ["backdoor cadence", "ivm7–bVII7–I", "ivm–bVII–I"]
+  },
+  "tests": [
+    {
+      "name": "vi-IV-I-V Pop Progression",
+      "chords": ["Am", "F", "C", "G"],
+      "expected_key": "C major",
+      "expected_patterns": ["vi-iv-i-v"],
+      "profile": "pop",
+      "best_cover": false
+    },
+    {
+      "name": "ii-V-I Jazz Progression",
+      "chords": ["Dm7", "G7", "Cmaj7"],
+      "expected_key": "C major",
+      "expected_patterns": ["ii-v-i"],
+      "profile": "jazz",
+      "best_cover": false
+    },
+    {
+      "name": "Perfect Authentic Cadence",
+      "chords": ["F", "G7", "C"],
+      "expected_key": "C major",
+      "expected_patterns": ["pac"],
+      "profile": "classical",
+      "best_cover": false
+    },
+    {
+      "name": "Imperfect Authentic Cadence",
+      "chords": ["Dm", "G", "C"],
+      "expected_key": "C major",
+      "expected_patterns": ["iac"],
+      "profile": "classical",
+      "best_cover": false
+    },
+    {
+      "name": "Half Cadence",
+      "chords": ["C", "F", "G"],
+      "expected_key": "C major",
+      "expected_patterns": ["half_cadence"],
+      "profile": "classical",
+      "best_cover": false
+    },
+    {
+      "name": "Phrygian Cadence (minor)",
+      "chords": ["Am", "Dm/F", "E"],
+      "expected_key": "A minor",
+      "expected_patterns": ["phrygian"],
+      "profile": "classical",
+      "best_cover": false
+    },
+    {
+      "name": "Pachelbel Canon Core (D)",
+      "chords": ["D", "A", "Bm", "F#m", "G", "D", "G", "A"],
+      "expected_key": "D major",
+      "expected_patterns": ["pachelbel"],
+      "profile": "pop",
+      "best_cover": false
+    },
+    {
+      "name": "Andalusian Cadence (minor)",
+      "chords": ["Am", "G", "F", "E"],
+      "expected_key": "A minor",
+      "expected_patterns": ["andalusian"],
+      "profile": "classical",
+      "best_cover": false,
+      "xfail_until_implemented": false
+    },
+    {
+      "name": "Backdoor Cadence (jazz/pop)",
+      "chords": ["Fm7", "Bb7", "Cmaj7"],
+      "expected_key": "C major",
+      "expected_patterns": ["backdoor"],
+      "profile": "jazz",
+      "best_cover": false,
+      "xfail_until_implemented": false
+    }
+  ]
+}

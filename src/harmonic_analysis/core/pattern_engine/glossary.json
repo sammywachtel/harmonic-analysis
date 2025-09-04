@@ -1,0 +1,82 @@
+{
+  "voices": {
+    "soprano": "Highest voice in four-part harmony. Cadence strength is often determined by the soprano's final scale degree (e.g., 1 vs 3).",
+    "alto": "Voice below soprano, usually moves stepwise, adds harmonic filling.",
+    "tenor": "Voice below alto, above bass. Supports harmonic texture and counterpoint.",
+    "bass": "Lowest voice. Defines harmonic foundation through root motion and inversions."
+  },
+  "terms": {
+    "scale_degree": "Refers to the position of a note within the scale, numbered 1 through 7 relative to the tonic. Example in C major: 1 = C, 2 = D, 3 = E, 4 = F, 5 = G, 6 = A, 7 = B.",
+    "degree_in_cadence": "When cadences are described with soprano on '1', '3', or '5', it refers to which scale degree of the tonic triad the soprano ends on at resolution. A PAC requires soprano on scale degree 1."
+  },
+  "cadences": {
+    "PAC": {
+      "definition": "Perfect Authentic Cadence. V–I (or V7–I), both chords in root position, soprano ends on tonic (scale degree 1). Strongest cadence.",
+      "example_in_C_major": "G → C, with soprano on C (scale degree 1)."
+    },
+    "IAC": {
+      "definition": "Imperfect Authentic Cadence. V–I (or V7–I) that fails one PAC condition (soprano ends on 3 or 5, or inversion used).",
+      "example_in_C_major": "G → C, with soprano on E (scale degree 3)."
+    },
+    "HC": {
+      "definition": "Half Cadence. Any cadence ending on V. Feels unfinished.",
+      "example_in_C_major": "ii → V (Dm → G)."
+    },
+    "PC": {
+      "definition": "Plagal Cadence. IV–I. Often used at hymn endings.",
+      "example_in_C_major": "F → C."
+    },
+    "DC": {
+      "definition": "Deceptive Cadence. V → vi (or other unexpected chord). Avoids resolution to tonic.",
+      "example_in_C_major": "G → Am."
+    },
+    "Phrygian_HC": {
+      "definition": "Half cadence in minor. iv6 → V, with bass moving ♭6–5.",
+      "example_in_A_minor": "Dm/F → E."
+    },
+    "Evaded": {
+      "definition": "Cadence where soprano avoids tonic at resolution, weakening closure.",
+      "example_in_C_major": "G → C, soprano resolves to E instead of C."
+    },
+    "Cadential_6_4": {
+      "definition": "I6/4 functioning as part of the dominant, resolving into V before I.",
+      "example_in_C_major": "C/G → G → C."
+    }
+  },
+  "non_cadential_progressions": {
+    "plagal_motion": "IV–I used mid-phrase, not as a cadence.",
+    "neighboring_6_4": "Second inversion chord created by upper voices moving away and back, bass stays fixed.",
+    "passing_6_4": "Second inversion chord bridging stepwise motion in bass.",
+    "pedal_6_4": "Second inversion chord above a sustained bass pedal tone."
+  },
+  "chord_positions": {
+    "root_position": "Chord with root in the bass.",
+    "first_inversion": "Chord with the third in the bass.",
+    "second_inversion": "Chord with the fifth in the bass.",
+    "third_inversion": "Seventh chord with the seventh in the bass."
+  },
+  "figured_bass_notation": {
+    "5/3": "Triad in root position (often omitted).",
+    "6": "First inversion triad (third in bass).",
+    "6/4": "Second inversion triad (fifth in bass).",
+    "7": "Seventh chord in root position.",
+    "6/5": "First inversion seventh chord.",
+    "4/3": "Second inversion seventh chord.",
+    "4/2": "Third inversion seventh chord."
+  },
+  "functions": {
+    "tonic": "I chord (or substitute). Rest and resolution.",
+    "dominant": "V (or vii°). Creates tension to resolve to tonic.",
+    "subdominant": "IV (or ii). Prepares dominant, supports plagal motion.",
+    "predominant": "Area (ii, IV, vi) leading to dominant."
+  },
+  "scale_degrees": {
+    "1": "Tonic — C in C major.",
+    "2": "Supertonic — D in C major.",
+    "3": "Mediant — E in C major.",
+    "4": "Subdominant — F in C major.",
+    "5": "Dominant — G in C major.",
+    "6": "Submediant — A in C major.",
+    "7": "Leading tone — B in C major."
+  }
+}

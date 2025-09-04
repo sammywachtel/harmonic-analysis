@@ -29,12 +29,12 @@
     ],
     "constraints": {
       "finality_boost": true,
-      "soprano_any_of": [
+      "arrival_soprano_any_of": [
         1,
         3,
         5
       ],
-      "cadential_64_counts_as_D": true
+      "treat_I64_as_D": true
     },
     "score": {
       "base": 1.0,
@@ -177,7 +177,8 @@
       "mode": "minor",
       "bass_motion_any_of": [
         -1
-      ]
+      ],
+      "phrygian_bass_step": true
     }
   },
   {
@@ -215,7 +216,14 @@
       }
     ],
     "constraints": {
-      "treat_I64_as_D": true
+      "treat_I64_as_D": true,
+      "require_flag_any_of": [
+        "cadential_64"
+      ],
+      "forbid_flag_any_of": [
+        "passing_64",
+        "pedal_64"
+      ]
     }
   },
   {
@@ -242,7 +250,7 @@
       }
     ],
     "constraints": {
-      "soprano_any_of": [
+      "arrival_soprano_any_of": [
         1
       ]
     }
@@ -271,7 +279,7 @@
       }
     ],
     "constraints": {
-      "soprano_any_of": [
+      "arrival_soprano_any_of": [
         3
       ]
     }
@@ -300,7 +308,7 @@
       }
     ],
     "constraints": {
-      "soprano_any_of": [
+      "arrival_soprano_any_of": [
         5
       ]
     }
@@ -1273,5 +1281,99 @@
         ]
       }
     ]
+  },
+  {
+    "id": "pop_vi_IV_I_V",
+    "family": "jazz_pop",
+    "name": "vi–IV–I–V",
+    "window": {"min": 4, "max": 4},
+    "sequence": [
+      {"roman_root_any_of": ["vi"]},
+      {"roman_root_any_of": ["IV"]},
+      {"roman_root_any_of": ["I"]},
+      {"roman_root_any_of": ["V"]}
+    ]
+  },
+  {
+    "id": "ii_V_I_root_macro",
+    "family": "jazz_pop",
+    "name": "ii–V–I",
+    "window": {"min": 3, "max": 3},
+    "sequence": [
+      {"roman_root_any_of": ["ii", "ii7", "iiø7", "ii6", "ii65"]},
+      {"roman_root_any_of": ["V", "V7", "♭II7"]},
+      {"roman_root_any_of": ["I", "i", "Imaj7"]}
+    ],
+    "substitutions": {"V": ["♭II7"]}
+  }
+  ,
+  {
+    "id": "pachelbel_canon_core_roots",
+    "family": "schema",
+    "name": "Pachelbel canon core (root template)",
+    "window": {"min": 8, "max": 8},
+    "sequence": [
+      {"roman_root_any_of": ["I"]},
+      {"roman_root_any_of": ["V"]},
+      {"roman_root_any_of": ["vi"]},
+      {"roman_root_any_of": ["iii"]},
+      {"roman_root_any_of": ["IV"]},
+      {"roman_root_any_of": ["I"]},
+      {"roman_root_any_of": ["IV"]},
+      {"roman_root_any_of": ["V"]}
+    ]
+  },
+  {
+    "id": "cadence_phrygian_relaxed",
+    "family": "cadence",
+    "name": "Phrygian Cadence (relaxed)",
+    "window": {"min": 2, "max": 3},
+    "sequence": [
+      {"roman_root_any_of": ["iv6", "iv"]},
+      {"roman_root_any_of": ["V"]}
+    ],
+    "constraints": {"mode": "minor"}
+  },
+  {
+    "id": "cadence_andalusian_minor",
+    "family": "cadence",
+    "name": "Andalusian cadence (minor)",
+    "window": { "min": 4, "max": 4 },
+    "sequence": [
+      { "roman_root_any_of": ["i"] },
+      { "roman_root_any_of": ["bVII", "♭VII"] },
+      { "roman_root_any_of": ["VI", "bVI", "♭VI"] },
+      { "roman_root_any_of": ["V", "V7"] }
+    ],
+    "constraints": { "mode": "minor" },
+    "score": { "base": 1.0 }
+  },
+  {
+    "id": "cadence_andalusian_relaxed",
+    "family": "cadence",
+    "name": "Andalusian cadence (relaxed)",
+    "window": { "min": 4, "max": 4 },
+    "sequence": [
+      { "roman_root_any_of": ["i", "vi"] },
+      { "roman_root_any_of": ["bVII", "♭VII", "V"] },
+      { "roman_root_any_of": ["VI", "bVI", "♭VI", "IV"] },
+      { "roman_root_any_of": ["V", "V7", "III"] }
+    ],
+    "score": { "base": 0.9 }
+  },
+  {
+    "id": "cadence_backdoor",
+    "family": "cadence",
+    "name": "Backdoor cadence",
+    "aliases": ["backdoor"],
+    "profiles": ["jazz", "pop"],
+    "window": { "min": 3, "max": 3 },
+    "sequence": [
+      { "roman_root_any_of": ["iv", "iv7"] },
+      { "roman_root_any_of": ["bVII", "bVII7", "♭VII", "♭VII7"] },
+      { "roman_root_any_of": ["I", "Imaj7"] }
+    ],
+    "constraints": { "mode": "major" },
+    "score": { "base": 1.0 }
   }
 ]

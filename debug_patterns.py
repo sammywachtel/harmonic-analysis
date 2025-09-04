@@ -1,74 +1,112 @@
-#!/usr/bin/env python3
-"""Debug script to understand pattern matching results."""
-
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
 from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
-import json
+from harmonic_analysis.core.pattern_engine.matcher import Matcher, load_library, PatternLibrary, Token
 
+def dump_tokens(ts):
+    rows = []
+    for i, t in enumerate(ts):
+        rows.append({
+            "i": i, "roman": t.roman, "role": t.role, "flags": list(getattr(t, "flags", []) or []),
+            "mode": getattr(t, "mode", None),
+            "sop": getattr(t, "soprano_degree", None),
+            "bassΔ": getattr(t, "bass_motion_from_prev", None),
+            "sec": getattr(t, "secondary_of", None),
+        })
+    return rows
 
-def main():
-    print("🔍 Pattern Engine Debug Analysis")
-    print("=" * 50)
+def try_case(chords, profile, pattern_ids=None, key_hint=None, best_cover=False):
+    svc = PatternAnalysisService()
+    # ensure profile is actually passed through to the matcher used for pattern detection
+    result = svc.analyze_with_patterns(
+        chords, profile=profile, key_hint=key_hint, best_cover=best_cover
+    )
+    # Try to access matcher via public or private hooks
+    try:
+        matcher = svc.get_pattern_matcher()
+    except AttributeError:
+        matcher = getattr(svc, "_pattern_matcher", None)
 
-    service = PatternAnalysisService()
+    # This should never happen, but just in case...
+    if matcher is None:
+        throw = ValueError("Could not access matcher")
+        print(f"[error] {throw}")
+        raise throw
 
-    test_cases = [
-        {
-            "name": "vi-IV-I-V Pop Progression",
-            "chords": ["Am", "F", "C", "G"]
-        },
-        {
-            "name": "ii-V-I Jazz Progression",
-            "chords": ["Dm7", "G7", "Cmaj7"]
-        },
-        {
-            "name": "Perfect Authentic Cadence",
-            "chords": ["F", "G7", "C"]
-        }
-    ]
+    lib: PatternLibrary | None = getattr(matcher, "library", None) if matcher else None
+    print(f"\n=== Case {chords} | profile={profile} ===")
+    if lib is not None:
+        print("Loaded pattern IDs (last 20):", [p.id for p in lib.patterns[-10:]])
+    else:
+        print("[note] Matcher/library not exposed by service; skipping library dump.")
+    # get the exact token stream the matcher used
+    tokens = getattr(svc, "_last_tokens", None)
+    if tokens is None and hasattr(svc, "get_last_tokens"):
+        tokens = svc.get_last_tokens()
+    if tokens is None:
+        print("[note] Service did not expose tokens; to enable, store them in service._last_tokens or add get_last_tokens().")
+    else:
+        print("TOKENS:")
+        for row in dump_tokens(tokens):
+            print(row)
+    print("Found patterns:", [m["name"] for m in result.get("pattern_matches", [])])
 
-    for test_case in test_cases:
-        print(f"\n🎼 Analyzing: {test_case['name']}")
-        print(f"   Chords: {test_case['chords']}")
-
-        try:
-            result = service.analyze_with_patterns(test_case["chords"])
-
-            print(f"   Key detected: {result.get('functional_analysis', {}).get('key_center', 'unknown')}")
-
-            # Show tokens with detailed function info
-            tokens = result.get('tokens', [])
-            functional = result.get('functional_analysis', {})
-            chords_analysis = functional.get('chords', [])
-
-            print(f"   Tokens generated: {len(tokens)}")
-            for i, (token, chord_analysis) in enumerate(zip(tokens, chords_analysis)):
-                function_str = chord_analysis.get('function', 'unknown') if i < len(chords_analysis) else 'unknown'
-                print(f"     {i+1}. {token.get('roman', '?')} ({token.get('role', '?')}) - function={function_str} - {token.get('flags', [])}")
-
-            # Show pattern matches
-            matches = result.get('pattern_matches', [])
-            print(f"   Pattern matches: {len(matches)}")
-            for match in matches:
-                print(f"     - {match.get('name', 'Unknown')}: score={match.get('score', 0):.2f}")
-                print(f"       family={match.get('family', 'unknown')}, start={match.get('start', 0)}, end={match.get('end', 0)}")
-                if 'evidence' in match:
-                    print(f"       evidence={match['evidence']}")
-
-            # Show functional analysis details
-            functional = result.get('functional_analysis', {})
-            print(f"   Functional analysis:")
-            print(f"     confidence: {functional.get('confidence', 0):.2f}")
-            print(f"     explanation: {functional.get('explanation', 'none')}")
-
-        except Exception as e:
-            print(f"   ❌ Error: {e}")
-            import traceback
-            traceback.print_exc()
-
+    # Focused traces for specific patterns, if provided
+    if pattern_ids and matcher is not None and lib is not None and tokens is not None:
+        for pid in pattern_ids:
+            pat = lib.get_pattern_by_id(pid)
+            if not pat:
+                print(f"[warn] pattern {pid} not found in library")
+                continue
+            # brute-force windows like the matcher
+            print(f"\n-- Trace {pid} --")
+            min_len = pat.window.get("min", 1)
+            max_len = pat.window.get("max", 8)
+            any_success = False
+            for start in range(len(tokens)):
+                for end in range(start + min_len, min(len(tokens), start + max_len) + 1):
+                    window_tokens = tokens[start:end]
+                    mr = matcher._try_match_pattern(pat, window_tokens)  # uses strategies
+                    if mr.success:
+                        any_success = True
+                        print(f"  ✓ match @ [{start},{end}): score={mr.score}, evidence={mr.evidence}")
+                    else:
+                        # show first failing window in detail
+                        if start == 0:
+                            print(f"  x [{start},{end}) failed: reason={mr.failure_reason}, info={mr.debug_info}")
+            if not any_success:
+                print("  (no matches)")
+    elif pattern_ids:
+        print("[note] Detailed trace skipped: matcher/tokens are not accessible via the service.")
+    return result
 
 if __name__ == "__main__":
-    main()
+    # 1) Pop loop
+    try_case(["Am","F","C","G"], profile="pop",
+             pattern_ids=["pop_vi_IV_I_V"])
+
+    # 2) ii–V–I
+    try_case(["Dm7","G7","Cmaj7"], profile="jazz",
+             pattern_ids=["ii_V_I_root_macro"])
+
+    # 3) Phrygian (A minor): expect iv6 → V inside
+    try_case(["Am","Dm/F","E"], profile="classical",
+             pattern_ids=["cadence_phrygian_relaxed"])
+
+    # 4) Pachelbel in D
+    try_case(["D","A","Bm","F#m","G","D","G","A"], profile="pop",
+             pattern_ids=["pachelbel_canon_core_roots"])
+
+    try_case(["Am", "G", "F", "E"], profile="classical",
+             pattern_ids=["cadence_andalusian_minor"])
+
+    try_case(
+        ["Am", "G", "F", "E"],
+        profile="classical",
+        pattern_ids=["cadence_andalusian_relaxed"],
+    )
+
+    try_case(
+        chords=["Fm7", "Bb7", "Cmaj7"],
+        profile="jazz",
+        pattern_ids=["cadence_backdoor"],
+        key_hint="C major",
+    )

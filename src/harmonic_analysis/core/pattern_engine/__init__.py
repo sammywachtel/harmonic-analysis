@@ -7,6 +7,7 @@ common harmonic progressions, cadences, and functional patterns in music analysi
 
 from .matcher import Token, Pattern, PatternLibrary, Matcher, load_library
 from .token_converter import TokenConverter
+from .glossary_service import GlossaryService
 
 __all__ = [
     'Token',
@@ -14,5 +15,6 @@ __all__ = [
     'PatternLibrary',
     'Matcher',
     'load_library',
-    'TokenConverter'
+    'TokenConverter',
+    'GlossaryService'
 ]
