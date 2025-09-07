@@ -3,6 +3,69 @@
 A comprehensive Python library that analyzes music the way musicians think about it - identifying chord progressions,
 scales, modes, and harmonic relationships with detailed explanations of *why* it hears what it hears.
 
+## 🆕 NEW: Advanced Pattern Matching Engine
+
+**Revolutionary Update**: The library now features a sophisticated **pattern matching engine** that recognizes specific musical patterns in chord progressions with unprecedented accuracy and detail.
+
+### What's New in Pattern Analysis
+- **Pattern Recognition**: Identifies authentic cadences, Neapolitan cadences, circle of fifths progressions, jazz turnarounds, and 40+ other musical patterns
+- **Event-Based Detection**: Analyzes bass motion, voice leading, and harmonic texture to validate pattern matches
+- **Confidence Scoring**: Each pattern match includes confidence scores and detailed evidence
+- **Profile-Aware**: Classical, jazz, and pop patterns are filtered by musical style context
+- **Replaces Legacy Analysis**: The new pattern engine supersedes the older `analyze_chord_progression` system
+
+### Quick Pattern Analysis Example
+
+```python
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+
+async def analyze_patterns():
+    service = PatternAnalysisService()
+
+    # Classic authentic cadence
+    result = await service.analyze_with_patterns(
+        chord_symbols=['F', 'G7', 'C'],
+        profile='classical',
+        key_hint='C major'
+    )
+
+    print("Pattern matches found:")
+    for match in result['pattern_matches']:
+        print(f"  - {match['name']}: {match['score']:.2f} confidence")
+        print(f"    Evidence: {match['evidence']}")
+
+    # Output:
+    # - Authentic Cadence (Classical): 0.95 confidence
+    #   Evidence: Perfect cadence V7→I with strong resolution
+```
+
+### 🔄 Migration from Legacy Analysis
+
+**Important**: If you were using the previous `analyze_chord_progression()` function, it's now **deprecated** in favor of the new pattern analysis system:
+
+```python
+# ❌ OLD WAY (deprecated)
+from harmonic_analysis import analyze_chord_progression
+result = await analyze_chord_progression(['C', 'Am', 'F', 'G'])
+
+# ✅ NEW WAY (recommended)
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+service = PatternAnalysisService()
+result = await service.analyze_with_patterns(
+    chord_symbols=['C', 'Am', 'F', 'G'],
+    profile='classical',
+    best_cover=False,
+    key_hint='C major'
+)
+```
+
+The new system provides:
+- **More accurate pattern recognition** with evidence-based matching
+- **Style-aware analysis** (classical/jazz/pop profiles)
+- **Detailed confidence scoring** for each detected pattern
+- **Event-based validation** using bass motion and harmonic texture
+- **Future-proof architecture** designed for advanced musical analysis
+
 ## What This Library Does (For Musicians)
 
 This library listens to your chord progressions, scales, and melodies and tells you:
@@ -25,6 +88,113 @@ Think of it as having three music theory professors analyze your work simultaneo
 ```bash
 pip install harmonic-analysis
 ```
+
+## 📁 Project Structure
+
+```
+harmonic-analysis/
+│
+├── 📁 src/harmonic_analysis/           # Core library source code
+│   ├── __init__.py                     # Main library exports and API
+│   ├── analysis_types.py               # Analysis result type definitions
+│   ├── scales.py                       # Scale and mode definitions
+│   │
+│   ├── 📁 api/                         # High-level public API
+│   │   ├── analysis.py                 # Main analysis functions
+│   │   ├── character.py                # Musical character analysis
+│   │   └── musical_data.py             # Musical data structures
+│   │
+│   ├── 📁 core/                        # Core analysis engines
+│   │   ├── functional_harmony.py       # Roman numeral & functional analysis
+│   │   ├── enhanced_modal_analyzer.py  # Modal analysis (Dorian, Mixolydian, etc.)
+│   │   ├── chromatic_analysis.py       # Advanced chromatic harmony
+│   │   ├── scale_melody_analysis.py    # Scale and melody analysis
+│   │   │
+│   │   └── 📁 pattern_engine/          # 🆕 NEW: Pattern matching system
+│   │       ├── matcher.py              # Core pattern matching logic
+│   │       ├── low_level_events.py     # Bass motion & voice leading detection
+│   │       ├── token_converter.py      # Analysis → pattern tokens
+│   │       ├── patterns.json           # Pattern definitions (40+ patterns)
+│   │       └── glossary_service.py     # Musical term definitions
+│   │
+│   ├── 📁 services/                    # High-level analysis services
+│   │   ├── pattern_analysis_service.py # 🆕 NEW: Main pattern analysis API
+│   │   ├── multiple_interpretation_service.py # Multiple analysis perspectives
+│   │   ├── bidirectional_suggestion_engine.py # Key suggestion system
+│   │   └── algorithmic_suggestion_engine.py   # Analysis optimization
+│   │
+│   ├── 📁 specialized/                 # Specialized analysis modules
+│   │   ├── algorithms.py               # Advanced analysis algorithms
+│   │   ├── chromatic.py                # Chromatic harmony tools
+│   │   ├── midi.py                     # MIDI integration utilities
+│   │   └── theory.py                   # Music theory constants & utilities
+│   │
+│   └── 📁 utils/                       # Utility functions
+│       ├── chord_parser.py             # Chord symbol parsing
+│       ├── chord_logic.py              # Chord analysis logic
+│       ├── chord_inversions.py         # Inversion analysis
+│       ├── roman_numeral_converter.py  # Roman numeral conversion
+│       ├── scales.py                   # Scale utilities
+│       └── music_theory_constants.py   # Constants and mappings
+│
+├── 📁 tests/                           # Comprehensive test suite (1500+ tests)
+│   ├── test_pattern_engine.py          # 🆕 Pattern engine tests
+│   ├── test_comprehensive_multi_layer_validation.py # 427 sophisticated tests
+│   ├── test_inversion_regression.py    # Bidirectional inversion tests
+│   ├── test_edge_case_behavior.py      # Edge case handling
+│   ├── test_chromatic_analysis.py      # Chromatic harmony tests
+│   ├── test_enhanced_modal_analyzer.py # Modal analysis tests
+│   └── unit/test_chord_logic.py        # Unit tests for core logic
+│
+├── 📁 scripts/                         # Development and maintenance scripts
+│   ├── quality_check.py                # Linting, typing, and test runner
+│   ├── confidence_calibration_analysis.py # Confidence scoring validation
+│   └── music_expert_review.py          # Expert review validation
+│
+├── 📁 docs/                            # Documentation
+│   ├── API_GUIDE.md                    # Complete API documentation
+│   ├── ARCHITECTURE.md                 # System architecture overview
+│   ├── TESTING.md                      # Testing strategy and guides
+│   └── TROUBLESHOOTING.md              # Common issues and solutions
+│
+├── 📁 .local_docs/                     # Development documentation
+│   ├── music-alg.md                    # 🆕 Pattern engine implementation guide
+│   ├── PYPI_SETUP.md                   # Package publishing guide
+│   └── music_alg/                      # Pattern engine development docs
+│
+├── 📁 examples/                        # Usage examples
+│   └── character_analysis_demo.py      # Modal character analysis demo
+│
+├── 📁 demo/                            # Interactive demo application
+│   ├── frontend/                       # React frontend demo
+│   └── backend/                        # FastAPI backend demo
+│
+├── 📄 test_stage_b.py                  # 🆕 Pattern engine Stage B tests
+├── 📄 debug_stage_b.py                 # 🆕 Pattern debugging tools
+├── 📄 pyproject.toml                   # Project configuration
+├── 📄 requirements.txt                 # Production dependencies
+├── 📄 requirements-dev.txt             # Development dependencies
+└── 📄 README.md                        # This file
+```
+
+### Key Architecture Highlights
+
+#### 🎯 Pattern Engine (NEW)
+- **Location**: `src/harmonic_analysis/core/pattern_engine/`
+- **Purpose**: Recognizes specific musical patterns (cadences, progressions, sequences)
+- **Features**: Event-based detection, confidence scoring, style profiles
+- **Status**: Stage A & B complete, Stage C (voice-leading) planned
+
+#### 🧠 Multi-Engine Analysis
+- **Functional**: Roman numerals, cadences, traditional harmony
+- **Modal**: Mode detection, modal interchange, characteristic tones
+- **Chromatic**: Secondary dominants, borrowed chords, advanced harmony
+- **Pattern**: Specific musical idioms and compositional techniques
+
+#### 🔄 Bidirectional System
+- **Analysis → Patterns**: Detects patterns in chord progressions
+- **Suggestions**: Recommends optimal analysis approaches
+- **Validation**: Cross-validates results across multiple engines
 
 ## Quick Start for Musicians
 

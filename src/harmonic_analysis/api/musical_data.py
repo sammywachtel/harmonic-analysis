@@ -10,6 +10,7 @@ of truth for musical vocabulary across all application layers.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..analysis_types import MelodyTrack, MelodyEvent
 from ..utils.scales import (
     ALL_SCALE_SYSTEMS,
     BLUES_SCALE_MODES,
@@ -509,6 +510,143 @@ def get_scale_reference_for_frontend() -> Dict[str, Any]:
     return {"scaleData": scale_data}
 
 
+# =============================================================================
+# STAGE C: Melody-Chord Alignment Utilities
+# =============================================================================
+
+def align_melody_to_chords(
+    melody: MelodyTrack,
+    chords: List[str],
+    starts: List[float],
+    ends: List[float]
+) -> List[List[MelodyEvent]]:
+    """Return per-chord list of melody events within each [start,end) window.
+
+    Aligns melody events with chord boundaries for voice-leading analysis.
+
+    Args:
+        melody: MelodyTrack with .events (onset, duration, pitch)
+        chords: List of chord symbols (for length reference)
+        starts: Start times for each chord
+        ends: End times for each chord
+
+    Returns:
+        List of melody event lists, one per chord
+
+    Example:
+        >>> melody = MelodyTrack([
+        ...     MelodyEvent(onset=0.0, pitch=60, duration=1.0),
+        ...     MelodyEvent(onset=1.0, pitch=64, duration=1.0)
+        ... ])
+        >>> chords = ["C", "F"]
+        >>> starts = [0.0, 1.0]
+        >>> ends = [1.0, 2.0]
+        >>> aligned = align_melody_to_chords(melody, chords, starts, ends)
+        >>> len(aligned[0])  # Events in first chord
+        1
+    """
+    aligned: List[List[MelodyEvent]] = [[] for _ in chords]
+
+    # Handle case where melody might be None or have no events
+    if not melody or not hasattr(melody, 'events') or not melody.events:
+        return aligned
+
+    for event in melody.events:
+        if not hasattr(event, 'onset') or not hasattr(event, 'duration'):
+            continue
+
+        onset = event.onset
+        end_time = onset + event.duration
+
+        # Check overlap with each chord window
+        for i, (start, end) in enumerate(zip(starts, ends)):
+            # Simple overlap test: event overlaps if onset < chord_end AND event_end > chord_start
+            if (onset < end) and (end_time > start):
+                aligned[i].append(event)
+
+    return aligned
+
+
+def soprano_degrees_per_chord(
+    melody_aligned: List[List[MelodyEvent]],
+    key_center: str
+) -> List[Optional[int]]:
+    """Map top (soprano) pitch per chord to scale degree 1..7 in the active key.
+
+    Uses a crude top-note heuristic to identify the soprano voice.
+    For more sophisticated analysis, this could be replaced with beat-strength
+    weighting or quantization-aware selection.
+
+    Args:
+        melody_aligned: Per-chord melody events from align_melody_to_chords()
+        key_center: Key center string (e.g., "C major")
+
+    Returns:
+        List parallel to chord list with scale degrees (1-7) or None
+
+    Example:
+        >>> aligned = [[MelodyEvent(onset=0, pitch=67, duration=1)]]  # G
+        >>> degrees = soprano_degrees_per_chord(aligned, "C major")
+        >>> degrees[0]
+        5  # G is scale degree 5 in C major
+    """
+    # Parse key center
+    try:
+        parts = key_center.split()
+        tonic_name = parts[0] if parts else 'C'
+        mode = parts[1] if len(parts) > 1 else 'major'
+    except (IndexError, AttributeError):
+        tonic_name = 'C'
+        mode = 'major'
+
+    # Note name to pitch class mapping
+    name_to_pc = {
+        "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+        "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+        "A#": 10, "Bb": 10, "B": 11
+    }
+    tonic_pc = name_to_pc.get(tonic_name, 0)
+
+    # Scale intervals in semitones from tonic
+    if mode.lower().startswith("maj"):
+        scale_semitones = [0, 2, 4, 5, 7, 9, 11]  # Major scale
+    else:
+        scale_semitones = [0, 2, 3, 5, 7, 8, 10]  # Minor scale
+
+    degrees: List[Optional[int]] = []
+
+    for chord_events in melody_aligned:
+        if not chord_events:
+            degrees.append(None)
+            continue
+
+        # Find the highest pitch sounding in this chord window
+        try:
+            pitches = [event.pitch for event in chord_events if hasattr(event, 'pitch')]
+            if not pitches:
+                degrees.append(None)
+                continue
+
+            top_pitch = max(pitches)
+            top_pc = top_pitch % 12
+
+            # Find nearest scale degree by semitone distance to tonic
+            relative_pc = (top_pc - tonic_pc) % 12
+
+            # Look up scale degree
+            if relative_pc in scale_semitones:
+                degree = scale_semitones.index(relative_pc) + 1  # 1-indexed
+            else:
+                degree = None  # Non-diatonic note
+
+            degrees.append(degree)
+
+        except (ValueError, AttributeError, TypeError):
+            degrees.append(None)
+
+    return degrees
+
+
 __all__ = [
     # Core data functions
     "get_all_notes",
@@ -540,6 +678,9 @@ __all__ = [
     # Export functions
     "get_complete_musical_reference",
     "get_scale_reference_for_frontend",
+    # Stage C: Melody-chord alignment
+    "align_melody_to_chords",
+    "soprano_degrees_per_chord",
     # Data classes
     "ScaleSystemInfo",
     "MusicalNote",

@@ -16,7 +16,12 @@ import pytest
 
 from harmonic_analysis import analyze_progression_multiple
 
-from .edge_case_warnings import soft_assert_with_warning
+# Simple replacement for soft_assert_with_warning
+def soft_assert_with_warning(condition, test_name, expected_msg, actual_msg, severity="medium", icon="⚠️"):
+    if not condition:
+        print(f"{icon} {severity.upper()} WARNING [{test_name}]: Expected {expected_msg}, got {actual_msg}")
+        return False
+    return True
 
 
 class EdgeCaseType(Enum):

@@ -68,7 +68,11 @@
     "tonic": "I chord (or substitute). Rest and resolution.",
     "dominant": "V (or vii°). Creates tension to resolve to tonic.",
     "subdominant": "IV (or ii). Prepares dominant, supports plagal motion.",
-    "predominant": "Area (ii, IV, vi) leading to dominant."
+    "predominant": "Area (ii, IV, vi) leading to dominant.",
+    "mediant": "iii chord. Bridges tonic and dominant regions, often shares notes with both.",
+    "submediant": "vi chord. Shares tones with tonic, can function as tonic substitute or predominant.",
+    "leading_tone_function": "vii° chord. Creates strong pull to tonic through half-step motion.",
+    "modal_interchange": "Borrowing chords from parallel modes or keys to add color and variety."
   },
   "scale_degrees": {
     "1": "Tonic — C in C major.",
@@ -78,5 +82,52 @@
     "5": "Dominant — G in C major.",
     "6": "Submediant — A in C major.",
     "7": "Leading tone — B in C major."
+  },
+  "modes": {
+    "Ionian": "Major scale mode; bright and stable sound.",
+    "Dorian": "Minor mode with raised 6th; jazzy and soulful character.",
+    "Phrygian": "Minor mode with lowered 2nd; exotic and tense.",
+    "Lydian": "Major mode with raised 4th; dreamy and bright.",
+    "Mixolydian": "Major mode with lowered 7th; bluesy and dominant feel.",
+    "Aeolian": "Natural minor scale; somber and dark.",
+    "Locrian": "Diminished mode with lowered 2nd and 5th; unstable and dissonant.",
+    "Harmonic_minor": "Minor scale with raised 7th; distinctive leading tone.",
+    "Melodic_minor_ascending": "Minor scale with raised 6th and 7th ascending; smooth melodic line.",
+    "Melodic_minor_descending": "Natural minor scale descending; traditional minor sound."
+  },
+  "intervals": {
+    "unison": "Perfect unison (P1); same pitch.",
+    "minor_second": "Half step (m2); smallest interval in Western music.",
+    "major_second": "Whole step (M2); two half steps.",
+    "minor_third": "Three half steps (m3); minor chord interval.",
+    "major_third": "Four half steps (M3); major chord interval.",
+    "perfect_fourth": "Five half steps (P4); stable, consonant.",
+    "augmented_fourth": "Six half steps (A4); tritone, dissonant.",
+    "diminished_fifth": "Six half steps (d5); tritone, dissonant.",
+    "perfect_fifth": "Seven half steps (P5); strong consonance.",
+    "minor_sixth": "Eight half steps (m6); minor interval.",
+    "major_sixth": "Nine half steps (M6); major interval.",
+    "minor_seventh": "Ten half steps (m7); minor interval.",
+    "major_seventh": "Eleven half steps (M7); major interval.",
+    "octave": "Twelve half steps (P8); same pitch class, higher or lower."
+  },
+  "roman_numerals": {
+    "description": "Uppercase numerals indicate major or major-function chords; lowercase indicate minor or minor-function chords. Accidentals (b, ♭, #, ♯) before numerals show altered scale degrees."
+  },
+  "patterns": {
+    "circle_of_fifths": "Chord progression moving by descending fifths or ascending fourths; common in tonal harmony.",
+    "sequence": "Repeated melodic or harmonic pattern transposed to different pitch levels.",
+    "lament_bass": "Descending chromatic bass line often used to express sorrow."
+  },
+  "texture": {
+    "homophony": "Single melodic line with chordal accompaniment.",
+    "polyphony": "Multiple independent melodic lines interweaving.",
+    "counterpoint": "Technique of combining independent melodies according to harmonic rules."
+  },
+  "analysis_terms": {
+    "functional_harmony": "System of chord functions (tonic, dominant, subdominant) guiding progression.",
+    "chromaticism": "Use of notes outside the diatonic scale to add color or tension.",
+    "modal_borrowing": "Using chords from parallel modes to enrich harmony.",
+    "voice_leading": "Smooth, logical movement of individual melodic lines between chords."
   }
 }

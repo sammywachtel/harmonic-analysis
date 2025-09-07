@@ -8,8 +8,9 @@ Stage B implementation as outlined in music-alg.md
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from .matcher import Token
+from ...analysis_types import MelodicEvents
 
 
 @dataclass
@@ -104,37 +105,191 @@ class LowLevelEventExtractor:
         events.has_cadential64 = self._detect_cadential64(tokens, bass_pcs, tonic_pc)
         events.has_pedal_bass = self._detect_pedal_points(bass_pcs)
 
-        # Voice-leading events stubbed as false for now
-        # Will implement when melodic/voice data becomes available
+        # Voice-leading events: use inference when no explicit melody available
+        voice_leading = self._infer_voice_leading_events(tokens, chord_symbols, tonic_pc)
+        events.voice_4_to_3 = voice_leading.voice_4_to_3
+        events.voice_7_to_1 = voice_leading.voice_7_to_1
+        events.fi_to_sol = voice_leading.fi_to_sol
+        events.le_to_sol = voice_leading.le_to_sol
 
         return events
+
+    def _infer_voice_leading_events(
+        self,
+        tokens: List[Token],
+        chord_symbols: List[str],
+        tonic_pc: int
+    ) -> MelodicEvents:
+        """Infer voice-leading events from chord progression patterns.
+
+        This provides voice-leading analysis when no explicit melody is available,
+        based on common harmonic patterns that imply specific voice motions.
+
+        Args:
+            tokens: Harmonic analysis tokens
+            chord_symbols: Original chord symbols
+            tonic_pc: Tonic pitch class
+
+        Returns:
+            MelodicEvents with inferred voice-leading patterns
+        """
+        length = len(tokens)
+
+        # Initialize all events as empty/false
+        melodic_events = MelodicEvents(
+            soprano_degree=[None] * length,
+            voice_4_to_3=[False] * length,
+            voice_7_to_1=[False] * length,
+            fi_to_sol=[False] * length,
+            le_to_sol=[False] * length,
+            source="inference"
+        )
+
+        # Detect voice-leading patterns from chord progressions
+        melodic_events.voice_4_to_3 = self._detect_4_to_3_inference(tokens)
+        melodic_events.voice_7_to_1 = self._detect_7_to_1_inference(tokens, chord_symbols)
+        melodic_events.fi_to_sol = self._detect_fi_to_sol_inference(tokens, chord_symbols)
+        melodic_events.le_to_sol = self._detect_le_to_sol_inference(tokens, chord_symbols)
+
+        return melodic_events
+
+    def _detect_4_to_3_inference(self, tokens: List[Token]) -> List[bool]:
+        """Detect 4→3 suspension resolution from cadential 6/4 → V patterns."""
+        voice_4_to_3 = [False] * len(tokens)
+
+        for i in range(len(tokens) - 1):
+            current_token = tokens[i]
+            next_token = tokens[i + 1]
+
+            # Look for I64 → V pattern (classic 4→3 suspension)
+            current_roman = current_token.roman.lower()
+            next_roman = next_token.roman.lower()
+
+            if (current_roman.startswith('i') and ('64' in current_roman or '6/4' in current_roman or '⁶⁴' in current_roman) and
+                next_roman.startswith('v') and next_token.role == "D"):
+                # Mark 4→3 resolution at the V chord
+                voice_4_to_3[i + 1] = True
+
+        return voice_4_to_3
+
+    def _detect_7_to_1_inference(self, tokens: List[Token], chord_symbols: List[str]) -> List[bool]:
+        """Detect 7→1 leading tone resolution from V7 → I patterns."""
+        voice_7_to_1 = [False] * len(tokens)
+
+        for i in range(len(tokens) - 1):
+            current_token = tokens[i]
+            next_token = tokens[i + 1]
+            current_chord = chord_symbols[i] if i < len(chord_symbols) else ""
+
+            # Look for V7 → I pattern (classic 7→1 leading tone resolution)
+            current_roman = current_token.roman.lower()
+            next_roman = next_token.roman.lower()
+
+            if (current_token.role == "D" and
+                (current_roman.startswith('v') and '7' in current_chord.lower()) and
+                next_token.role == "T" and next_roman.startswith('i')):
+                # Mark 7→1 resolution at the I chord
+                voice_7_to_1[i + 1] = True
+
+        return voice_7_to_1
+
+    def _detect_fi_to_sol_inference(self, tokens: List[Token], chord_symbols: List[str]) -> List[bool]:
+        """Detect ♯4→5 resolution from augmented sixth → V patterns."""
+        fi_to_sol = [False] * len(tokens)
+
+        for i in range(len(tokens) - 1):
+            current_token = tokens[i]
+            next_token = tokens[i + 1]
+            current_chord = chord_symbols[i] if i < len(chord_symbols) else ""
+
+            # Look for augmented sixth chords → V pattern
+            next_roman = next_token.roman.lower()
+
+            # Check for augmented sixth chord indicators
+            aug6_indicators = ['+6', 'it+6', 'fr+6', 'ger+6', 'aug6']
+            is_aug6 = any(indicator in current_chord.lower() for indicator in aug6_indicators)
+
+            if (is_aug6 and next_token.role == "D" and next_roman.startswith('v')):
+                # Mark ♯4→5 resolution at the V chord
+                fi_to_sol[i + 1] = True
+
+        return fi_to_sol
+
+    def _detect_le_to_sol_inference(self, tokens: List[Token], chord_symbols: List[str]) -> List[bool]:
+        """Detect ♭6→5 resolution from Phrygian ii6 → V patterns."""
+        le_to_sol = [False] * len(tokens)
+
+        for i in range(len(tokens) - 1):
+            current_token = tokens[i]
+            next_token = tokens[i + 1]
+
+            # Look for Phrygian ii6 → V pattern (characteristic of minor keys)
+            current_roman = current_token.roman.lower()
+            next_roman = next_token.roman.lower()
+
+            if (current_token.role == "PD" and
+                current_roman.startswith('ii') and '6' in current_roman and
+                next_token.role == "D" and next_roman.startswith('v')):
+                # Mark ♭6→5 resolution at the V chord
+                le_to_sol[i + 1] = True
+
+        return le_to_sol
 
     def _parse_key_tonic_pc(self, key_center: str) -> int:
         """Extract tonic pitch class from key center string."""
         tonic_name = key_center.split()[0] if key_center else 'C'
         return self.note_to_pc.get(tonic_name, 0)
 
+    def _parse_note_pc(self, note: str) -> int:
+        """Parse a note token like 'E#', 'Gb', 'C##', 'Dbb' (Unicode ♯/♭ supported) to a pitch class 0–11.
+        Only the leading letter A–G and a run of accidentals are considered; any trailing quality/octave is ignored.
+        """
+        if not note:
+            return 0
+        s = note.strip()
+        # Normalize Unicode accidentals and double symbols
+        s = (
+            s.replace('♯', '#')
+             .replace('♭', 'b')
+             .replace('𝄪', '##')
+             .replace('𝄫', 'bb')
+        )
+        # Take leading letter
+        if not s or s[0].upper() not in 'ABCDEFG':
+            # Fallback: if malformed, return 0 to avoid crashes
+            return 0
+        letter = s[0].upper()
+        base_map = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
+        pc = base_map[letter]
+        # Count consecutive accidentals after the letter
+        i = 1
+        acc = 0
+        while i < len(s) and s[i] in ('#', 'b'):
+            acc += 1 if s[i] == '#' else -1
+            i += 1
+        return (pc + acc) % 12
+
     def _extract_bass_pitch_classes(self, chord_symbols: List[str]) -> List[int]:
         """Extract bass note pitch class from each chord symbol.
 
         Handles slash chords (e.g., C/G) and basic chord symbols.
         """
-        bass_pcs = []
+        pcs: List[int] = []
         for chord in chord_symbols:
-            # Check for slash chord (bass note after /)
-            if '/' in chord:
-                bass_part = chord.split('/')[-1]  # Get part after last slash
-                bass_note = bass_part[0]
-                if len(bass_part) > 1 and bass_part[1] in ['#', 'b']:
-                    bass_note = bass_part[:2]
+            if not chord:
+                pcs.append(0)
+                continue
+            s = chord.strip()
+            # Prefer explicit bass of slash chords
+            if '/' in s:
+                parts = s.split('/')
+                bass_tok = parts[-1] or parts[0]
             else:
-                # No slash chord - bass = root
-                bass_note = chord[0]
-                if len(chord) > 1 and chord[1] in ['#', 'b']:
-                    bass_note = chord[:2]
-
-            bass_pcs.append(self.note_to_pc.get(bass_note, 0))
-        return bass_pcs
+                bass_tok = s
+            # Parse only the leading note+accidentals of the bass token
+            pc = self._parse_note_pc(bass_tok)
+            pcs.append(pc)
+        return pcs
 
     def _detect_root_motion(self, tokens: List[Token]) -> List[str]:
         """Detect root motion patterns between adjacent chords."""
@@ -154,10 +309,10 @@ class LowLevelEventExtractor:
                 # Categorize motion
                 if interval == 0:
                     motion = 'same'
-                elif interval == 7 or interval == 5:  # -5 or +7 (equivalent)
-                    motion = '-5'  # Circle of fifths descending
-                elif interval == 5 or interval == 7:  # +5 or -7 (equivalent)
-                    motion = '+4'  # Circle of fifths ascending (same as -5)
+                elif interval == 7:  # +7 semitones = ascending fifth
+                    motion = '-5'  # Circle of fifths descending (standard notation)
+                elif interval == 5:  # +5 semitones = ascending fourth
+                    motion = '+4'  # Fourth up (equivalent to fifth down)
                 elif interval == 2:
                     motion = '+2'  # Step up
                 elif interval == 10:  # -2 mod 12
@@ -241,6 +396,31 @@ class LowLevelEventExtractor:
                     pedal_flags[k] = True
 
         return pedal_flags
+
+    def _detect_circle_of_fifths_chains(self, events: LowLevelEvents, min_length: int = 3) -> Dict[str, Any]:
+        """
+        Detect circle-of-fifths chains from the precomputed root-motion events.
+
+        A qualifying link is a motion of '-5' (down a fifth) or '+4' (up a fourth),
+        which are enharmonically the same functional motion.
+
+        Args:
+            events: LowLevelEvents containing `root_motion` (one entry per chord; first entry may be empty).
+            min_length: Minimum number of consecutive qualifying transitions to count as a chain.
+                        Note this counts *transitions*, so a chain with 3 transitions spans 4 chords.
+
+        Returns:
+            A descriptor dict identical to `get_circle_of_fifths_descriptor`, e.g.:
+            {
+                "type": "circle5",
+                "min_length": 3,
+                "chains": [{"start": 2, "length": 4}, ...],  # start index and number of chords in chain
+                "found": true
+            }
+        """
+        # Keep single source of truth: delegate to the module-level helper so tests and constraints
+        # use the same semantics.
+        return get_circle_of_fifths_descriptor(events, min_length=min_length)
 
 
 # Descriptor generators for pattern constraints

@@ -114,5 +114,5 @@ htmlcov/
 .mypy_cache/
 
 # Generated test data (created by CI)
-tests/generated/*.json
-tests/generated/*.csv
+tests/integration/generated/*.json
+tests/integration/generated/*.csv

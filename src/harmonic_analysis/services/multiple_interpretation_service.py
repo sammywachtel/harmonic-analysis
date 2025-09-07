@@ -6,6 +6,11 @@ confidence scoring, and evidence-based reasoning. Transforms the binary
 modal/functional approach into a nuanced system that reflects real music
 theory practice.
 
+.. deprecated:: 0.3.0
+    This service is deprecated in favor of the new Pattern Analysis Engine.
+    Use :class:`harmonic_analysis.services.pattern_analysis_service.PatternAnalysisService`
+    for more accurate pattern-based analysis.
+
 Architecture:
 - Orchestrates existing analyzers (functional, modal, chromatic)
 - Applies confidence scoring based on harmonic evidence
@@ -15,6 +20,7 @@ Architecture:
 
 import asyncio
 import time
+import warnings
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, cast
 
@@ -1904,6 +1910,10 @@ async def analyze_progression_multiple(
     """
     Convenience function for multiple interpretation analysis
 
+    .. deprecated:: 0.3.0
+        Use :class:`harmonic_analysis.services.pattern_analysis_service.PatternAnalysisService`
+        for advanced pattern-based analysis with better accuracy and detailed pattern recognition.
+
     Args:
         chords: List of chord symbols
         options: Analysis options
@@ -1911,4 +1921,11 @@ async def analyze_progression_multiple(
     Returns:
         Complete multiple interpretation result
     """
+    warnings.warn(
+        "analyze_progression_multiple() is deprecated. Use PatternAnalysisService for "
+        "advanced pattern-based analysis with better accuracy. See: "
+        "https://github.com/sammywachtel/harmonic-analysis-py#new-pattern-matching-engine",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return await multiple_interpretation_service.analyze_progression(chords, options)

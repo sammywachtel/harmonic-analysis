@@ -3,6 +3,14 @@
 A comprehensive Python library for music theory analysis, providing sophisticated
 algorithms for functional harmony, modal analysis, and chromatic harmony detection.
 
+🆕 NEW: Advanced Pattern Matching Engine
+For chord progression analysis, use the new PatternAnalysisService:
+    from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+
+⚠️  DEPRECATION NOTICE:
+- analyze_chord_progression() and analyze_progression_multiple() are deprecated
+- Use PatternAnalysisService for better pattern recognition and accuracy
+
 This is the main API layer providing essential functions for 90% of users.
 For specialized functionality, see:
 - harmonic_analysis.chromatic - Advanced chromatic analysis
@@ -73,6 +81,9 @@ from .services.multiple_interpretation_service import (
     analyze_progression_multiple,
 )
 
+# Import new Pattern Analysis Service
+from .services.pattern_analysis_service import PatternAnalysisService
+
 # Configuration types
 from .analysis_types import AnalysisOptions, AnalysisSuggestions, KeySuggestion
 
@@ -92,11 +103,13 @@ from .utils.music_theory_constants import (
 __all__ = [
     # Version
     "__version__",
-    # Core analysis functions (4)
-    "analyze_chord_progression",
+    # 🆕 NEW: Advanced Pattern Analysis (RECOMMENDED)
+    "PatternAnalysisService",
+    # Core analysis functions (4) - chord progression functions are DEPRECATED
+    "analyze_chord_progression",  # ⚠️ DEPRECATED: Use PatternAnalysisService
     "analyze_melody",
     "analyze_scale",
-    "analyze_progression_multiple",
+    "analyze_progression_multiple",  # ⚠️ DEPRECATED: Use PatternAnalysisService
     # Configuration (2)
     "AnalysisOptions",
     "PedagogicalLevel",

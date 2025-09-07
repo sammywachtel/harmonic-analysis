@@ -15,6 +15,7 @@ from ..core.pattern_engine import Token, Matcher, load_library, TokenConverter, 
 from ..core.functional_harmony import FunctionalHarmonyAnalyzer
 from ..services.multiple_interpretation_service import MultipleInterpretationService
 from ..api.analysis import analyze_chord_progression
+from ..utils.analysis_harvest import harvest_harmonic_terms
 
 
 class PatternAnalysisService:
@@ -75,6 +76,18 @@ class PatternAnalysisService:
         if not self.matcher:
             return {"error": "Pattern engine not available"}
 
+        if not chord_symbols:
+            return {
+                "error": "Empty chord progression",
+                "chord_symbols": [],
+                "tokens": [],
+                "pattern_matches": [],
+                "harmonic_terms": [],
+                "romans_text": "",
+                "analysis_time_ms": 0.0,
+                "profile": profile
+            }
+
         start_time = time.time()
 
         # First, get functional analysis with key hint
@@ -108,18 +121,30 @@ class PatternAnalysisService:
         # Set events in matcher's constraint validator
         self.matcher.constraint_validator.set_events(events)
 
+        # Stage C: Extract voice-leading events (MelodicEvents)
+        # Get key as integer for voice-leading inference
+        key_pc = self._key_to_pitch_class(functional_result.key_center)
+        melodic_events = event_extractor._infer_voice_leading_events(tokens, chord_symbols, key_pc)
+
         # Find pattern matches
         pattern_matches = self.matcher.match(tokens, best_cover=best_cover)
 
         analysis_time = time.time() - start_time
 
+        # Extract harmonic terms for educational features
+        token_dicts = [self._token_to_dict(token) for token in tokens]
+        harmonic_terms, romans_text = harvest_harmonic_terms(token_dicts, pattern_matches)
+
         return {
             "chord_symbols": chord_symbols,
-            "tokens": [self._token_to_dict(token) for token in tokens],
+            "tokens": token_dicts,
             "pattern_matches": pattern_matches,
             "analysis_time_ms": round(analysis_time * 1000, 2),
             "profile": profile,
-            "functional_analysis": self._functional_result_to_dict(functional_result)
+            "functional_analysis": self._functional_result_to_dict(functional_result),
+            "melodic_events": self._melodic_events_to_dict(melodic_events),
+            "harmonic_terms": harmonic_terms,
+            "romans_text": romans_text
         }
 
     def analyze_with_educational_context(
@@ -158,6 +183,16 @@ class PatternAnalysisService:
             definition = self.glossary_service.get_term_definition(term)
             if definition:
                 term_definitions[term] = definition
+
+        # Get harmonic terms from basic analysis
+        harmonic_terms = basic_analysis.get("harmonic_terms", [])
+        romans_text = basic_analysis.get("romans_text", "")
+
+        # Mirror harmonic terms into each enhanced match's educational context
+        for enhanced_match in enhanced_matches:
+            educational_context = enhanced_match.setdefault("educational_context", {})
+            educational_context.setdefault("harmonic_terms", harmonic_terms)
+            educational_context.setdefault("romans_text", romans_text)
 
         return {
             **basic_analysis,
@@ -435,6 +470,7 @@ class PatternAnalysisService:
             "roman": token.roman,
             "role": token.role,
             "flags": token.flags,
+            "flags_text": ' '.join(token.flags) if hasattr(token, 'flags') and token.flags else '',
             "mode": token.mode,
             "bass_motion_from_prev": token.bass_motion_from_prev,
             "soprano_degree": token.soprano_degree,
@@ -477,8 +513,16 @@ class PatternAnalysisService:
             # Extract role terms from evidence
             if isinstance(match.get("evidence"), list):
                 for evidence_item in match["evidence"]:
-                    if len(evidence_item) >= 3:
+                    # Handle both old tuple format and new StepEvidence format
+                    role = None
+                    if isinstance(evidence_item, dict):
+                        # New StepEvidence format: {'step_index': int, 'roman': str, 'role': str, 'flags': List[str]}
+                        role = evidence_item.get('role', '').lower()
+                    elif isinstance(evidence_item, (tuple, list)) and len(evidence_item) >= 3:
+                        # Old tuple format: (index, roman, role, flags)
                         role = evidence_item[2].lower()
+
+                    if role:
                         if role in ['t', 'tonic']:
                             key_terms.add('tonic')
                         elif role in ['pd', 'predominant']:
@@ -500,3 +544,36 @@ class PatternAnalysisService:
         key_terms.add('scale_degree')
 
         return list(key_terms)
+
+    def _key_to_pitch_class(self, key_center: str) -> int:
+        """Convert key center string to pitch class integer for voice-leading inference."""
+        # Map key centers to pitch classes (C=0, C#=1, ..., B=11)
+        key_map = {
+            'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4,
+            'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9,
+            'A#': 10, 'Bb': 10, 'B': 11
+        }
+
+        # Extract root note from key center (e.g., "C major" -> "C")
+        if ' ' in key_center:
+            root = key_center.split(' ')[0]
+        else:
+            root = key_center
+
+        return key_map.get(root, 0)  # Default to C if unknown
+
+    def _melodic_events_to_dict(self, melodic_events) -> Dict[str, Any]:
+        """Convert MelodicEvents object to dictionary for JSON serialization."""
+        from ..analysis_types import MelodicEvents
+
+        if not isinstance(melodic_events, MelodicEvents):
+            return {}
+
+        return {
+            "soprano_degree": melodic_events.soprano_degree,
+            "voice_4_to_3": melodic_events.voice_4_to_3,
+            "voice_7_to_1": melodic_events.voice_7_to_1,
+            "fi_to_sol": melodic_events.fi_to_sol,
+            "le_to_sol": melodic_events.le_to_sol,
+            "source": melodic_events.source
+        }

@@ -130,10 +130,20 @@ class GlossaryService:
         if 'evidence' in pattern_match and isinstance(pattern_match['evidence'], list):
             roman_explanations = []
             for evidence_item in pattern_match['evidence']:
-                if len(evidence_item) >= 3:  # (index, roman, role, flags)
+                # Handle both old tuple format and new StepEvidence format
+                if isinstance(evidence_item, dict):
+                    # New StepEvidence format: {'step_index': int, 'roman': str, 'role': str, 'flags': List[str]}
+                    roman = evidence_item.get('roman')
+                    role = evidence_item.get('role')
+                elif isinstance(evidence_item, (tuple, list)) and len(evidence_item) >= 3:
+                    # Old tuple format: (index, roman, role, flags)
                     roman = evidence_item[1]
                     role = evidence_item[2]
+                else:
+                    # Skip invalid evidence items
+                    continue
 
+                if roman and role:
                     roman_explanation = {
                         'roman': roman,
                         'role': role,

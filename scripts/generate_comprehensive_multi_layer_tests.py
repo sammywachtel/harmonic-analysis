@@ -26,8 +26,8 @@ Usage:
     python scripts/generate_comprehensive_multi_layer_tests.py
 
 Output:
-    tests/generated/comprehensive-multi-layer-tests.json
-    tests/generated/comprehensive-multi-layer-tests.csv
+    tests/generated/integration/comprehensive-multi-layer-tests.json
+    tests/generated/integration/comprehensive-multi-layer-tests.csv
 
 Historical Note:
 Originally had a critical bug in chord_to_roman_numeral() that returned "I"
@@ -2390,7 +2390,9 @@ class ComprehensiveMultiLayerGenerator:
         """📊 EXPORT RESULTS"""
         print("\n🚀 EXPORTING REVOLUTIONARY MULTI-LAYER TESTS!")
 
-        output_dir = os.path.join(os.path.dirname(__file__), "..", "tests", "generated")
+        output_dir = os.path.join(
+            os.path.dirname(__file__), "..", "tests", "integration", "generated"
+        )
         os.makedirs(output_dir, exist_ok=True)
 
         # JSON Export

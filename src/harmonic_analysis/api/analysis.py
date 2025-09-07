@@ -5,6 +5,7 @@ This module provides the primary user-facing API for chord progression analysis,
 scale analysis, and melody analysis.
 """
 
+import warnings
 from typing import List, Optional
 
 from ..core.scale_melody_analysis import ScaleMelodyAnalysisResult
@@ -24,8 +25,26 @@ async def analyze_chord_progression(
     """
     Analyze a chord progression with multiple interpretations.
 
-    This is the primary function for analyzing chord progressions, providing
-    functional, modal, and chromatic analysis with confidence scoring.
+    .. deprecated:: 0.3.0
+        Use :class:`harmonic_analysis.services.pattern_analysis_service.PatternAnalysisService`
+        for advanced pattern-based analysis with better accuracy and detailed pattern recognition.
+
+    This function is now deprecated in favor of the new Pattern Analysis Engine.
+    The new system provides:
+    - More accurate pattern recognition with evidence-based matching
+    - Style-aware analysis (classical/jazz/pop profiles)
+    - Detailed confidence scoring for each detected pattern
+    - Event-based validation using bass motion and harmonic texture
+
+    For new code, use::
+
+        from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+        service = PatternAnalysisService()
+        result = await service.analyze_with_patterns(
+            chord_symbols=chords,
+            profile='classical',
+            key_hint='C major'
+        )
 
     Args:
         chords: List of chord symbols (e.g., ['C', 'Am', 'F', 'G'])
@@ -39,6 +58,13 @@ async def analyze_chord_progression(
         >>> print(result.primary_analysis.analysis)
         'Functional progression: I - vi - IV - V'
     """
+    warnings.warn(
+        "analyze_chord_progression() is deprecated. Use PatternAnalysisService for "
+        "advanced pattern-based analysis with better accuracy. See: "
+        "https://github.com/sammywachtel/harmonic-analysis-py#new-pattern-matching-engine",
+        DeprecationWarning,
+        stacklevel=2
+    )
     return await _analyze_progression_multiple(chords, options)
 
 

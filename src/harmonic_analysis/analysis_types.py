@@ -158,3 +158,57 @@ class MultipleInterpretationResult:
     metadata: Dict[str, Any]
     input: Dict[str, Any]
     suggestions: Optional[AnalysisSuggestions] = None
+
+
+# =============================================================================
+# STAGE C: Voice-Leading and Melodic Analysis Data Structures
+# =============================================================================
+
+@dataclass
+class KeyCandidate:
+    """A candidate key with confidence and provenance information."""
+
+    name: str                # e.g., "C major"
+    confidence: float        # confidence score (0.0 to 1.0)
+    source: str              # "user_hint", "prior:scale", or "estimated"
+
+
+@dataclass
+class ScalePrior:
+    """Prior information about key candidates from scale analysis."""
+
+    candidates: List[KeyCandidate]  # sorted by descending confidence
+
+
+@dataclass
+class MelodyEvent:
+    """A single melodic event with timing and pitch information."""
+
+    onset: float             # onset time in seconds or beats
+    pitch: int               # MIDI pitch number
+    duration: float          # duration in seconds or beats
+    ppq: Optional[float] = None      # pulses per quarter note (optional)
+    bar_offset: Optional[float] = None  # position within bar (optional)
+
+
+@dataclass
+class MelodyTrack:
+    """A track containing a sequence of melodic events."""
+
+    events: List[MelodyEvent]
+
+
+@dataclass
+class MelodicEvents:
+    """Voice-leading events detected in melodic analysis.
+
+    Can be extracted from explicit melody data or inferred from harmonic progressions.
+    All lists are per-chord-index, parallel to the chord symbol list.
+    """
+
+    soprano_degree: List[Optional[int]]  # per-index soprano scale degrees (1-7) or None
+    voice_4_to_3: List[bool]              # per-index 4→3 suspension flags
+    voice_7_to_1: List[bool]              # per-index 7→1 resolution flags
+    fi_to_sol: List[bool]                 # per-index ♯4→5 melodic motion flags
+    le_to_sol: List[bool]                 # per-index ♭6→5 melodic motion flags
+    source: str                           # "melody" or "inference"
