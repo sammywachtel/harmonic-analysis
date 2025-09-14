@@ -8,16 +8,19 @@ Tests educational context features:
 - Teaching point generation
 """
 
-import pytest
-import sys
 import pathlib
+import sys
+
+import pytest
 
 # Ensure project root on sys.path
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis.services.pattern_analysis_service import (  # noqa: E402
+    PatternAnalysisService,
+)
 
 
 class TestGlossaryIntegration:
@@ -35,65 +38,100 @@ class TestGlossaryIntegration:
             {
                 "name": "Perfect Authentic Cadence Example",
                 "chords": ["F", "G7", "C"],
-                "description": "Classic PAC with strong resolution"
+                "description": "Classic PAC with strong resolution",
             },
             {
                 "name": "Pop Progression with Multiple Patterns",
                 "chords": ["Am", "F", "C", "G"],
-                "description": "vi-IV-I-V containing multiple cadential patterns"
+                "description": "vi-IV-I-V containing multiple cadential patterns",
             },
             {
                 "name": "Jazz ii-V-I Progression",
                 "chords": ["Dm7", "G7", "Cmaj7"],
-                "description": "Essential jazz progression with seventh chords"
-            }
+                "description": "Essential jazz progression with seventh chords",
+            },
         ]
 
     def test_educational_context_analysis(self, service, educational_test_cases):
-        """Test that educational context analysis works for standard progressions."""
+        """Test that pattern analysis provides educational information through glossary service."""
         for test_case in educational_test_cases:
-            result = service.analyze_with_educational_context(test_case['chords'])
+            result = service.analyze_with_patterns(test_case["chords"])
 
-            # Verify enhanced structure
-            assert 'enhanced_pattern_matches' in result
-            assert 'teaching_points' in result
-            assert 'term_definitions' in result
-            assert 'educational_analysis' in result
-            assert result['educational_analysis'] is True
+            # Verify DTO structure
+            assert hasattr(result, "primary")
+            assert hasattr(result.primary, "patterns")
+            assert result.chord_symbols == test_case["chords"]
 
-            # Should include standard analysis too
-            assert 'pattern_matches' in result
-            assert 'chord_symbols' in result
-            assert result['chord_symbols'] == test_case['chords']
+            # Test that we can get educational context from patterns
+            patterns = result.primary.patterns
+            glossary_service = service.glossary_service
+
+            # Test glossary service can provide explanations
+            for pattern in patterns:
+                explanation = glossary_service.explain_pattern_result(
+                    {
+                        "name": pattern.name,
+                        "family": pattern.family,
+                        "score": pattern.score,
+                        "evidence": pattern.evidence,
+                    }
+                )
+                assert isinstance(explanation, dict)
+                assert "pattern_name" in explanation
 
     def test_enhanced_pattern_matches_structure(self, service):
-        """Test structure of enhanced pattern matches."""
+        """Test structure of pattern matches in AnalysisEnvelope."""
         chords = ["F", "G7", "C"]  # PAC progression
-        result = service.analyze_with_educational_context(chords)
+        result = service.analyze_with_patterns(chords)
 
-        enhanced_matches = result.get('enhanced_pattern_matches', [])
+        # Get pattern matches from DTO
+        pattern_matches = result.primary.patterns
 
-        # Should have some enhanced matches for this strong progression
-        if enhanced_matches:
-            match = enhanced_matches[0]
+        # Should have some pattern matches for this strong progression
+        if pattern_matches:
+            match = pattern_matches[0]
 
-            # Enhanced matches should have educational fields
-            expected_fields = ['pattern_name', 'score', 'family']
-            for field in expected_fields:
-                assert field in match, f"Missing field: {field}"
+            # Pattern matches should have DTO fields
+            assert hasattr(match, "name")
+            assert hasattr(match, "score")
+            assert hasattr(match, "family")
+            assert hasattr(match, "pattern_id")
 
-            # May have educational context
-            if 'educational_context' in match:
-                context = match['educational_context']
-                assert isinstance(context, dict)
+            # Test that glossary service can provide educational context
+            glossary_service = service.glossary_service
+            explanation = glossary_service.explain_pattern_result(
+                {
+                    "name": match.name,
+                    "family": match.family,
+                    "score": match.score,
+                    "evidence": match.evidence,
+                }
+            )
+            assert isinstance(explanation, dict)
 
     def test_teaching_points_generation(self, service):
-        """Test that teaching points are generated appropriately."""
+        """Test that teaching points can be generated from pattern analysis."""
         # Use progression likely to generate teaching points
         chords = ["Am", "F", "C", "G"]
-        result = service.analyze_with_educational_context(chords)
+        result = service.analyze_with_patterns(chords)
 
-        teaching_points = result.get('teaching_points', [])
+        # Test that glossary service can generate teaching points from patterns
+        patterns = result.primary.patterns
+        glossary_service = service.glossary_service
+
+        # Convert patterns to the format expected by glossary service
+        pattern_dicts = []
+        for p in patterns:
+            pattern_dicts.append(
+                {
+                    "name": p.name,
+                    "family": p.family,
+                    "score": p.score,
+                    "evidence": p.evidence,
+                }
+            )
+
+        teaching_points = glossary_service.get_pattern_teaching_points(pattern_dicts)
         assert isinstance(teaching_points, list)
 
         # Teaching points should be strings if present
@@ -102,18 +140,24 @@ class TestGlossaryIntegration:
             assert len(point) > 0
 
     def test_term_definitions_extraction(self, service):
-        """Test that relevant terms are defined."""
+        """Test that relevant terms can be extracted from analysis results."""
         chords = ["F", "G7", "C"]
-        result = service.analyze_with_educational_context(chords)
+        result = service.analyze_with_patterns(chords)
 
-        term_definitions = result.get('term_definitions', {})
-        assert isinstance(term_definitions, dict)
+        # Test that we can extract educational information from patterns
+        patterns = result.primary.patterns
+        assert isinstance(patterns, list)
 
-        # Should extract key harmonic terms
-        for term, definition in term_definitions.items():
-            assert isinstance(term, str)
-            assert isinstance(definition, str)
-            assert len(definition) > 0
+        # Test that glossary service can provide term definitions
+        glossary_service = service.glossary_service
+
+        # Test some basic music theory terms
+        test_terms = ["tonic", "dominant", "cadence"]
+        for term in test_terms:
+            definition = glossary_service.get_term_definition(term)
+            if definition:  # Some terms might not be in glossary
+                assert isinstance(definition, str)
+                assert len(definition) > 0
 
     def test_glossary_service_cadence_explanations(self, service):
         """Test standalone cadence explanation functionality."""
@@ -124,7 +168,7 @@ class TestGlossaryIntegration:
             "PAC with soprano on 1",
             "Perfect Authentic Cadence",
             "Half Cadence",
-            "Plagal Cadence"
+            "Plagal Cadence",
         ]
 
         for cadence_type in cadence_types:
@@ -134,10 +178,10 @@ class TestGlossaryIntegration:
                 if explanation:  # May return None for unknown cadences
                     assert isinstance(explanation, dict)
                     # May have definition and example fields
-                    if 'definition' in explanation:
-                        assert isinstance(explanation['definition'], str)
-                    if 'example_in_C_major' in explanation:
-                        assert isinstance(explanation['example_in_C_major'], str)
+                    if "definition" in explanation:
+                        assert isinstance(explanation["definition"], str)
+                    if "example_in_C_major" in explanation:
+                        assert isinstance(explanation["example_in_C_major"], str)
 
             except AttributeError:
                 # Method may not exist - that's acceptable
@@ -177,93 +221,93 @@ class TestGlossaryIntegration:
                 if info:  # May return None for unknown degrees
                     assert isinstance(info, dict)
                     # May have name and description fields
-                    if 'name' in info:
-                        assert isinstance(info['name'], str)
-                    if 'description' in info:
-                        assert isinstance(info['description'], str)
+                    if "name" in info:
+                        assert isinstance(info["name"], str)
+                    if "description" in info:
+                        assert isinstance(info["description"], str)
 
             except AttributeError:
                 # Method may not exist - that's acceptable
                 pass
 
     def test_educational_vs_standard_analysis_comparison(self, service):
-        """Test that educational analysis includes everything from standard analysis."""
+        """Test that analysis provides consistent results."""
         chords = ["Am", "F", "C", "G"]
 
-        # Get both types of analysis
-        standard_result = service.analyze_with_patterns(chords)
-        educational_result = service.analyze_with_educational_context(chords)
+        # Get analysis results
+        result1 = service.analyze_with_patterns(chords)
+        result2 = service.analyze_with_patterns(chords)
 
-        # Educational should include everything from standard
-        standard_keys = set(standard_result.keys())
-        educational_keys = set(educational_result.keys())
-
-        # All standard keys should be in educational result
-        missing_keys = standard_keys - educational_keys
-        assert len(missing_keys) == 0, f"Educational analysis missing keys: {missing_keys}"
-
-        # Core fields should match
-        assert educational_result['chord_symbols'] == standard_result['chord_symbols']
-        assert len(educational_result['pattern_matches']) == len(standard_result['pattern_matches'])
+        # Results should be consistent
+        assert result1.chord_symbols == result2.chord_symbols
+        assert result1.primary.type == result2.primary.type
+        assert len(result1.primary.patterns) == len(result2.primary.patterns)
 
     def test_pattern_explanation_integration(self, service):
         """Test that patterns get educational explanations when available."""
         # Use progression likely to match known patterns
         chords = ["C", "F", "G", "C"]  # I-IV-V-I
 
-        result = service.analyze_with_educational_context(chords)
-        enhanced_matches = result.get('enhanced_pattern_matches', [])
+        result = service.analyze_with_patterns(chords)
+        patterns = result.primary.patterns
+        glossary_service = service.glossary_service
 
-        # Check if any enhanced matches have explanations
+        # Test that glossary service can provide explanations
         has_explanations = False
-        for match in enhanced_matches:
-            if 'educational_context' in match:
-                context = match['educational_context']
-                if any(key in context for key in ['cadence_info', 'chord_functions', 'pattern_family']):
-                    has_explanations = True
-                    break
+        for pattern in patterns:
+            explanation = glossary_service.explain_pattern_result(
+                {
+                    "name": pattern.name,
+                    "family": pattern.family,
+                    "score": pattern.score,
+                    "evidence": pattern.evidence,
+                }
+            )
+            if explanation and "educational_context" in explanation:
+                has_explanations = True
+                break
 
-        # Educational context should be attempted (may not always succeed)
+        # Educational context functionality should work
         assert isinstance(has_explanations, bool)
 
-    @pytest.mark.parametrize("progression,expected_harmonic_content", [
-        (["F", "G", "C"], ["dominant", "tonic", "cadence"]),
-        (["Am", "F", "C", "G"], ["vi", "IV", "I", "V"]),
-        (["Dm7", "G7", "Cmaj7"], ["ii", "V", "I", "seventh"]),
-    ])
-    def test_harmonic_term_extraction(self, service, progression, expected_harmonic_content):
-        """Test that relevant harmonic terms are extracted for different progressions."""
-        result = service.analyze_with_educational_context(progression)
+    @pytest.mark.parametrize(
+        "progression,expected_harmonic_content",
+        [
+            (
+                ["F", "G", "C"],
+                ["IV", "V", "I"],
+            ),  # More realistic roman numeral expectations
+            (["Am", "F", "C", "G"], ["vi", "IV", "I", "V"]),
+            (["Dm7", "G7", "Cmaj7"], ["ii", "V", "I"]),
+        ],
+    )
+    def test_harmonic_term_extraction(
+        self, service, progression, expected_harmonic_content
+    ):
+        """Test that roman numerals are extracted from analysis."""
+        result = service.analyze_with_patterns(progression)
 
-        # Check our new harmonic_terms and romans_text fields
-        harmonic_terms = result.get('harmonic_terms', [])
-        romans_text = result.get('romans_text', '').lower()
+        # Extract harmonic information from DTO
+        romans_list = result.primary.roman_numerals
+        # romans_text = " ".join(romans_list)  # Available for debugging
 
-        # Convert harmonic terms to lowercase for comparison
-        harmonic_terms_lower = [term.lower() for term in harmonic_terms]
-
-        # Find terms in either harmonic_terms list or romans_text
+        # Find expected terms in roman numerals
         found_terms = []
         for expected_term in expected_harmonic_content:
-            expected_lower = expected_term.lower()
-            if (expected_lower in harmonic_terms_lower or
-                expected_lower in romans_text):
+            # Check if term appears in any roman numeral (case insensitive)
+            if any(expected_term.lower() in roman.lower() for roman in romans_list):
                 found_terms.append(expected_term)
 
         # At least some expected terms should appear
-        assert len(found_terms) > 0, f"Expected to find some of {expected_harmonic_content} in harmonic analysis. Found harmonic_terms: {harmonic_terms}, romans_text: '{romans_text}'"
+        assert (
+            len(found_terms) > 0
+        ), f"Expected to find some of {expected_harmonic_content} in roman numerals. Found romans: {romans_list}"
 
     def test_error_handling_empty_progression(self, service):
-        """Test educational analysis error handling."""
-        # Empty progression
-        result = service.analyze_with_educational_context([])
-        assert result is not None
-        assert isinstance(result, dict)
-
-        # Should have educational fields even if empty
-        assert 'enhanced_pattern_matches' in result
-        assert 'teaching_points' in result
-        assert 'term_definitions' in result
+        """Test analysis error handling for empty progressions."""
+        # Empty progression should raise an error
+        with pytest.raises(ValueError, match="Empty chord progression"):
+            service.analyze_with_patterns([])
 
     def test_glossary_service_error_handling(self, service):
         """Test that glossary service handles invalid inputs gracefully."""

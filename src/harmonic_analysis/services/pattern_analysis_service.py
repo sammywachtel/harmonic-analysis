@@ -1,579 +1,692 @@
 """
-Pattern Analysis Service - High-level API for pattern recognition.
+Pattern Analysis Service - Clean async-first API with stable DTOs.
 
-Provides A/B testing capabilities to compare pattern engine results
-with current functional analysis approaches.
+Follows the implementation specification from library_audit_todo_impl_details.md
 """
 
-from typing import List, Dict, Any, Optional, Tuple
-import time
-import os
-import asyncio
-from pathlib import Path
+from __future__ import annotations
 
-from ..core.pattern_engine import Token, Matcher, load_library, TokenConverter, GlossaryService
+import asyncio
+import inspect
+import logging
+import time
+from typing import Any, Dict, List, Optional
+
+from harmonic_analysis.dto import (
+    AnalysisEnvelope,
+    AnalysisSummary,
+    AnalysisType,
+    ChromaticElementDTO,
+    FunctionalChordDTO,
+    PatternMatchDTO,
+    SectionDTO,
+)
+
 from ..core.functional_harmony import FunctionalHarmonyAnalyzer
-from ..services.multiple_interpretation_service import MultipleInterpretationService
-from ..api.analysis import analyze_chord_progression
-from ..utils.analysis_harvest import harvest_harmonic_terms
+from ..core.pattern_engine import (
+    GlossaryService,
+    Matcher,
+    TokenConverter,
+    load_library,
+)
+from ..core.utils.music_theory_constants import canonicalize_key_signature
+from ..resources import load_patterns
+from ..services.analysis_arbitration_service import (
+    AnalysisArbitrationService,
+)
+from ..services.calibration_service import CalibrationService
+from ..services.modal_analysis_service import ModalAnalysisService
+
+# Set up logging for calibration observability
+logger = logging.getLogger(__name__)
 
 
 class PatternAnalysisService:
-    """Service for pattern-based harmonic analysis with A/B testing capabilities."""
+    """Service for pattern-based harmonic analysis with stable DTO output."""
 
-    def __init__(self):
+    pattern_lib: Optional[Any]
+    matcher: Optional[Any]
+
+    def __init__(
+        self,
+        functional_analyzer: Optional[Any] = None,
+        matcher: Optional[Any] = None,
+        modal_analyzer: Optional[Any] = None,
+        arbitration_policy: Optional[Any] = None,
+        calibration_service: Optional[Any] = None,
+        auto_calibrate: bool = True,
+    ) -> None:
+        # Existing wiring with optional dependency injection for testing
+        self.functional_analyzer = functional_analyzer or FunctionalHarmonyAnalyzer()
         self.token_converter = TokenConverter()
-        self.functional_analyzer = FunctionalHarmonyAnalyzer()
-        self.interpretation_service = MultipleInterpretationService()
+        self.arbitration_service = AnalysisArbitrationService(arbitration_policy)
         self.glossary_service = GlossaryService()
+        self.modal_analyzer = modal_analyzer or ModalAnalysisService()
 
-        # Load pattern library
-        patterns_path = Path(__file__).parent.parent / 'core' / 'pattern_engine' / 'patterns.json'
+        # Confidence calibration service integration
+        self.calibration_service = calibration_service
+        self.auto_calibrate = auto_calibrate
+
+        # Try to load calibration service from default location if not provided
+        if self.calibration_service is None and auto_calibrate:
+            try:
+                from pathlib import Path
+
+                default_calibration_path = (
+                    Path(__file__).parent.parent / "assets" / "calibration_mapping.json"
+                )
+                if default_calibration_path.exists():
+                    self.calibration_service = CalibrationService(
+                        str(default_calibration_path)
+                    )
+                    logger.info(
+                        f"✅ Loaded calibration service from {default_calibration_path}"
+                    )
+                else:
+                    logger.debug(
+                        f"📂 No calibration mapping found at {default_calibration_path}"
+                    )
+            except Exception as e:
+                # Graceful fallback - no calibration service available
+                logger.warning(f"⚠️ Failed to load calibration service: {e}")
+                self.calibration_service = None
+        elif not auto_calibrate:
+            logger.debug("🔧 Auto-calibration disabled")
+        elif self.calibration_service:
+            logger.info("✅ Using provided calibration service")
+
+        # Load pattern library using importlib.resources
         try:
-            self.pattern_lib = load_library(str(patterns_path))
-            self.matcher = Matcher(self.pattern_lib, profile="classical")
-        except FileNotFoundError:
-            print(f"Warning: Pattern library not found at {patterns_path}")
+            import json
+            import tempfile
+
+            patterns_data = load_patterns()
+
+            # Write patterns to temporary file for load_library to read
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(patterns_data, f)
+                temp_path = f.name
+
+            # Use existing load_library function
+            self.pattern_lib = load_library(temp_path)
+            self.matcher = matcher or Matcher(self.pattern_lib, profile="classical")
+
+            # Clean up temp file
+            import os
+
+            os.unlink(temp_path)
+
+        except (FileNotFoundError, ImportError) as e:
+            print(f"Warning: Pattern library could not be loaded: {e}")
             self.pattern_lib = None
             self.matcher = None
 
-        # ---- DEBUG EXPOSURE (safe to remove later) ----
-        # Expose matcher so debug_patterns.py can introspect the engine internals.
-        # Remove these lines once validation is complete.
-        self._pattern_matcher = self.matcher
-        # Will be populated per-call in analyze_with_patterns
-        self._last_tokens = None
-        # ---- END DEBUG EXPOSURE ----
+    def _extract_calibration_features(
+        self,
+        chord_symbols: List[str],
+        analysis_result: Any = None,
+        pattern_matches: Optional[List[PatternMatchDTO]] = None,
+        key_signature: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Extract routing features for confidence calibration.
 
-    # ---- DEBUG GETTERS (safe to remove later) ----
-    def get_pattern_matcher(self):
-        """[DEBUG] Expose the PatternMatcher instance. Safe to remove later."""
-        return getattr(self, "_pattern_matcher", None)
+        Args:
+            chord_symbols: List of chord symbols analyzed
+            analysis_result: Primary analysis result (functional/modal)
+            pattern_matches: List of detected patterns
+            key_signature: Detected key signature
 
-    def get_last_tokens(self):
-        """[DEBUG] Return the last token sequence used for matching. Safe to remove later."""
-        return getattr(self, "_last_tokens", None)
-    # ---- END DEBUG GETTERS ----
+        Returns:
+            Dictionary of features for calibration routing
+        """
+        features = {
+            "chord_count": len(chord_symbols),
+            "is_melody": False,  # This service handles harmony analysis
+        }
 
+        # Compute outside-key ratio (chromatic elements)
+        if key_signature and chord_symbols:
+            try:
+                # Simple heuristic: count chords with accidentals relative to key
+                chord_str = " ".join(chord_symbols).lower()
+                accidental_count = chord_str.count("#") + chord_str.count("b")
+                features["outside_key_ratio"] = min(
+                    1.0, accidental_count / max(1, len(chord_symbols))
+                )
+            except Exception:
+                features["outside_key_ratio"] = 0.0
+        else:
+            features["outside_key_ratio"] = 0.0
+
+        # Evidence strength based on analysis confidence or pattern count
+        if analysis_result and hasattr(analysis_result, "confidence"):
+            features["evidence_strength"] = float(analysis_result.confidence)
+        elif pattern_matches:
+            # Use pattern count as evidence proxy
+            features["evidence_strength"] = min(1.0, len(pattern_matches) / 3.0)
+        else:
+            features["evidence_strength"] = 0.5
+
+        # Detect I-V-I pattern (functional simplicity marker)
+        if analysis_result and hasattr(analysis_result, "roman_numerals"):
+            romans_str = " ".join(analysis_result.roman_numerals or []).lower()
+            features["foil_I_V_I"] = any(
+                pattern in romans_str for pattern in ["i v i", "i iv v i"]
+            )
+        else:
+            features["foil_I_V_I"] = False
+
+        # Modal characteristic markers
+        chord_symbols_str = " ".join(chord_symbols).lower()
+        features["has_flat7"] = "bb" in chord_symbols_str or "b7" in chord_symbols_str
+        features["has_flat3"] = "eb" in chord_symbols_str or "b3" in chord_symbols_str
+        features["has_flat6"] = "ab" in chord_symbols_str or "b6" in chord_symbols_str
+        features["has_flat2"] = "db" in chord_symbols_str or "b2" in chord_symbols_str
+        features["has_sharp4"] = "f#" in chord_symbols_str or "#4" in chord_symbols_str
+        features["has_flat5"] = "gb" in chord_symbols_str or "b5" in chord_symbols_str
+
+        # Chord density (complexity measure)
+        total_chars = sum(len(chord) for chord in chord_symbols)
+        features["chord_density"] = (
+            total_chars / max(1, len(chord_symbols)) / 4.0
+        )  # Normalize by avg chord length
+
+        return features
+
+    def _apply_section_aware_tagging(
+        self,
+        matches: List[PatternMatchDTO],
+        sections: Optional[List[SectionDTO]],
+        total_tokens: int,
+    ) -> None:
+        """Apply section-aware tagging as specified in music-alg-2g.md Section 4."""
+        # Create set of section boundaries for efficient lookup
+        section_ends = set()
+        if sections:
+            section_ends = {section.end for section in sections}
+
+        for match in matches:
+            # Set section label based on where the pattern ends
+            if sections:
+                for section in sections:
+                    if section.start <= match.end - 1 < section.end:
+                        match.section = section.id
+                        break
+
+            # Set cadence_role for cadences only
+            if match.family and "cadence" in match.family.lower():
+                if match.end == total_tokens:
+                    match.cadence_role = "final"
+                elif section_ends and match.end in section_ends:
+                    match.cadence_role = "section-final"
+                else:
+                    match.cadence_role = "internal"
+
+    def _add_abs_indices(self, matches: List[PatternMatchDTO]) -> None:
+        """Add absolute chord indices to evidence for UI highlighting."""
+        for m in matches:
+            for ev in m.evidence:
+                if isinstance(ev.get("step_index"), int):
+                    ev["abs_index"] = m.start + ev["step_index"]
+
+    def _attach_sections_and_resolve_cadences(
+        self,
+        matches: List[PatternMatchDTO],
+        sections: Optional[List[SectionDTO]],
+        total_len: int,
+    ) -> tuple[List[PatternMatchDTO], Optional[PatternMatchDTO]]:
+        """
+        Returns (terminal_cadences, final_cadence)
+        - Assigns section_id and closes_section on each match (in place).
+        - terminal_cadences contains all cadence matches that close a section.
+        - final_cadence is the cadence that ends on the last chord
+          (max score tie-break).
+        """
+
+        # Section assignment is now handled by _apply_section_aware_tagging
+
+        # Terminal cadences: cadential family + section-final or final cadence_role
+        terminal = [m for m in matches if m.cadence_role in ["section-final", "final"]]
+
+        # Final cadence: cadence ending at total_len
+        finals = [m for m in matches if m.cadence_role == "final"]
+        final_cadence = max(finals, key=lambda x: x.score) if finals else None
+
+        return terminal, final_cadence
+
+    # --- NEW: async entrypoint ---
+    async def analyze_with_patterns_async(
+        self,
+        chord_symbols: List[str],
+        profile: str = "classical",
+        best_cover: bool = True,
+        key_hint: Optional[str] = None,
+        sections: Optional[List[SectionDTO]] = None,
+    ) -> AnalysisEnvelope:
+        """
+        Analyze chord progression using pattern engine (async version).
+
+        Args:
+            chord_symbols: List of chord symbols (e.g., ['Am', 'F', 'C', 'G'])
+            profile: Analysis profile ('classical', 'jazz', 'pop')
+            best_cover: If True, return best non-overlapping cover;
+                        if False, return all candidates.
+            key_hint: Optional key hint to guide analysis
+            sections: Optional list of sections to analyze pattern placement
+
+        Returns:
+            AnalysisEnvelope containing primary analysis and alternatives
+        """
+        if not self.matcher:
+            raise ValueError("Pattern engine not available")
+
+        t0 = time.time()
+
+        # 1) Functional analysis (await if coroutine, else run in thread)
+        func = self.functional_analyzer.analyze_functionally
+        if inspect.iscoroutinefunction(func):
+            functional_result = await func(
+                chord_symbols, key_hint=key_hint, lock_key=True
+            )
+        else:
+            functional_result = await asyncio.to_thread(
+                func, chord_symbols, key_hint=key_hint, lock_key=True
+            )
+
+        # 2) Convert functional_result into chords + romans
+        chords_info: List[Any] = []
+        if hasattr(functional_result, "chords") and functional_result.chords:
+            chords_info = functional_result.chords
+        elif isinstance(functional_result, dict):
+            chords_info = functional_result.get("chords", [])
+
+        romans: List[str] = []
+        chords_dto: List[FunctionalChordDTO] = []
+        for c in chords_info:
+            # Handle both object and dict formats
+            if hasattr(c, "roman_numeral"):
+                rn = c.roman_numeral
+                chord_sym = getattr(c, "chord", "") or getattr(c, "chord_symbol", "")
+                func_name = getattr(c, "function", None)
+                inversion = getattr(c, "inversion", None)
+                quality = getattr(c, "quality", None)
+                secondary_of = getattr(c, "secondary_of", None)
+                is_chromatic = getattr(c, "is_chromatic", None)
+                bass_note = getattr(c, "bass_note", None)
+            elif isinstance(c, dict):
+                rn = c.get("roman_numeral")
+                chord_sym = c.get("chord_symbol", "")
+                func_name = c.get("function") or c.get("role")
+                inversion = c.get("inversion")
+                quality = c.get("quality")
+                secondary_of = c.get("secondary_of")
+                is_chromatic = c.get("is_chromatic")
+                bass_note = c.get("bass_note")
+            else:
+                continue
+
+            if rn:
+                romans.append(rn)
+            chords_dto.append(
+                FunctionalChordDTO(
+                    chord_symbol=chord_sym,
+                    roman_numeral=rn,
+                    function=func_name,
+                    inversion=inversion,
+                    quality=quality,
+                    secondary_of=secondary_of,
+                    is_chromatic=is_chromatic,
+                    bass_note=bass_note,
+                )
+            )
+
+        # Extract key info from functional result
+        if hasattr(functional_result, "key_center"):
+            key_sig = functional_result.key_center
+        elif isinstance(functional_result, dict):
+            key_sig = functional_result.get("key_center") or functional_result.get(
+                "key_signature"
+            )
+        else:
+            key_sig = None
+
+        # Canonicalize the key signature to avoid enharmonic drift
+        if key_sig:
+            key_sig = canonicalize_key_signature(key_sig)
+
+        if hasattr(functional_result, "mode"):
+            mode = functional_result.mode
+        elif isinstance(functional_result, dict):
+            mode = functional_result.get("mode")
+        else:
+            mode = None
+
+        if hasattr(functional_result, "confidence"):
+            func_conf = functional_result.confidence
+        elif isinstance(functional_result, dict):
+            func_conf = functional_result.get("confidence")
+        else:
+            func_conf = None
+
+        if hasattr(functional_result, "explanation"):
+            func_reason = functional_result.explanation
+        elif isinstance(functional_result, dict):
+            func_reason = functional_result.get("explanation")
+        else:
+            func_reason = None
+
+        # 3) Run pattern matching
+        # Convert to tokens first
+        tokens = self.token_converter.convert_analysis_to_tokens(
+            chord_symbols=chord_symbols,
+            analysis_result=functional_result,
+        )
+
+        # Update matcher profile if needed
+        if profile != "classical" and self.pattern_lib is not None:
+            self.matcher = Matcher(self.pattern_lib, profile=profile)
+
+        # Extract low-level events for enhanced pattern constraints
+        from ..core.pattern_engine.low_level_events import LowLevelEventExtractor
+
+        event_extractor = LowLevelEventExtractor()
+        events = event_extractor.extract_events(
+            tokens, chord_symbols, key_sig or "C major"
+        )
+        self.matcher.constraint_validator.set_events(events)
+
+        # Find pattern matches
+        pattern_matches_raw = self.matcher.match(tokens, best_cover=best_cover)
+        pattern_matches: List[PatternMatchDTO] = []
+        for m in pattern_matches_raw:
+            if not isinstance(m, dict):
+                continue
+            pattern_matches.append(
+                PatternMatchDTO(
+                    start=m.get("start", 0),
+                    end=m.get("end", 0),
+                    pattern_id=str(m.get("pattern_id", m.get("id", ""))),
+                    name=m.get("name", ""),
+                    family=m.get("family", ""),
+                    score=float(str(m.get("score") or m.get("confidence") or 0.0)),
+                    evidence=m.get("evidence", []) or [],  # type: ignore[arg-type]
+                    # Initialize section-aware fields (will be set by postprocessing)
+                    section=None,
+                    cadence_role=None,
+                )
+            )
+
+        # NEW: Section-aware processing with cadence role tagging
+        self._apply_section_aware_tagging(pattern_matches, sections, len(tokens))
+        self._add_abs_indices(pattern_matches)
+        terminal_cadences, final_cadence = self._attach_sections_and_resolve_cadences(
+            pattern_matches, sections, len(chord_symbols)
+        )
+
+        # 4) Chromatic elements (optional mapping if present)
+        chroma_raw: List[Any] = []
+        if hasattr(functional_result, "chromatic_elements"):
+            chroma_raw = functional_result.chromatic_elements or []
+        elif isinstance(functional_result, dict):
+            chroma_raw = functional_result.get("chromatic_elements", [])
+
+        chroma_dto: List[ChromaticElementDTO] = []
+        for ce in chroma_raw:
+            if not isinstance(ce, dict):
+                continue
+            chroma_dto.append(
+                ChromaticElementDTO(
+                    type=str(ce.get("type", "")),
+                    chord_symbol=(
+                        (ce.get("chord") or {}).get("chord_symbol")
+                        if isinstance(ce.get("chord"), dict)
+                        else None
+                    ),
+                    roman_numeral=(
+                        (ce.get("chord") or {}).get("roman_numeral")
+                        if isinstance(ce.get("chord"), dict)
+                        else None
+                    ),
+                    resolution_to=(
+                        (ce.get("resolution") or {}).get("roman_numeral")
+                        if isinstance(ce.get("resolution"), dict)
+                        else None
+                    ),
+                    explanation=ce.get("explanation"),
+                )
+            )
+
+        # 5) Modal analysis (standard async entrypoint)
+        modal_conf = None
+        modal_mode = None
+        modal_romans: List[str] = []
+        modal_reason = None
+        modal_characteristics: List[str] = []
+
+        if self.modal_analyzer is not None:
+            # Use standardized async modal analysis
+            modal_result = await self.modal_analyzer.analyze_async(
+                chord_symbols, key_hint or key_sig
+            )
+            if modal_result:
+                modal_conf = modal_result.confidence
+                modal_mode = modal_result.inferred_mode
+                modal_reason = modal_result.rationale
+                modal_characteristics = [c.label for c in modal_result.characteristics]
+                # For modal romans, we can reuse functional romans or
+                # extract from modal result
+                modal_romans = romans  # Same progression, different interpretation
+
+        # 6) Build summaries + arbitration
+        functional_summary = AnalysisSummary(
+            type=AnalysisType.FUNCTIONAL,
+            roman_numerals=romans,
+            confidence=float(func_conf or 0.0),
+            key_signature=key_sig,
+            mode=mode,
+            reasoning=func_reason,
+            functional_confidence=float(func_conf or 0.0),
+            modal_confidence=(
+                float(modal_conf or 0.0) if modal_conf is not None else None
+            ),
+            terms={},
+            patterns=pattern_matches,
+            chromatic_elements=chroma_dto,
+            chords=chords_dto,
+            modal_characteristics=[],
+            # NEW: Section-aware fields
+            sections=list(sections) if sections else [],
+            terminal_cadences=terminal_cadences,
+            final_cadence=final_cadence,
+        )
+
+        modal_summary: Optional[AnalysisSummary] = None
+        if modal_conf is not None:
+            modal_summary = AnalysisSummary(
+                type=AnalysisType.MODAL,
+                roman_numerals=modal_romans,
+                confidence=float(modal_conf or 0.0),
+                key_signature=key_sig,
+                mode=modal_mode,
+                reasoning=modal_reason,
+                functional_confidence=(
+                    float(func_conf or 0.0) if func_conf is not None else None
+                ),
+                modal_confidence=float(modal_conf or 0.0),
+                chords=chords_dto,
+                patterns=pattern_matches,
+                modal_characteristics=modal_characteristics,
+                # NEW: Section-aware fields
+                sections=list(sections) if sections else [],
+                terminal_cadences=terminal_cadences,
+                final_cadence=final_cadence,
+            )
+
+        # Centralized arbitration using dedicated service
+        arbitration_result = self.arbitration_service.arbitrate(
+            functional_summary=functional_summary,
+            modal_summary=modal_summary,
+            chord_symbols=chord_symbols,
+        )
+        primary = arbitration_result.primary
+        alternatives = arbitration_result.alternatives
+
+        # Apply confidence calibration if available
+        if self.calibration_service and self.auto_calibrate:
+            calibration_start = time.time()
+            calibration_count = 0
+
+            try:
+                logger.info("Starting confidence calibration")
+
+                # Extract features for calibration routing
+                features = self._extract_calibration_features(
+                    chord_symbols=chord_symbols,
+                    analysis_result=primary,
+                    pattern_matches=pattern_matches,
+                    key_signature=key_sig,
+                )
+                logger.debug(f"Extracted calibration features: {features}")
+
+                # Calibrate primary result
+                if (
+                    primary
+                    and hasattr(primary, "confidence")
+                    and primary.confidence is not None
+                ):
+                    track = (
+                        "modal"
+                        if primary.type == AnalysisType.MODAL
+                        else "functional"
+                    )
+                    original_confidence = primary.confidence
+                    calibrated_confidence = (
+                        self.calibration_service.calibrate_confidence(
+                            primary.confidence, track, features
+                        )
+                    )
+                    primary.confidence = calibrated_confidence
+                    calibration_count += 1
+
+                    logger.info(
+                        f"Calibrated {track} confidence: {original_confidence:.3f} →"
+                        f" {calibrated_confidence:.3f} "
+                        f"(delta: {calibrated_confidence - original_confidence:+.3f})"
+                    )
+
+                # Calibrate alternatives
+                for i, alt in enumerate(alternatives):
+                    if (
+                        alt
+                        and hasattr(alt, "confidence")
+                        and alt.confidence is not None
+                    ):
+                        alt_track = (
+                            "modal"
+                            if alt.type == AnalysisType.MODAL
+                            else "functional"
+                        )
+                        original_alt_confidence = alt.confidence
+                        calibrated_alt_confidence = (
+                            self.calibration_service.calibrate_confidence(
+                                alt.confidence, alt_track, features
+                            )
+                        )
+                        alt.confidence = calibrated_alt_confidence
+                        calibration_count += 1
+
+                        logger.debug(
+                            f"Calibrated alternative {i+1} ({alt_track}):"
+                            f" {original_alt_confidence:.3f} →"
+                            f" {calibrated_alt_confidence:.3f}"
+                        )
+
+                # Log calibration performance metrics
+                calibration_duration = (time.time() - calibration_start) * 1000
+                logger.info(
+                    f"Confidence calibration completed: {calibration_count} scores "
+                    f"calibrated in {calibration_duration:.1f}ms"
+                )
+
+            except Exception as e:
+                # Graceful fallback - log error but continue with uncalibrated results
+                logger.error(f"Confidence calibration failed: {str(e)}", exc_info=True)
+                logger.warning("Continuing with uncalibrated confidence scores")
+
+        envelope = AnalysisEnvelope(
+            primary=primary,
+            alternatives=alternatives,
+            analysis_time_ms=(time.time() - t0) * 1000.0,
+            chord_symbols=list(chord_symbols),
+            evidence=[],
+            schema_version="1.0",
+        )
+        return envelope
+
+    # --- Thin sync facade (optional) ---
     def analyze_with_patterns(
         self,
         chord_symbols: List[str],
         profile: str = "classical",
         best_cover: bool = True,
-        key_hint: str | None = None,   # ← add this
-    ) -> Dict[str, Any]:
+        key_hint: Optional[str] = None,
+        sections: Optional[List[SectionDTO]] = None,
+    ) -> AnalysisEnvelope:
+        """Synchronous wrapper. Prefer the async API in async applications.
+
+        Safe in both contexts:
+        - If no event loop is running in this thread, use asyncio.run().
+        - If an event loop *is* running (e.g., pytest-asyncio), spin up a
+          dedicated thread with its own loop and run the coroutine there.
         """
-        Analyze chord progression using pattern engine.
-
-        Args:
-            chord_symbols: List of chord symbols (e.g., ['Am', 'F', 'C', 'G'])
-            profile: Analysis profile ('classical', 'jazz', 'pop')
-            best_cover: If True, return best non-overlapping cover; if False, return all candidates.
-
-        Returns:
-            Dictionary containing pattern analysis results
-        """
-        if not self.matcher:
-            return {"error": "Pattern engine not available"}
-
-        if not chord_symbols:
-            return {
-                "error": "Empty chord progression",
-                "chord_symbols": [],
-                "tokens": [],
-                "pattern_matches": [],
-                "harmonic_terms": [],
-                "romans_text": "",
-                "analysis_time_ms": 0.0,
-                "profile": profile
-            }
-
-        start_time = time.time()
-
-        # First, get functional analysis with key hint
-        functional_result = asyncio.run(
-            self.functional_analyzer.analyze_functionally(
-                chord_symbols, key_hint=key_hint, lock_key=True
-            )
-        )
-
-        # Convert to tokens (no key_hint - use analysis result key)
-        tokens = self.token_converter.convert_analysis_to_tokens(
-            chord_symbols=chord_symbols,
-            analysis_result=functional_result,
-        )
-        # ---- DEBUG EXPOSURE (safe to remove later) ----
-        self._last_tokens = tokens
-        # ---- END DEBUG EXPOSURE ----
-
-        # Update matcher profile if needed
-        if profile != "classical":
-            self.matcher = Matcher(self.pattern_lib, profile=profile)
-            # ---- DEBUG EXPOSURE (safe to remove later) ----
-            self._pattern_matcher = self.matcher
-            # ---- END DEBUG EXPOSURE ----
-
-        # Stage B: Extract low-level events for enhanced pattern constraints
-        from ..core.pattern_engine.low_level_events import LowLevelEventExtractor
-        event_extractor = LowLevelEventExtractor()
-        events = event_extractor.extract_events(tokens, chord_symbols, functional_result.key_center)
-
-        # Set events in matcher's constraint validator
-        self.matcher.constraint_validator.set_events(events)
-
-        # Stage C: Extract voice-leading events (MelodicEvents)
-        # Get key as integer for voice-leading inference
-        key_pc = self._key_to_pitch_class(functional_result.key_center)
-        melodic_events = event_extractor._infer_voice_leading_events(tokens, chord_symbols, key_pc)
-
-        # Find pattern matches
-        pattern_matches = self.matcher.match(tokens, best_cover=best_cover)
-
-        analysis_time = time.time() - start_time
-
-        # Extract harmonic terms for educational features
-        token_dicts = [self._token_to_dict(token) for token in tokens]
-        harmonic_terms, romans_text = harvest_harmonic_terms(token_dicts, pattern_matches)
-
-        return {
-            "chord_symbols": chord_symbols,
-            "tokens": token_dicts,
-            "pattern_matches": pattern_matches,
-            "analysis_time_ms": round(analysis_time * 1000, 2),
-            "profile": profile,
-            "functional_analysis": self._functional_result_to_dict(functional_result),
-            "melodic_events": self._melodic_events_to_dict(melodic_events),
-            "harmonic_terms": harmonic_terms,
-            "romans_text": romans_text
-        }
-
-    def analyze_with_educational_context(
-        self,
-        chord_symbols: List[str],
-        profile: str = "classical"
-    ) -> Dict[str, Any]:
-        """
-        Analyze chord progression with educational explanations and glossary context.
-
-        Args:
-            chord_symbols: List of chord symbols
-            profile: Analysis profile
-
-        Returns:
-            Analysis results enhanced with educational context
-        """
-        # Get standard pattern analysis
-        basic_analysis = self.analyze_with_patterns(chord_symbols, profile)
-
-        # Enhance with educational context
-        enhanced_matches = []
-        for match in basic_analysis.get("pattern_matches", []):
-            enhanced_match = self.glossary_service.explain_pattern_result(match)
-            enhanced_matches.append(enhanced_match)
-
-        # Generate teaching points
-        teaching_points = self.glossary_service.get_pattern_teaching_points(
-            basic_analysis.get("pattern_matches", [])
-        )
-
-        # Add glossary explanations for key terms found
-        key_terms = self._extract_key_terms(basic_analysis)
-        term_definitions = {}
-        for term in key_terms:
-            definition = self.glossary_service.get_term_definition(term)
-            if definition:
-                term_definitions[term] = definition
-
-        # Get harmonic terms from basic analysis
-        harmonic_terms = basic_analysis.get("harmonic_terms", [])
-        romans_text = basic_analysis.get("romans_text", "")
-
-        # Mirror harmonic terms into each enhanced match's educational context
-        for enhanced_match in enhanced_matches:
-            educational_context = enhanced_match.setdefault("educational_context", {})
-            educational_context.setdefault("harmonic_terms", harmonic_terms)
-            educational_context.setdefault("romans_text", romans_text)
-
-        return {
-            **basic_analysis,
-            "enhanced_pattern_matches": enhanced_matches,
-            "teaching_points": teaching_points,
-            "term_definitions": term_definitions,
-            "educational_analysis": True
-        }
-
-    def a_b_test_analysis(
-        self,
-        chord_symbols: List[str],
-        profile: str = "classical"
-    ) -> Dict[str, Any]:
-        """
-        A/B test pattern engine vs current analysis approach.
-
-        Args:
-            chord_symbols: List of chord symbols
-            profile: Analysis profile for pattern engine
-
-        Returns:
-            Comparison results between approaches
-        """
-        # Current approach analysis
-        start_time = time.time()
-        current_result = self._analyze_current_approach(chord_symbols)
-        current_time = time.time() - start_time
-
-        # Pattern engine analysis
-        start_time = time.time()
-        pattern_result = self.analyze_with_patterns(chord_symbols, profile)
-        pattern_time = time.time() - start_time
-
-        # Compare results
-        comparison = self._compare_analyses(current_result, pattern_result)
-
-        return {
-            "chord_symbols": chord_symbols,
-            "current_approach": {
-                "result": current_result,
-                "analysis_time_ms": round(current_time * 1000, 2)
-            },
-            "pattern_engine": {
-                "result": pattern_result,
-                "analysis_time_ms": round(pattern_time * 1000, 2)
-            },
-            "comparison": comparison,
-            "performance_ratio": pattern_time / current_time if current_time > 0 else 0
-        }
-
-    def validate_core_patterns(self) -> Dict[str, Any]:
-        """
-        Validate core patterns against known test cases.
-
-        Returns:
-            Validation results for core harmonic patterns
-        """
-        test_cases = [
-            {
-                "name": "vi-IV-I-V Pop Progression",
-                "chords": ["Am", "F", "C", "G"],
-                "expected_key": "C major",
-                "expected_patterns": ["vi-IV-I-V"],
-                "profile": "pop"
-            },
-            {
-                "name": "ii-V-I Jazz Progression",
-                "chords": ["Dm7", "G7", "Cmaj7"],
-                "expected_key": "C major",
-                "expected_patterns": ["ii-V-I"],
-                "profile": "jazz"
-            },
-            {
-                "name": "Perfect Authentic Cadence",
-                "chords": ["F", "G7", "C"],
-                "expected_key": "C major",
-                "expected_patterns": ["PAC", "IV-V-I"]
-            },
-            {
-                "name": "Imperfect Authentic Cadence",
-                "chords": ["Dm", "G", "C"],
-                "expected_key": "C major",
-                "expected_patterns": ["IAC", "ii-V-I"]
-            },
-            {
-                "name": "Half Cadence",
-                "chords": ["C", "F", "G"],
-                "expected_key": "C major",
-                "expected_patterns": ["half_cadence"]
-            },
-            {
-                "name": "Phrygian Cadence (minor)",
-                "chords": ["Am", "Dm/F", "E"],
-                "expected_key": "A minor",
-                "expected_patterns": ["phrygian"],
-                "profile": "classical"
-            },
-            {
-                "name": "Pachelbel Canon Core (D)",
-                "chords": ["D", "A", "Bm", "F#m", "G", "D", "G", "A"],
-                "expected_key": "D major",
-                "expected_patterns": ["pachelbel"],
-                "profile": "pop"
-            }
-        ]
-
-        results = {
-            "total_tests": len(test_cases),
-            "passed": 0,
-            "failed": 0,
-            "test_results": []
-        }
-
-        for test_case in test_cases:
-            try:
-                analysis = self.analyze_with_patterns(
-                    test_case["chords"],
-                    profile=test_case.get("profile", "classical"),
-                    best_cover=False,
-                )
-
-                # Check if expected patterns were found
-                pattern_matches = analysis.get("pattern_matches", [])
-                found_patterns = [match.get("name", "").lower() for match in pattern_matches]
-                found_families = [match.get("family", "").lower() for match in pattern_matches]
-
-                # More flexible pattern validation (aliases, families, descriptors)
-                pattern_found = False
-
-                # helpers
-                def name_has(s: str) -> bool:
-                    s = s.lower()
-                    return any(s in p for p in found_patterns)
-
-                def fam_has(s: str) -> bool:
-                    s = s.lower()
-                    return any(s in f for f in found_families)
-
-                # alias map
-                ALIASES = {
-                    "vi-iv-i-v": ["vi–iv–i–v", "i–v–vi–iv", "i–vi–iv–v", "pop loop", "jazz_pop"],
-                    "ii-v-i": ["ii–v–i", "ii–v–i (macro)", "jazz ii–v–i"],
-                    "pac": ["perfect authentic cadence", "authentic cadence"],
-                    "iac": ["imperfect authentic cadence"],
-                    "half_cadence": ["half cadence"],
-                    "phrygian": ["phrygian"],
-                    "pachelbel": ["pachelbel", "pachelbel canon core"]
-                }
-
-                for expected in test_case["expected_patterns"]:
-                    e = expected.lower()
-
-                    # direct name or alias
-                    if name_has(e) or any(name_has(a) for a in ALIASES.get(e, [])):
-                        pattern_found = True
-                        break
-
-                    # family-based acceptance
-                    if e in ("vi-iv-i-v", "ii-v-i"):
-                        if fam_has("jazz_pop") or fam_has("sequence"):
-                            pattern_found = True
-                            break
-                    if e in ("pac", "iac", "half_cadence", "phrygian"):
-                        if fam_has("cadence"):
-                            pattern_found = True
-                            break
-                    if e == "pachelbel" and fam_has("schema"):
-                        pattern_found = True
-                        break
-
-                test_result = {
-                    "name": test_case["name"],
-                    "chords": test_case["chords"],
-                    "expected_patterns": test_case["expected_patterns"],
-                    "found_patterns": found_patterns,
-                    "pattern_matched": pattern_found,
-                    "key_detected": analysis.get("functional_analysis", {}).get("key_center", "unknown"),
-                    "passed": pattern_found
-                }
-
-                if pattern_found:
-                    results["passed"] += 1
-                else:
-                    results["failed"] += 1
-
-                results["test_results"].append(test_result)
-
-            except Exception as e:
-                results["failed"] += 1
-                results["test_results"].append({
-                    "name": test_case["name"],
-                    "chords": test_case["chords"],
-                    "error": str(e),
-                    "passed": False
-                })
-
-        results["success_rate"] = results["passed"] / results["total_tests"] if results["total_tests"] > 0 else 0
-
-        return results
-
-    def _analyze_current_approach(self, chord_symbols: List[str]) -> Dict[str, Any]:
-        """Analyze using current library approach (public API)."""
         try:
-            # Use the public API - what users actually call
-            result = asyncio.run(analyze_chord_progression(chord_symbols))
+            # If this does not raise, we're currently inside a running event loop.
+            asyncio.get_running_loop()
 
-            # Extract information from MultipleInterpretationResult
-            primary_analysis = getattr(result, 'primary_analysis', None)
-            alternative_analyses = getattr(result, 'alternative_analyses', [])
+            # Run the coroutine in a separate thread with its own loop.
+            import threading
 
-            # Build best interpretation from primary analysis
-            best_interpretation = {}
-            if primary_analysis:
-                best_interpretation = {
-                    'key': getattr(primary_analysis, 'key', 'unknown'),
-                    'confidence': getattr(primary_analysis, 'confidence', 0.0),
-                    'analysis': getattr(primary_analysis, 'analysis', ''),
-                    'interpretation_type': getattr(primary_analysis, 'interpretation_type', 'unknown')
-                }
+            result_holder: Dict[str, AnalysisEnvelope] = {}
+            error_holder: Dict[str, BaseException] = {}
 
-            # Build interpretations list
-            interpretations = [best_interpretation] if best_interpretation else []
-            for alt in alternative_analyses:
-                interpretations.append({
-                    'key': getattr(alt, 'key', 'unknown'),
-                    'confidence': getattr(alt, 'confidence', 0.0),
-                    'analysis': getattr(alt, 'analysis', ''),
-                    'interpretation_type': getattr(alt, 'interpretation_type', 'unknown')
-                })
+            def _runner() -> None:
+                loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(loop)
+                    coro = self.analyze_with_patterns_async(
+                        chord_symbols=chord_symbols,
+                        profile=profile,
+                        best_cover=best_cover,
+                        key_hint=key_hint,
+                        sections=sections,
+                    )
+                    result_holder["res"] = loop.run_until_complete(coro)
+                except (
+                    BaseException
+                ) as e:  # capture any exception to re-raise in caller thread
+                    error_holder["err"] = e
+                finally:
+                    loop.close()
 
-            return {
-                "interpretations": interpretations,
-                "best_interpretation": best_interpretation,
-                "approach": "public_api",
-                "result_type": str(type(result).__name__)
-            }
-        except Exception as e:
-            return {"error": str(e), "approach": "public_api"}
+            t = threading.Thread(target=_runner, daemon=True)
+            t.start()
+            t.join()
 
-    def _compare_analyses(self, current: Dict[str, Any], pattern: Dict[str, Any]) -> Dict[str, Any]:
-        """Compare current approach vs pattern engine results."""
-        comparison = {
-            "key_agreement": False,
-            "confidence_comparison": None,
-            "pattern_coverage": None,
-            "differences": []
-        }
+            if "err" in error_holder:
+                raise error_holder["err"]
+            return result_holder["res"]
 
-        # Compare key detection
-        current_key = current.get("best_interpretation", {}).get("key", "unknown")
-        pattern_key = pattern.get("functional_analysis", {}).get("key_center", "unknown")
-
-        comparison["key_agreement"] = current_key.lower() == pattern_key.lower()
-        comparison["current_key"] = current_key
-        comparison["pattern_key"] = pattern_key
-
-        # Compare confidence levels
-        current_conf = current.get("best_interpretation", {}).get("confidence", 0)
-        pattern_matches = pattern.get("pattern_matches", [])
-        pattern_conf = max([match.get("score", 0) for match in pattern_matches], default=0)
-
-        comparison["current_confidence"] = current_conf
-        comparison["pattern_confidence"] = pattern_conf
-
-        # Pattern coverage
-        comparison["patterns_found"] = len(pattern_matches)
-        comparison["pattern_names"] = [match.get("name", "unknown") for match in pattern_matches]
-
-        return comparison
-
-    def _token_to_dict(self, token: Token) -> Dict[str, Any]:
-        """Convert Token object to dictionary for JSON serialization."""
-        return {
-            "roman": token.roman,
-            "role": token.role,
-            "flags": token.flags,
-            "flags_text": ' '.join(token.flags) if hasattr(token, 'flags') and token.flags else '',
-            "mode": token.mode,
-            "bass_motion_from_prev": token.bass_motion_from_prev,
-            "soprano_degree": token.soprano_degree,
-            "secondary_of": token.secondary_of
-        }
-
-    def _functional_result_to_dict(self, result) -> Dict[str, Any]:
-        """Convert FunctionalAnalysisResult object to dictionary for JSON serialization."""
-        return {
-            "key_center": getattr(result, 'key_center', 'unknown'),
-            "key_signature": getattr(result, 'key_signature', 'unknown'),
-            "mode": getattr(result, 'mode', 'major'),
-            "confidence": getattr(result, 'confidence', 0.0),
-            "explanation": getattr(result, 'explanation', ''),
-            "progression_type": str(getattr(result, 'progression_type', 'unknown')),
-            "chords": [
-                {
-                    "roman_numeral": chord.roman_numeral,
-                    "function": str(chord.function),
-                    "chord_symbol": chord.chord_symbol,
-                    "inversion": getattr(chord, 'inversion', None),
-                    "quality": getattr(chord, 'quality', 'triad')
-                }
-                for chord in getattr(result, 'chords', [])
-            ],
-            "cadences": [str(cadence) for cadence in getattr(result, 'cadences', [])],
-            "chromatic_elements": [str(element) for element in getattr(result, 'chromatic_elements', [])]
-        }
-
-    def _extract_key_terms(self, analysis: Dict[str, Any]) -> List[str]:
-        """Extract key musical terms from analysis for glossary lookup."""
-        key_terms = set()
-
-        # Extract terms from pattern matches
-        for match in analysis.get("pattern_matches", []):
-            family = match.get("family", "").lower()
-            if family:
-                key_terms.add(family)
-
-            # Extract role terms from evidence
-            if isinstance(match.get("evidence"), list):
-                for evidence_item in match["evidence"]:
-                    # Handle both old tuple format and new StepEvidence format
-                    role = None
-                    if isinstance(evidence_item, dict):
-                        # New StepEvidence format: {'step_index': int, 'roman': str, 'role': str, 'flags': List[str]}
-                        role = evidence_item.get('role', '').lower()
-                    elif isinstance(evidence_item, (tuple, list)) and len(evidence_item) >= 3:
-                        # Old tuple format: (index, roman, role, flags)
-                        role = evidence_item[2].lower()
-
-                    if role:
-                        if role in ['t', 'tonic']:
-                            key_terms.add('tonic')
-                        elif role in ['pd', 'predominant']:
-                            key_terms.add('predominant')
-                        elif role in ['d', 'dominant']:
-                            key_terms.add('dominant')
-
-        # Extract terms from tokens
-        for token in analysis.get("tokens", []):
-            role = token.get("role", "").lower()
-            if role in ['t', 'tonic']:
-                key_terms.add('tonic')
-            elif role in ['pd', 'predominant']:
-                key_terms.add('predominant')
-            elif role in ['d', 'dominant']:
-                key_terms.add('dominant')
-
-        # Add common terms
-        key_terms.add('scale_degree')
-
-        return list(key_terms)
-
-    def _key_to_pitch_class(self, key_center: str) -> int:
-        """Convert key center string to pitch class integer for voice-leading inference."""
-        # Map key centers to pitch classes (C=0, C#=1, ..., B=11)
-        key_map = {
-            'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4,
-            'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9,
-            'A#': 10, 'Bb': 10, 'B': 11
-        }
-
-        # Extract root note from key center (e.g., "C major" -> "C")
-        if ' ' in key_center:
-            root = key_center.split(' ')[0]
-        else:
-            root = key_center
-
-        return key_map.get(root, 0)  # Default to C if unknown
-
-    def _melodic_events_to_dict(self, melodic_events) -> Dict[str, Any]:
-        """Convert MelodicEvents object to dictionary for JSON serialization."""
-        from ..analysis_types import MelodicEvents
-
-        if not isinstance(melodic_events, MelodicEvents):
-            return {}
-
-        return {
-            "soprano_degree": melodic_events.soprano_degree,
-            "voice_4_to_3": melodic_events.voice_4_to_3,
-            "voice_7_to_1": melodic_events.voice_7_to_1,
-            "fi_to_sol": melodic_events.fi_to_sol,
-            "le_to_sol": melodic_events.le_to_sol,
-            "source": melodic_events.source
-        }
+        except RuntimeError:
+            # No running loop in this thread: safe to use asyncio.run
+            return asyncio.run(
+                self.analyze_with_patterns_async(
+                    chord_symbols=chord_symbols,
+                    profile=profile,
+                    best_cover=best_cover,
+                    key_hint=key_hint,
+                    sections=sections,
+                )
+            )

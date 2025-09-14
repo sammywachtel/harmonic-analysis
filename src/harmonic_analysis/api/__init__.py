@@ -6,7 +6,7 @@ All functions in this package are exposed at the top level of the library.
 """
 
 # Core analysis functions
-from .analysis import analyze_chord_progression, analyze_melody, analyze_scale
+from .analysis import analyze_melody, analyze_scale
 
 # Character and emotional analysis
 from .character import (
@@ -48,7 +48,6 @@ from .musical_data import (
 
 __all__ = [
     # Core analysis functions
-    "analyze_chord_progression",
     "analyze_melody",
     "analyze_scale",
     # Musical data API

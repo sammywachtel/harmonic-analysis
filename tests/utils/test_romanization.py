@@ -2,6 +2,7 @@ import pytest
 
 from harmonic_analysis.core.pattern_engine import TokenConverter
 
+
 def test_minor_andalusian_spelling():
     tc = TokenConverter()
     key = "A minor"
@@ -9,6 +10,7 @@ def test_minor_andalusian_spelling():
     romans = tc._generate_roman_numerals(seq, key)
     romans = tc._normalize_minor_subtonic(seq, romans, key)
     assert romans == ["i", "bVII", "VI", "V"], romans
+
 
 def test_backdoor_preference_in_major():
     tc = TokenConverter()
@@ -18,6 +20,7 @@ def test_backdoor_preference_in_major():
     romans = tc._normalize_minor_subtonic(seq, romans, key)
     romans = tc._prefer_backdoor_bVII(seq, romans, key, mode="major")
     assert romans == ["iv7", "bVII7", "Imaj7"], romans
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -1,0 +1,350 @@
+"""
+Stable API types for the harmonic analysis library.
+
+These DTOs form the public contract between the library and its users.
+They should evolve carefully to maintain backwards compatibility.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Literal, Optional
+
+# -----------------------------
+# Enums
+# -----------------------------
+# Define enumeration types used throughout the analysis DTOs.
+# These enums provide a fixed set of string values representing analysis categories.
+
+
+class AnalysisType(str, Enum):
+    FUNCTIONAL = "functional"
+    MODAL = "modal"
+
+
+class ProgressionType(str, Enum):
+    """Classification of chord progression types for arbitration heuristics"""
+
+    CLEAR_FUNCTIONAL = "clear_functional"
+    CLEAR_MODAL = "clear_modal"
+    AMBIGUOUS = "ambiguous"
+    UNKNOWN = "unknown"
+
+
+# -----------------------------
+# Leaf DTOs
+# -----------------------------
+# Basic data transfer objects representing elemental components of harmonic analysis,
+# such as individual chords, detected patterns, chromatic elements,
+# and evidence entries.
+
+
+@dataclass
+class FunctionalChordDTO:
+    """A single chord as analyzed functionally."""
+
+    chord_symbol: str  # e.g., "Dm7"
+    roman_numeral: Optional[str] = None  # e.g., "ii7"
+    function: Optional[str] = None  # e.g., "predominant"
+    inversion: Optional[int] = None  # 0 = root position, etc.
+    quality: Optional[str] = None  # "triad", "seventh", etc.
+    secondary_of: Optional[str] = None  # e.g., "V" for V/V
+    is_chromatic: Optional[bool] = None
+    bass_note: Optional[str] = None  # e.g., "G" if slash chord
+
+
+@dataclass
+class SectionDTO:
+    """A labeled section of the analyzed piece (e.g., verse, chorus)."""
+
+    id: str  # e.g., "A", "B", "Bridge", or "0", "1"
+    start: int  # inclusive chord index
+    end: int  # exclusive chord index
+    label: Optional[str] = None  # optional display name
+
+
+@dataclass
+class PatternMatchDTO:
+    """A detected harmonic pattern (cadence, schema, etc.)."""
+
+    start: int
+    end: int
+    pattern_id: str
+    name: str
+    family: str
+    score: float
+    evidence: List[Dict[str, Any]] = field(default_factory=list)
+    # Section-aware fields (as per music-alg-2h.md specification)
+    section: Optional[str] = None  # Section ID: "A", "B", "Verse1", etc.
+    cadence_role: Optional[Literal["final", "section-final", "internal"]] = (
+        None  # Cadence type
+    )
+    is_section_closure: Optional[bool] = None  # True if pattern closes a section
+
+
+@dataclass
+class ChromaticElementDTO:
+    """A chromatic device (e.g., secondary dominant, mixture)."""
+
+    type: str  # e.g., "secondary_dominant"
+    chord_symbol: Optional[str] = None  # source chord symbol
+    roman_numeral: Optional[str] = None  # source roman
+    resolution_to: Optional[str] = None  # target roman
+    explanation: Optional[str] = None
+
+
+@dataclass
+class EvidenceDTO:
+    """Arbitration/tracing evidence for why an analysis was chosen."""
+
+    reason: str  # short reason code, e.g., "modal-vamp"
+    details: Dict[str, Any] = field(default_factory=dict)
+
+
+# -----------------------------
+# Core summaries
+# -----------------------------
+# DTOs summarizing the results of harmonic analysis interpretations,
+# including either functional or modal analyses, confidence scores,
+# and detailed metadata.
+
+
+@dataclass
+class AnalysisSummary:
+    """
+    Summary of a single harmonic analysis interpretation.
+
+    This represents either a functional analysis (e.g., I–IV–V–I) or a modal analysis
+    (e.g., G Mixolydian over C major parent key) with confidence metrics and details.
+    """
+
+    type: AnalysisType
+    roman_numerals: List[str]
+    confidence: float
+
+    # Common context
+    key_signature: Optional[str] = None  # "C major", "A minor"
+    mode: Optional[str] = None  # "major", "minor", "Mixolydian", etc.
+    reasoning: Optional[str] = None  # human-readable rationale
+
+    # Confidence decomposition (optional)
+    functional_confidence: Optional[float] = None
+    modal_confidence: Optional[float] = None
+
+    # Structured extras (optional)
+    terms: Dict[str, str] = field(default_factory=dict)
+    patterns: List[PatternMatchDTO] = field(default_factory=list)
+    chromatic_elements: List[ChromaticElementDTO] = field(default_factory=list)
+
+    # Optional chord list (useful in functional primary)
+    chords: List[FunctionalChordDTO] = field(default_factory=list)
+
+    # Optional modal features (e.g., "♭VII chord", "raised 4th")
+    modal_characteristics: List[str] = field(default_factory=list)
+
+    # NEW: Section-aware fields (only populated when sections are supplied)
+    sections: List[SectionDTO] = field(default_factory=list)
+
+    # NEW: all cadences that close sections (including the global final if applicable)
+    terminal_cadences: List[PatternMatchDTO] = field(default_factory=list)
+
+    # EXISTING: keep a single global final cadence (if any)
+    final_cadence: Optional[PatternMatchDTO] = None
+
+    def __post_init__(self) -> None:
+        # Clamp confidence values into [0, 1] to ensure valid probability ranges.
+        def clamp(x: Optional[float]) -> Optional[float]:
+            if x is None:
+                return None
+            return min(1.0, max(0.0, x))
+
+        self.confidence = clamp(self.confidence) or 0.0
+        self.functional_confidence = clamp(self.functional_confidence)
+        self.modal_confidence = clamp(self.modal_confidence)
+
+    # Convenience (std-lib) serialization without extra deps
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        # Convert enum to its string value before serialization
+        d["type"] = self.type.value
+        return d
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "AnalysisSummary":
+        """
+        Deserialize a dictionary into an AnalysisSummary object.
+
+        Handles nested DTOs and legacy key mappings for backward compatibility.
+
+        Helper functions:
+        - _pm: Converts dicts representing PatternMatchDTOs, normalizing
+              keys and default values.
+        - _ce: Converts dicts representing ChromaticElementDTOs,
+              handling legacy keys and renaming.
+        - _fc: Converts dicts representing FunctionalChordDTOs.
+        """
+        # Accept either a string or enum instance for analysis type
+        atype = d.get("type", AnalysisType.FUNCTIONAL)
+        if isinstance(atype, str):
+            atype = AnalysisType(atype)
+
+        def _pm(x: Any) -> PatternMatchDTO:
+            """
+            Convert a dict or object into a PatternMatchDTO.
+
+            Handles legacy keys:
+            - 'id' renamed to 'pattern_id'
+            Ensures required keys are present with defaults:
+            - start, end, evidence, family, name
+            Converts score to float.
+            """
+            if isinstance(x, dict):
+                y = dict(x)
+                # tolerate legacy/plain keys
+                if "pattern_id" not in y and "id" in y:
+                    y["pattern_id"] = y.pop("id")
+                y.setdefault("start", 0)
+                y.setdefault("end", 0)
+                y.setdefault("evidence", [])
+                y.setdefault("family", y.get("family", "unknown"))
+                y.setdefault("name", y.get("pattern_id", ""))
+                # ensure numeric score
+                y["score"] = float(y.get("score", 0.0))
+                return PatternMatchDTO(**y)
+            # If x is already a PatternMatchDTO, return it as-is
+            if isinstance(x, PatternMatchDTO):
+                return x
+            # For any other type, create a default PatternMatchDTO
+            return PatternMatchDTO(
+                start=0, end=0, pattern_id="", name="", family="", score=0.0
+            )
+
+        def _ce(x: Any) -> ChromaticElementDTO:
+            """
+            Convert a dict or object into a ChromaticElementDTO.
+
+            Handles legacy keys and renames:
+            - 'kind' to 'type'
+            - 'roman' to 'roman_numeral'
+            - 'resolution' to 'resolution_to'
+            Provides default values for missing keys.
+            """
+            if isinstance(x, dict):
+                y = dict(x)
+                # accept either 'type' or legacy 'kind'
+                y.setdefault("type", y.get("kind", "unknown"))
+                # map shorthand keys to DTO field names
+                if "roman" in y and "roman_numeral" not in y:
+                    y["roman_numeral"] = y.pop("roman")
+                if "resolution" in y and "resolution_to" not in y:
+                    y["resolution_to"] = y.pop("resolution")
+                return ChromaticElementDTO(**y)
+            # If x is already a ChromaticElementDTO, return it as-is
+            if isinstance(x, ChromaticElementDTO):
+                return x
+            # For any other type, create a default ChromaticElementDTO
+            return ChromaticElementDTO(type="unknown")
+
+        def _fc(x: Any) -> FunctionalChordDTO:
+            """
+            Convert a dict or object into a FunctionalChordDTO.
+
+            Assumes input is a dict with appropriate keys.
+            """
+            return FunctionalChordDTO(**x) if isinstance(x, dict) else x
+
+        return AnalysisSummary(
+            type=atype,
+            roman_numerals=list(d.get("roman_numerals", [])),
+            confidence=float(d.get("confidence", 0.0)),
+            key_signature=d.get("key_signature"),
+            mode=d.get("mode"),
+            reasoning=d.get("reasoning"),
+            functional_confidence=d.get("functional_confidence"),
+            modal_confidence=d.get("modal_confidence"),
+            terms=dict(d.get("terms", {})),
+            patterns=[_pm(x) for x in d.get("patterns", [])],
+            chromatic_elements=[_ce(x) for x in d.get("chromatic_elements", [])],
+            chords=[_fc(x) for x in d.get("chords", [])],
+            modal_characteristics=list(d.get("modal_characteristics", [])),
+        )
+
+
+# -----------------------------
+# Envelope (top-level result)
+# -----------------------------
+# The top-level DTO encapsulating the full analysis result,
+# including the primary interpretation, alternative analyses, metadata, and evidence.
+
+
+@dataclass
+class AnalysisEnvelope:
+    """
+    Complete analysis result containing primary interpretation and alternatives.
+
+    This is the main DTO returned by the PatternAnalysisService and represents
+    the stable public API contract.
+    """
+
+    primary: AnalysisSummary
+    alternatives: List[AnalysisSummary] = field(default_factory=list)
+
+    # Analysis metadata
+    analysis_time_ms: Optional[float] = None
+    chord_symbols: List[str] = field(default_factory=list)
+    evidence: List[EvidenceDTO] = field(default_factory=list)
+
+    # Contract metadata (for forward/backward compatibility)
+    schema_version: str = "1.0"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "primary": self.primary.to_dict(),
+            "alternatives": [a.to_dict() for a in self.alternatives],
+            "analysis_time_ms": self.analysis_time_ms,
+            "chord_symbols": list(self.chord_symbols),
+            "evidence": [asdict(e) for e in self.evidence],
+            "schema_version": self.schema_version,
+        }
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "AnalysisEnvelope":
+        """
+        Deserialize a dictionary into an AnalysisEnvelope object.
+
+        Handles nested AnalysisSummary and EvidenceDTO objects.
+        """
+
+        def _sum(x: Any) -> AnalysisSummary:
+            return AnalysisSummary.from_dict(x) if isinstance(x, dict) else x
+
+        def _ev(x: Any) -> EvidenceDTO:
+            return EvidenceDTO(**x) if isinstance(x, dict) else x
+
+        return AnalysisEnvelope(
+            primary=_sum(d["primary"]),
+            alternatives=[_sum(x) for x in d.get("alternatives", [])],
+            analysis_time_ms=d.get("analysis_time_ms"),
+            chord_symbols=list(d.get("chord_symbols", [])),
+            evidence=[_ev(x) for x in d.get("evidence", [])],
+            schema_version=d.get("schema_version", "1.0"),
+        )
+
+
+# -----------------------------
+# Arbitration DTOs
+# -----------------------------
+# Result types for analysis arbitration between functional and modal approaches.
+
+
+@dataclass
+class ArbitrationResult:
+    """Result of arbitration analysis between functional and modal approaches"""
+
+    primary: AnalysisSummary
+    alternatives: List[AnalysisSummary]
+    confidence_gap: float
+    progression_type: ProgressionType
+    rationale: str
+    warnings: List[str] = field(default_factory=list)

@@ -23,9 +23,9 @@ try:
         AnalysisOptions,
         CharacterSuggestion,
         EmotionalProfile,
+        PatternAnalysisService,
         ProgressionCharacter,
         analyze_progression_character,
-        analyze_progression_multiple,
         analyze_scale_melody,
         describe_contour,
         describe_emotional_contour,
@@ -306,10 +306,10 @@ def _update_analysis_with_original_romans(result, original_romans):
 
     # Update primary analysis description
     if (
-        hasattr(result.primary_analysis, "analysis")
-        and result.primary_analysis.analysis
+        hasattr(result.primary, "analysis")
+        and result.primary.analysis
     ):
-        original_analysis = result.primary_analysis.analysis
+        original_analysis = result.primary.analysis
         # Replace the Roman numeral sequence in the analysis description
         # Pattern: looks for sequences like "V7/ii - ii⁶ - V7/ii⁶ - ii - I⁶ - V - I"
         pattern = r"([IV]+[♭♯]?[⁰⁺⁶⁴⁷]*/[iv]+[⁰⁺⁶⁴⁷]*|[IV]+[♭♯]?[⁰⁺⁶⁴⁷]*)(?: - ([IV]+[♭♯]?[⁰⁺⁶⁴⁷]*/[iv]+[⁰⁺⁶⁴⁷]*|[IV]+[♭♯]?[⁰⁺⁶⁴⁷]*))*"
@@ -324,7 +324,7 @@ def _update_analysis_with_original_romans(result, original_romans):
                 if len(rest) == 2:
                     suffix = ". " + rest[1]
                     updated_analysis = prefix + roman_sequence + suffix
-                    result.primary_analysis.analysis = updated_analysis
+                    result.primary.analysis = updated_analysis
 
     return result
 
@@ -470,6 +470,8 @@ def _convert_tension_to_float(tension_enum) -> float:
     return tension_map.get(tension_enum.value, 0.5)
 
 
+
+
 def analyze_scale_notes(scale_notes: str, parent_key: Optional[str] = None) -> dict:
     """
     Analyze a sequence of scale notes using the sophisticated scale analysis library.
@@ -535,7 +537,7 @@ def _basic_scale_analysis(scale_notes: str, parent_key: Optional[str] = None) ->
         },
         "harmonic_implications": ["Requires manual analysis"],
         "metadata": {"scale_type": "basic", "analysis_time_ms": 5},
-        "alternative_analyses": [],
+        "alternatives": [],
     }
 
 
@@ -1139,7 +1141,7 @@ class AnalysisResponse(BaseModel):
 
     input_chords: List[str]
     primary_analysis: dict
-    alternative_analyses: List[dict]
+    alternatives: List[dict]
     metadata: dict
 
 
@@ -1251,8 +1253,14 @@ async def analyze_chord_progression(request: AnalysisRequest):
             max_alternatives=request.max_alternatives,
         )
 
-        # Run the analysis with converted chords
-        result = await analyze_progression_multiple(converted_chords, options)
+        # Run the analysis with converted chords using new PatternAnalysisService
+        service = PatternAnalysisService()
+        envelope = await service.analyze_with_patterns_async(
+            converted_chords,
+            profile="classical",
+            key_hint=options.parent_key if options else None
+        )
+        result = envelope
 
         # If we have original Roman numerals, update the analysis description
         if original_roman_numerals:
@@ -1313,21 +1321,21 @@ async def analyze_chord_progression(request: AnalysisRequest):
         response_data = {
             "input_chords": result.input_chords,
             "primary_analysis": {
-                "type": result.primary_analysis.type.value,
-                "confidence": result.primary_analysis.confidence,
-                "analysis": result.primary_analysis.analysis,
+                "type": result.primary.type.value,
+                "confidence": result.primary.confidence,
+                "analysis": result.primary.analysis,
                 "roman_numerals": (
                     [
                         _format_roman_numeral_superscript(roman)
                         for roman in original_roman_numerals
                     ]
                     if original_roman_numerals
-                    else (result.primary_analysis.roman_numerals or [])
+                    else (result.primary.roman_numerals or [])
                 ),
-                "key_signature": result.primary_analysis.key_signature,
-                "mode": result.primary_analysis.mode,
-                "reasoning": result.primary_analysis.reasoning,
-                "theoretical_basis": result.primary_analysis.theoretical_basis,
+                "key_signature": result.primary.key_signature,
+                "mode": result.primary.mode,
+                "reasoning": result.primary.reasoning,
+                "theoretical_basis": result.primary.theoretical_basis,
                 "evidence": [
                     {
                         "type": evidence.type.value,
@@ -1339,44 +1347,44 @@ async def analyze_chord_progression(request: AnalysisRequest):
                         ],
                         "musical_basis": evidence.musical_basis,
                     }
-                    for evidence in result.primary_analysis.evidence
+                    for evidence in result.primary.evidence
                 ],
                 # Enhanced analysis fields
                 "modal_characteristics": getattr(
-                    result.primary_analysis, "modal_characteristics", []
+                    result.primary, "modal_characteristics", []
                 ),
                 "parent_key_relationship": getattr(
-                    result.primary_analysis, "parent_key_relationship", None
+                    result.primary, "parent_key_relationship", None
                 ),
                 "secondary_dominants": getattr(
-                    result.primary_analysis, "secondary_dominants", []
+                    result.primary, "secondary_dominants", []
                 ),
                 "borrowed_chords": getattr(
-                    result.primary_analysis, "borrowed_chords", []
+                    result.primary, "borrowed_chords", []
                 ),
                 "chromatic_mediants": getattr(
-                    result.primary_analysis, "chromatic_mediants", []
+                    result.primary, "chromatic_mediants", []
                 ),
-                "cadences": getattr(result.primary_analysis, "cadences", []),
+                "cadences": getattr(result.primary, "cadences", []),
                 "chord_functions": getattr(
-                    result.primary_analysis, "chord_functions", []
+                    result.primary, "chord_functions", []
                 ),
                 "contextual_classification": getattr(
-                    result.primary_analysis, "contextual_classification", None
+                    result.primary, "contextual_classification", None
                 ),
                 "functional_confidence": getattr(
-                    result.primary_analysis, "functional_confidence", None
+                    result.primary, "functional_confidence", None
                 ),
                 "modal_confidence": getattr(
-                    result.primary_analysis, "modal_confidence", None
+                    result.primary, "modal_confidence", None
                 ),
                 "chromatic_confidence": getattr(
-                    result.primary_analysis, "chromatic_confidence", None
+                    result.primary, "chromatic_confidence", None
                 ),
             },
             # Include bidirectional suggestions in the response
             "suggestions": format_suggestions_for_api(result.suggestions),
-            "alternative_analyses": [
+            "alternatives": [
                 {
                     "type": alt.type.value,
                     "confidence": alt.confidence,
@@ -1426,7 +1434,7 @@ async def analyze_chord_progression(request: AnalysisRequest):
                     "modal_confidence": getattr(alt, "modal_confidence", None),
                     "chromatic_confidence": getattr(alt, "chromatic_confidence", None),
                 }
-                for alt in result.alternative_analyses
+                for alt in result.alternatives
             ],
             "metadata": {
                 "total_interpretations_considered": result.metadata.total_interpretations_considered,
@@ -1471,7 +1479,7 @@ async def analyze_scale(request: ScaleAnalysisRequest):
         if "metadata" not in result:
             result["metadata"] = {}
         result["metadata"]["analysis_depth"] = request.analysis_depth
-        result["alternative_analyses"] = (
+        result["alternatives"] = (
             []
         )  # For consistency with frontend expectations
 
@@ -1496,7 +1504,7 @@ async def analyze_melody(request: MelodyAnalysisRequest):
 
         # Add metadata
         result["metadata"]["analysis_type"] = request.analysis_type
-        result["alternative_analyses"] = (
+        result["alternatives"] = (
             []
         )  # For consistency with frontend expectations
 
@@ -1536,15 +1544,21 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
                 force_multiple_interpretations=False,
             )
 
-            # Run harmonic analysis
-            harmonic_result = await analyze_progression_multiple(chords, options)
+            # Run harmonic analysis using new PatternAnalysisService
+            service = PatternAnalysisService()
+            envelope = await service.analyze_with_patterns_async(
+                chords,
+                profile="classical",
+                key_hint=options.parent_key if options else None
+            )
+            harmonic_result = envelope
 
             # Debug the result
             print(
-                f"🔍 UNIFIED RESULT: Primary confidence={harmonic_result.primary_analysis.confidence:.3f}, type={harmonic_result.primary_analysis.type}, key={harmonic_result.primary_analysis.key_signature}"
+                f"🔍 UNIFIED RESULT: Primary confidence={harmonic_result.primary.confidence:.3f}, type={harmonic_result.primary.type}, key={harmonic_result.primary.key_signature}"
             )
             print(
-                f"🔍 CHROMATIC ELEMENTS: secondary_dominants={harmonic_result.primary_analysis.secondary_dominants}, borrowed_chords={harmonic_result.primary_analysis.borrowed_chords}"
+                f"🔍 CHROMATIC ELEMENTS: secondary_dominants={harmonic_result.primary.secondary_dominants}, borrowed_chords={harmonic_result.primary.borrowed_chords}"
             )
             if harmonic_result.suggestions:
                 print(
@@ -1557,16 +1571,16 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
                         )
             else:
                 print("🔍 NO SUGGESTIONS GENERATED")
-            if hasattr(harmonic_result.primary_analysis, "parent_key_validation"):
+            if hasattr(harmonic_result.primary, "parent_key_validation"):
                 print(
-                    f"🔍 Parent key validation: {harmonic_result.primary_analysis.parent_key_validation}"
+                    f"🔍 Parent key validation: {harmonic_result.primary.parent_key_validation}"
                 )
 
             # Extract primary analysis for character analysis
-            primary_type = harmonic_result.primary_analysis.type.value
-            primary_confidence = harmonic_result.primary_analysis.confidence
-            key_signature = harmonic_result.primary_analysis.key_signature
-            mode = harmonic_result.primary_analysis.mode
+            primary_type = harmonic_result.primary.type.value
+            primary_confidence = harmonic_result.primary.confidence
+            key_signature = harmonic_result.primary.key_signature
+            mode = harmonic_result.primary.mode
 
             # Generate character analysis if requested
             character_analysis = None
@@ -1582,7 +1596,7 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
                     f"🔍 GENERATING ENHANCEMENTS for {chords} with parent_key={request.parent_key}"
                 )
                 enhancement_suggestions = await generate_enhancement_suggestions(
-                    chords, harmonic_result.primary_analysis
+                    chords, harmonic_result.primary
                 )
                 print(f"🔍 ENHANCEMENT RESULT: {enhancement_suggestions}")
 
@@ -1594,12 +1608,12 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
                     "primary_analysis": {
                         "type": primary_type,
                         "confidence": primary_confidence,
-                        "analysis": harmonic_result.primary_analysis.analysis,
+                        "analysis": harmonic_result.primary.analysis,
                         "key_signature": key_signature,
                         "mode": mode,
-                        "reasoning": harmonic_result.primary_analysis.reasoning,
+                        "reasoning": harmonic_result.primary.reasoning,
                     },
-                    "alternative_analyses": [
+                    "alternatives": [
                         {
                             "type": alt.type.value,
                             "confidence": alt.confidence,
@@ -1607,7 +1621,7 @@ async def analyze_unified(request: UnifiedAnalysisRequest):
                             "key_signature": alt.key_signature,
                             "mode": alt.mode,
                         }
-                        for alt in harmonic_result.alternative_analyses[
+                        for alt in harmonic_result.alternatives[
                             :2
                         ]  # Limit for compactness
                     ],
@@ -1693,14 +1707,18 @@ async def analyze_character(request: CharacterAnalysisRequest):
     try:
         if request.analysis_type == "progression":
             chords = request.input_data.strip().split()
-            # Quick harmonic analysis to get mode/key context
+            # Quick harmonic analysis to get mode/key context using new PatternAnalysisService
             options = AnalysisOptions(confidence_threshold=0.3)
-            harmonic_result = await analyze_progression_multiple(chords, options)
+            service = PatternAnalysisService()
+            envelope = await service.analyze_with_patterns_async(
+                chords, profile="classical"
+            )
+            harmonic_result = envelope
 
-            primary_type = harmonic_result.primary_analysis.type.value
-            key_signature = harmonic_result.primary_analysis.key_signature
-            mode = harmonic_result.primary_analysis.mode
-            confidence = harmonic_result.primary_analysis.confidence
+            primary_type = harmonic_result.primary.type.value
+            key_signature = harmonic_result.primary.key_signature
+            mode = harmonic_result.primary.mode
+            confidence = harmonic_result.primary.confidence
 
             character_analysis = generate_character_analysis(
                 chords, primary_type, key_signature, mode, confidence
@@ -1752,10 +1770,12 @@ async def analyze_enhancements(request: EnhancementRequest):
             primary_analysis = request.current_analysis
         else:
             options = AnalysisOptions(confidence_threshold=0.4)
-            harmonic_result = await analyze_progression_multiple(
-                request.chords, options
+            service = PatternAnalysisService()
+            envelope = await service.analyze_with_patterns_async(
+                request.chords, profile="classical"
             )
-            primary_analysis = harmonic_result.primary_analysis
+            harmonic_result = envelope
+            primary_analysis = harmonic_result.primary
 
         # Generate enhancement suggestions
         enhancements = await generate_enhancement_suggestions(

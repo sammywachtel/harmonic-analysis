@@ -54,23 +54,14 @@ This release represents a significant architectural improvement focused on clean
 - **🔧 Clean Dependencies**: Reduced coupling between analysis and presentation layers
 - **📖 Documentation Updates**: Comprehensive README updates reflecting new structure
 
-### Migration Guide
+### Usage
 
-#### New Recommended Usage
 ```python
-# Simple and intuitive
-from harmonic_analysis import analyze_chord_progression, AnalysisOptions
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
-result = await analyze_chord_progression(['C', 'F', 'G', 'C'])
-print(result.primary_analysis.analysis)
-```
-
-#### Existing Code (Still Works)
-```python
-# Legacy API remains functional
-from harmonic_analysis import analyze_progression_multiple
-
-result = await analyze_progression_multiple(['C', 'F', 'G', 'C'])
+service = PatternAnalysisService()
+result = await service.analyze_with_patterns_async(['C', 'F', 'G', 'C'], profile="classical")
+print(' - '.join(result.primary.roman_numerals))
 ```
 
 ### Performance
@@ -182,12 +173,11 @@ result = await analyze_progression_multiple(['C', 'F', 'G', 'C'])
 - **Overall System Performance**: 28% overall success rate (limited by modal contextless issues, target: 50%)
 - **Personal Agent Loading**: Claude Code personal agents not loading automatically (configuration issue)
 
-### Migration Notes
-- **API Compatibility**: All existing API endpoints remain functional
-- **Confidence Values**: Users may notice more realistic (often lower) confidence scores for weak progressions
-- **Test Expectations**: Updated test expectations to match theoretically appropriate confidence levels
+### Technical Notes
+- **Confidence Scoring**: Realistic confidence values based on musical evidence and theoretical strength
+- **Test Coverage**: Comprehensive test expectations matching theoretical appropriateness
 - **Performance**: Analysis speed maintained at <2ms per progression with improved accuracy
-- **Library Organization**: v0.2.0 introduces new top-level API functions while maintaining backward compatibility
+- **Architecture**: Clean API design with pattern-based analysis engine
 
 ## Previous Versions
 

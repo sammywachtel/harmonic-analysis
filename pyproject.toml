@@ -12,7 +12,7 @@ dynamic = [
 description = "Comprehensive harmonic and modal analysis engine for music theory"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 authors = [
     { name = "Sam Wachtel", email = "sammywachtel@gmail.com" },
 ]
@@ -35,6 +35,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Sound/Audio :: Analysis",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Education",

@@ -8,16 +8,17 @@ generation, chromatic chord detection, and figured bass notation.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from ..analysis_types import ChordFunction, ChromaticType, ProgressionType
+from .utils.chord_inversions import analyze_chord_inversion
+from .utils.chord_logic import ChordMatch
+from .utils.scales import NOTE_TO_PITCH_CLASS
+
 # TODO(romanizer-unification):
 #   Roman numeral generation exists here and in services/token_converter.py.
 #   To ensure a single source of truth (and avoid drift like VII vs ♭VII in minor),
 #   delegate romanization here to the token converter’s logic in a follow-up change.
 #   For now, the subtonic in minor is aligned to ♭VII in both places.
 
-from ..analysis_types import ChordFunction, ChromaticType, ProgressionType
-from ..utils.chord_inversions import analyze_chord_inversion
-from ..utils.chord_logic import ChordMatch
-from ..utils.scales import NOTE_TO_PITCH_CLASS
 
 # Enhanced Roman numeral templates with chromatic chord support
 FUNCTIONAL_ROMAN_NUMERALS = {
@@ -33,7 +34,8 @@ FUNCTIONAL_ROMAN_NUMERALS = {
         },
     },
     "minor": {
-        # In minor, the natural subtonic is conventionally notated as ♭VII (major triad on lowered 7̂)
+        # In minor, the natural subtonic is conventionally notated as ♭VII
+        # (major triad on lowered 7̂)
         "diatonic": ["i", "ii°", "III", "iv", "v", "VI", "bVII"],
         "chromatic": {
             # Secondary dominants
@@ -155,16 +157,23 @@ class FunctionalHarmonyAnalyzer:
         self.secondary_dominants: Dict[int, str] = {}
 
     async def analyze_functionally(
-        self, chord_symbols: List[str], parent_key: Optional[str] = None, *, key_hint: str | None = None, lock_key: bool = True
+        self,
+        chord_symbols: List[str],
+        parent_key: Optional[str] = None,
+        *,
+        key_hint: str | None = None,
+        lock_key: bool = True,
     ) -> FunctionalAnalysisResult:
         """
         Analyze chord progression with functional harmony as primary framework.
 
         Args:
             chord_symbols: List of chord symbols to analyze
-            parent_key: Optional parent key signature (e.g., "C major") - for backward compatibility
+            parent_key: Optional parent key signature (e.g., "C major")
+                        - for backward compatibility
             key_hint: Optional key hint for analysis (new parameter)
-            lock_key: If True, force the provided key hint; else use for detection guidance
+            lock_key: If True, force the provided key hint;
+                     else use for detection guidance
 
         Returns:
             Complete functional analysis result
@@ -174,7 +183,9 @@ class FunctionalHarmonyAnalyzer:
 
         # Step 1: Determine key center - key_hint takes precedence over parent_key
         effective_key_hint = key_hint or parent_key
-        key_analysis = self._determine_key_center(chord_symbols, effective_key_hint, lock_key)
+        key_analysis = self._determine_key_center(
+            chord_symbols, effective_key_hint, lock_key
+        )
 
         # Step 2: Analyze each chord functionally
         functional_chords = self._analyze_chords_in_key(chord_symbols, key_analysis)
@@ -196,7 +207,7 @@ class FunctionalHarmonyAnalyzer:
             functional_chords, progression_type, chromatic_elements
         )
 
-        result =  FunctionalAnalysisResult(
+        result = FunctionalAnalysisResult(
             key_center=key_analysis["key_center"],
             key_signature=key_analysis["key_signature"],
             mode=key_analysis["mode"],
@@ -215,22 +226,27 @@ class FunctionalHarmonyAnalyzer:
 
         # Debug: print analyzer key decision
         # TODO: implement a unified debugging approach for the library
-        import os
-        print(
-            f"[analyzer] key={key_analysis['key_center']} "
-            f"(source={key_analysis['key_source']}, locked={key_analysis['key_locked']})"
-        )
+
+        # print(
+        #     f"[analyzer] key={key_analysis['key_center']} "
+        #     f"(source={key_analysis['key_source']}, "
+        #     f"locked={key_analysis['key_locked']})"
+        # )
 
         return result
 
     def _determine_key_center(
-        self, chord_symbols: List[str], effective_key_hint: Optional[str], lock_key: bool = True
+        self,
+        chord_symbols: List[str],
+        effective_key_hint: Optional[str],
+        lock_key: bool = True,
     ) -> Dict[str, Any]:
         """
         Determine the key center using multiple methods.
 
         Returns:
-            Dictionary with key_center, key_signature, mode, root_pitch, is_minor, key_source, key_locked
+            Dictionary with key_center, key_signature, mode, root_pitch,
+            is_minor, key_source, key_locked
         """
         if effective_key_hint:
             # Use provided key hint
@@ -308,7 +324,7 @@ class FunctionalHarmonyAnalyzer:
     def _parse_chord_symbol(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Parse chord symbol into components."""
         try:
-            from ..utils.chord_logic import ChordParser
+            from .utils.chord_logic import ChordParser
 
             parser = ChordParser()
             chord_match = parser.parse_chord(symbol)
@@ -440,13 +456,13 @@ class FunctionalHarmonyAnalyzer:
         if is_minor:
             # Natural minor chord qualities
             minor_qualities = {
-                0: ["minor"],      # i
-                2: ["diminished"], # ii°
-                3: ["major"],      # III
-                5: ["minor"],      # iv
-                7: ["minor"],      # v (or major V)
-                8: ["major"],      # VI
-                10: ["major"],     # bVII (subtonic)
+                0: ["minor"],  # i
+                2: ["diminished"],  # ii°
+                3: ["major"],  # III
+                5: ["minor"],  # iv
+                7: ["minor"],  # v (or major V)
+                8: ["major"],  # VI
+                10: ["major"],  # bVII (subtonic)
             }
             return minor_qualities.get(interval_from_key, [])
         else:
@@ -686,8 +702,65 @@ class FunctionalHarmonyAnalyzer:
 
             return result
 
-        # Fallback for non-chromatic unrecognized chords
-        return f"?{interval_from_key}"
+        # Enhanced fallback: compute nearest diatonic degree with accidentals
+        return self._fallback_diatonic_degree(interval_from_key, is_minor)
+
+    def _fallback_diatonic_degree(self, interval_from_key: int, is_minor: bool) -> str:
+        """Compute a fallback roman numeral using nearest diatonic degree with
+        accidentals."""
+        # Define diatonic intervals for major and minor
+        if is_minor:
+            diatonic_intervals = [0, 2, 3, 5, 7, 8, 10]  # Natural minor: W-H-W-W-H-W-W
+            scale_degrees = ["i", "ii°", "III", "iv", "v", "VI", "VII"]
+        else:
+            diatonic_intervals = [0, 2, 4, 5, 7, 9, 11]  # Major: W-W-H-W-W-W-H
+            scale_degrees = ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
+
+        # Normalize interval to 0-11 range
+        interval_from_key = interval_from_key % 12
+
+        # If it's already diatonic, use it directly
+        if interval_from_key in diatonic_intervals:
+            idx = diatonic_intervals.index(interval_from_key)
+            return scale_degrees[idx]
+
+        # Find closest diatonic degree and add accidental
+        closest_below = max(
+            [d for d in diatonic_intervals if d < interval_from_key], default=None
+        )
+        closest_above = min(
+            [d for d in diatonic_intervals if d > interval_from_key], default=None
+        )
+
+        # Handle wraparound at octave boundary
+        if closest_below is None:
+            closest_below = diatonic_intervals[-1] - 12
+        if closest_above is None:
+            closest_above = diatonic_intervals[0] + 12
+
+        # Choose the closer one
+        if abs(interval_from_key - closest_below) <= abs(
+            interval_from_key - closest_above
+        ):
+            base_interval = closest_below % 12
+            semitone_diff = interval_from_key - closest_below
+        else:
+            base_interval = closest_above % 12
+            semitone_diff = interval_from_key - closest_above
+
+        # Get base degree
+        idx = diatonic_intervals.index(base_interval)
+        base_degree = scale_degrees[idx]
+
+        # Add accidentals
+        if semitone_diff > 0:
+            accidental = "#" * semitone_diff
+        elif semitone_diff < 0:
+            accidental = "b" * abs(semitone_diff)
+        else:
+            accidental = ""
+
+        return f"{accidental}{base_degree}"
 
     def _is_common_borrowed_chord(self, interval_from_key: int, is_minor: bool) -> bool:
         """Check if this is a common borrowed chord that should not be
@@ -1276,17 +1349,19 @@ class FunctionalHarmonyAnalyzer:
                     # Calculate expected positions relative to this tonic
                     expected_vi = (tonic_st + 9) % 12  # vi is 9 semitones above I
                     expected_iv = (tonic_st + 5) % 12  # IV is 5 semitones above I
-                    expected_v = (tonic_st + 7) % 12   # V is 7 semitones above I
+                    expected_v = (tonic_st + 7) % 12  # V is 7 semitones above I
 
                     # Check if progression matches vi-IV-I-V pattern
-                    if (semitones[0] == expected_vi and  # First chord is vi
-                        semitones[1] == expected_iv and  # Second chord is IV
-                        semitones[2] == tonic_st and     # Third chord is I
-                        semitones[3] == expected_v and   # Fourth chord is V
-                        qualities[0] == "minor" and      # vi should be minor
-                        qualities[1] == "major" and      # IV should be major
-                        qualities[2] == "major" and      # I should be major
-                        qualities[3] == "major"):        # V should be major
+                    if (
+                        semitones[0] == expected_vi  # First chord is vi
+                        and semitones[1] == expected_iv  # Second chord is IV
+                        and semitones[2] == tonic_st  # Third chord is I
+                        and semitones[3] == expected_v  # Fourth chord is V
+                        and qualities[0] == "minor"  # vi should be minor
+                        and qualities[1] == "major"  # IV should be major
+                        and qualities[2] == "major"  # I should be major
+                        and qualities[3] == "major"
+                    ):  # V should be major
 
                         return {
                             "tonic": roots[2],  # Third chord is tonic

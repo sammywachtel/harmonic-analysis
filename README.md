@@ -12,7 +12,7 @@ scales, modes, and harmonic relationships with detailed explanations of *why* it
 - **Event-Based Detection**: Analyzes bass motion, voice leading, and harmonic texture to validate pattern matches
 - **Confidence Scoring**: Each pattern match includes confidence scores and detailed evidence
 - **Profile-Aware**: Classical, jazz, and pop patterns are filtered by musical style context
-- **Replaces Legacy Analysis**: The new pattern engine supersedes the older `analyze_chord_progression` system
+- **Evidence-Based Matching**: Each pattern detection includes detailed musical evidence and theoretical justification
 
 ### Quick Pattern Analysis Example
 
@@ -39,31 +39,27 @@ async def analyze_patterns():
     #   Evidence: Perfect cadence V7→I with strong resolution
 ```
 
-### 🔄 Migration from Legacy Analysis
+### Advanced Pattern Analysis Options
 
-**Important**: If you were using the previous `analyze_chord_progression()` function, it's now **deprecated** in favor of the new pattern analysis system:
+The pattern analysis service provides sophisticated configuration options:
 
 ```python
-# ❌ OLD WAY (deprecated)
-from harmonic_analysis import analyze_chord_progression
-result = await analyze_chord_progression(['C', 'Am', 'F', 'G'])
-
-# ✅ NEW WAY (recommended)
 from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+
 service = PatternAnalysisService()
-result = await service.analyze_with_patterns(
+result = await service.analyze_with_patterns_async(
     chord_symbols=['C', 'Am', 'F', 'G'],
-    profile='classical',
-    best_cover=False,
-    key_hint='C major'
+    profile='classical',  # or 'jazz', 'pop'
+    best_cover=True,     # Find optimal pattern coverage
+    key_hint='C major'   # Optional key context
 )
 ```
 
-The new system provides:
-- **More accurate pattern recognition** with evidence-based matching
-- **Style-aware analysis** (classical/jazz/pop profiles)
-- **Detailed confidence scoring** for each detected pattern
-- **Event-based validation** using bass motion and harmonic texture
+Configuration options:
+- **Profile Selection**: Choose from classical, jazz, or pop pattern libraries
+- **Coverage Optimization**: Find the best combination of overlapping patterns
+- **Key Context**: Provide key hints for more accurate Roman numeral analysis
+- **Confidence Thresholds**: Filter patterns by minimum confidence scores
 - **Future-proof architecture** designed for advanced musical analysis
 
 ## What This Library Does (For Musicians)
@@ -202,20 +198,21 @@ harmonic-analysis/
 
 ```python
 import asyncio
-from harmonic_analysis import analyze_chord_progression
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 async def analyze_my_progression():
     # Classic I-vi-IV-V progression
-    result = await analyze_chord_progression(['C', 'Am', 'F', 'G'])
+    service = PatternAnalysisService()
+    result = await service.analyze_with_patterns_async(['C', 'Am', 'F', 'G'], profile="classical")
 
-    print(f"What it is: {result.primary_analysis.analysis}")
-    # Output: "Functional progression in C major: I - vi - IV - V"
+    print(f"Roman numerals: {' - '.join(result.primary.roman_numerals)}")
+    print(f"Key: {result.primary.key_signature}")
+    # Output: Roman numerals: I - vi - IV - V
+    # Output: Key: C major
 
-    print(f"Confidence: {result.primary_analysis.confidence:.0%}")
+    print(f"Confidence: {result.primary.confidence:.0%}")
     # Output: "Confidence: 75%"
 
-    print(f"Roman numerals: {result.primary_analysis.roman_numerals}")
-    # Output: "Roman numerals: ['I', 'vi', 'IV', 'V']"
 
 asyncio.run(analyze_my_progression())
 ```
@@ -409,27 +406,29 @@ Music is often ambiguous, and good musicians can hear the same progression multi
 
 ```python
 import asyncio
-from harmonic_analysis import analyze_progression_multiple, AnalysisOptions
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 async def explore_interpretations():
     # This progression can be heard multiple ways
     chords = ['Am', 'F', 'C', 'G']
 
-    # Request multiple interpretations with low threshold
-    options = AnalysisOptions(
-        confidence_threshold=0.3,  # Show more alternatives
-        max_alternatives=5         # Up to 5 alternatives
+    # Initialize the analysis service
+    service = PatternAnalysisService()
+
+    # Analyze with classical profile (functional harmony focus)
+    result = await service.analyze_with_patterns_async(
+        chords,
+        profile="classical",
+        best_cover=True  # Enable multiple interpretations
     )
 
-    result = await analyze_progression_multiple(chords, options)
+    print(f"Primary interpretation: {result.primary.type.value}")
+    print(f"  Roman numerals: {' - '.join(result.primary.roman_numerals)}")
+    print(f"  Confidence: {result.primary.confidence:.0%}")
 
-    print(f"Primary interpretation: {result.primary_analysis.type.value}")
-    print(f"  {result.primary_analysis.analysis}")
-    print(f"  Confidence: {result.primary_analysis.confidence:.0%}")
-
-    print(f"\nAlternative interpretations ({len(result.alternative_analyses)}):")
-    for i, alt in enumerate(result.alternative_analyses, 1):
-        print(f"  {i}. {alt.type.value}: {alt.analysis}")
+    print(f"\nAlternative interpretations ({len(result.alternatives)}):")
+    for i, alt in enumerate(result.alternatives, 1):
+        print(f"  {i}. {alt.type.value}: {' - '.join(alt.roman_numerals)}")
         print(f"     Confidence: {alt.confidence:.0%}")
 
 asyncio.run(explore_interpretations())
@@ -457,23 +456,25 @@ async def analyze_chromatic_harmony():
     # Progression with secondary dominants
     chords = ['C', 'A7', 'Dm', 'G7', 'C']
 
-    result = await analyze_progression_multiple(chords)
+    service = PatternAnalysisService()
+    result = await service.analyze_with_patterns_async(chords, profile="classical")
 
-    if result.primary_analysis.type.value == "chromatic":
+    if result.primary.type.value == "functional":
         print("Chromatic elements detected:")
 
-        # Secondary dominants
-        if result.primary_analysis.secondary_dominants:
-            print("\n🎯 Secondary Dominants:")
-            for sd in result.primary_analysis.secondary_dominants:
-                print(f"  {sd['chord']} → {sd['target']}")
-                print(f"  Function: {sd['roman_numeral']}")
+        # Chromatic elements
+        if result.primary.chromatic_elements:
+            print("\n🎯 Chromatic Elements:")
+            for ce in result.primary.chromatic_elements:
+                print(f"  {ce.type}: {ce.chord_symbol}")
+                if ce.resolution_to:
+                    print(f"    Resolves to: {ce.resolution_to}")
 
-        # Borrowed chords
-        if result.primary_analysis.borrowed_chords:
-            print("\n🎨 Borrowed Chords:")
-            for bc in result.primary_analysis.borrowed_chords:
-                print(f"  {bc['chord']} borrowed from {bc['borrowed_from']}")
+        # Detected patterns
+        if result.primary.patterns:
+            print("\n🎨 Harmonic Patterns:")
+            for pattern in result.primary.patterns:
+                print(f"  {pattern.name} (score: {pattern.score:.2f})")
 
         # Chromatic mediants
         if result.primary_analysis.chromatic_mediants:
@@ -535,12 +536,13 @@ async def analyze_real_progressions():
         (['C', 'E7', 'Am', 'D7', 'G', 'C'], "Chromatic circle"),
     ]
 
+    service = PatternAnalysisService()
     for chords, description in progressions:
-        result = await analyze_progression_multiple(chords)
+        result = await service.analyze_with_patterns_async(chords, profile="classical")
         print(f"\n{description}: {' - '.join(chords)}")
-        print(f"  Primary: {result.primary_analysis.type.value}")
-        print(f"  Analysis: {result.primary_analysis.analysis}")
-        print(f"  Alternatives: {len(result.alternative_analyses)}")
+        print(f"  Primary: {result.primary.type.value}")
+        print(f"  Roman numerals: {' - '.join(result.primary.roman_numerals)}")
+        print(f"  Alternatives: {len(result.alternatives)}")
 
 asyncio.run(analyze_real_progressions())
 ```
@@ -593,11 +595,12 @@ Modal analysis includes character descriptions:
 
 ```python
 # Analyze a modal progression
-result = await analyze_progression_multiple(['Em', 'F', 'Em'])
+service = PatternAnalysisService()
+result = await service.analyze_with_patterns_async(['Em', 'F', 'Em'], profile="classical")
 
 # Get detected mode
-if result.primary_analysis.type == 'modal':
-    mode_name = result.primary_analysis.mode  # "E Phrygian"
+if result.primary.type.value == 'modal':
+    mode_name = result.primary.mode  # "E Phrygian"
 
     # Get character information
     if "Phrygian" in mode_name:

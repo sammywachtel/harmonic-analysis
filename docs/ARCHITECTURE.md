@@ -162,15 +162,16 @@ Current thresholds based on music theory expert guidance:
 The library is designed for seamless web API integration:
 
 ```python
-from harmonic_analysis import analyze_progression_multiple
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 # API endpoint implementation
 async def analyze_progression_endpoint(progression: List[str]):
-    result = await analyze_progression_multiple(progression)
+    service = PatternAnalysisService()
+    result = await service.analyze_with_patterns_async(progression, profile="classical")
     return {
-        "primary_analysis": result.primary_analysis,
-        "alternatives": result.alternative_analyses,
-        "metadata": result.metadata
+        "primary_analysis": result.primary.to_dict(),
+        "alternatives": [alt.to_dict() for alt in result.alternatives],
+        "analysis_time_ms": result.analysis_time_ms
     }
 ```
 
@@ -179,14 +180,15 @@ The library provides structured output for application consumption:
 
 ```python
 # Structured data access
-result = await analyze_progression_multiple(['C', 'F', 'G', 'C'])
+service = PatternAnalysisService()
+result = await service.analyze_with_patterns_async(['C', 'F', 'G', 'C'], profile="classical")
 
 # Extract key information
 analysis_summary = {
-    "type": result.primary_analysis.type,
-    "analysis": result.primary_analysis.analysis,
-    "confidence": result.primary_analysis.confidence,
-    "key_signature": result.primary_analysis.key_signature,
+    "type": result.primary.type.value,
+    "roman_numerals": result.primary.roman_numerals,
+    "confidence": result.primary.confidence,
+    "key_signature": result.primary.key_signature,
     "evidence_count": len(result.primary_analysis.evidence)
 }
 ```

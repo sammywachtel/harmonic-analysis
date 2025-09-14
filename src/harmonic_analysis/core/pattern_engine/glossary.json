@@ -128,6 +128,11 @@
     "functional_harmony": "System of chord functions (tonic, dominant, subdominant) guiding progression.",
     "chromaticism": "Use of notes outside the diatonic scale to add color or tension.",
     "modal_borrowing": "Using chords from parallel modes to enrich harmony.",
-    "voice_leading": "Smooth, logical movement of individual melodic lines between chords."
+    "voice_leading": "Smooth, logical movement of individual melodic lines between chords.",
+    "vamp": "A short harmonic or rhythmic pattern, often repeated to provide a backdrop for improvisation or melodic content.",
+    "conflicts": "Indicates when the detected key or mode has tension with the parent key (e.g., modal mixture or ambiguous tonal center).",
+    "borrowed": "Chord imported from a parallel mode or key (modal interchange).",
+    "secondary_dominants": "Dominant-function chords targeting scale degrees other than the tonic (e.g., V/V).",
+    "chromatic_mediants": "Chords related by a third but differing in quality or mode, often borrowed from parallel key areas."
   }
 }

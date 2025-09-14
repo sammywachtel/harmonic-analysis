@@ -9,16 +9,20 @@ This test suite specifically targets the missing 20% coverage in low_level_event
 - Empty input handling
 """
 
-import pytest
-import sys
 import pathlib
+import sys
+
+import pytest
 
 # Ensure project root on sys.path
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from harmonic_analysis.core.pattern_engine.low_level_events import LowLevelEventExtractor, LowLevelEvents
+from harmonic_analysis.core.pattern_engine.low_level_events import (  # noqa: E402
+    LowLevelEventExtractor,
+    LowLevelEvents,
+)
 
 
 class TestLowLevelEventsCoverage:
@@ -45,19 +49,21 @@ class TestLowLevelEventsCoverage:
         # Test cases specifically designed to hit the sharp/flat parsing logic
         test_cases = [
             # Format: (chord_symbols, expected_bass_pcs)
-            (["C#"], [1]),           # Sharp root
-            (["Db"], [1]),           # Flat root
-            (["F#/A#"], [10]),       # Sharp slash chord with sharp bass
-            (["Gb/Bb"], [10]),       # Flat slash chord with flat bass
-            (["A#m"], [10]),         # Sharp minor chord
-            (["Bbmaj7"], [10]),      # Flat major seventh
-            (["C#dim/E#"], [5]),     # Sharp diminished with sharp bass
-            (["Dbsus4/Gb"], [6]),    # Flat suspended with flat bass
+            (["C#"], [1]),  # Sharp root
+            (["Db"], [1]),  # Flat root
+            (["F#/A#"], [10]),  # Sharp slash chord with sharp bass
+            (["Gb/Bb"], [10]),  # Flat slash chord with flat bass
+            (["A#m"], [10]),  # Sharp minor chord
+            (["Bbmaj7"], [10]),  # Flat major seventh
+            (["C#dim/E#"], [5]),  # Sharp diminished with sharp bass
+            (["Dbsus4/Gb"], [6]),  # Flat suspended with flat bass
         ]
 
         for chord_symbols, expected_bass in test_cases:
             bass_pcs = extractor._extract_bass_pitch_classes(chord_symbols)
-            assert bass_pcs == expected_bass, f"For {chord_symbols}: expected {expected_bass}, got {bass_pcs}"
+            assert (
+                bass_pcs == expected_bass
+            ), f"For {chord_symbols}: expected {expected_bass}, got {bass_pcs}"
 
     def test_complex_chord_symbol_edge_cases(self, extractor):
         """Test edge cases in chord symbol parsing."""
@@ -68,8 +74,8 @@ class TestLowLevelEventsCoverage:
             # Very long chord symbols
             (["Cmaj13#11/G"], [7]),  # Complex chord with slash
             # Multiple sharps/flats (test the len check)
-            (["C##"], [2]),   # Double sharp (if supported)
-            (["Dbb"], [0]),   # Double flat (if supported)
+            (["C##"], [2]),  # Double sharp (if supported)
+            (["Dbb"], [0]),  # Double flat (if supported)
         ]
 
         for chord_symbols, expected_bass in edge_cases:
@@ -100,42 +106,44 @@ class TestLowLevelEventsCoverage:
         # Test specific interval classifications
         test_motions = [
             # Format: (bass_motion, expected_motion_type)
-            (0, 'same'),              # Same pitch
-            (7, '-5'),                # Perfect fifth down (circle of fifths)
-            (5, '+4'),                # Perfect fourth up (equivalent to fifth down)
-            (-7, '+4'),               # Negative seventh (mod 12 = +5, but logic differs)
-            (-5, '-5'),               # Negative fifth
-            (2, '+2'),                # Major second up
-            (-2, '-2'),               # Major second down (mod 12 = 10)
-            (10, '-2'),               # Equivalent to -2
-            (1, 'chromatic'),         # Semitone up
-            (11, 'chromatic'),        # Semitone down (mod 12)
-            (-1, 'chromatic'),        # Negative semitone
-            (3, '+3'),                # Minor third (generic interval)
-            (4, '+4'),                # Major third (generic interval)
-            (6, '+6'),                # Tritone (generic interval)
-            (8, '+8'),                # Minor sixth (generic interval)
-            (9, '+9'),                # Major sixth (generic interval)
+            (0, "same"),  # Same pitch
+            (7, "-5"),  # Perfect fifth down (circle of fifths)
+            (5, "+4"),  # Perfect fourth up (equivalent to fifth down)
+            (-7, "+4"),  # Negative seventh (mod 12 = +5, but logic differs)
+            (-5, "-5"),  # Negative fifth
+            (2, "+2"),  # Major second up
+            (-2, "-2"),  # Major second down (mod 12 = 10)
+            (10, "-2"),  # Equivalent to -2
+            (1, "chromatic"),  # Semitone up
+            (11, "chromatic"),  # Semitone down (mod 12)
+            (-1, "chromatic"),  # Negative semitone
+            (3, "+3"),  # Minor third (generic interval)
+            (4, "+4"),  # Major third (generic interval)
+            (6, "+6"),  # Tritone (generic interval)
+            (8, "+8"),  # Minor sixth (generic interval)
+            (9, "+9"),  # Major sixth (generic interval)
         ]
 
         for bass_motion, expected_motion in test_motions:
             tokens = [
-                MockToken(None),           # First token has no previous motion
-                MockToken(bass_motion)     # Second token has the test motion
+                MockToken(None),  # First token has no previous motion
+                MockToken(bass_motion),  # Second token has the test motion
             ]
 
             motions = extractor._detect_root_motion(tokens)
 
             # Should have motion for second token
             assert len(motions) == 2
-            assert motions[0] == ''  # First token has empty motion
+            assert motions[0] == ""  # First token has empty motion
 
             # Check the classification (may need to adjust based on actual implementation)
             actual_motion = motions[1]
 
             # For some cases, just verify it's a reasonable motion string
-            if expected_motion in ['same', '-5', '+4', '+2', '-2', 'chromatic']:
-                assert actual_motion == expected_motion, f"Motion {bass_motion}: expected '{expected_motion}', got '{actual_motion}'"
+            if expected_motion in ["same", "-5", "+4", "+2", "-2", "chromatic"]:
+                assert (
+                    actual_motion == expected_motion
+                ), f"Motion {bass_motion}: expected '{expected_motion}', got '{actual_motion}'"
             else:
                 # For generic intervals, should be formatted as signed integer
                 assert isinstance(actual_motion, str)
@@ -163,56 +171,54 @@ class TestLowLevelEventsCoverage:
         # Test various chain scenarios
         test_cases = [
             # Format: (root_motion, min_length, expected_chains)
-
             # Basic chain detection
-            (['-5', '-5', '-5'], 2, 1),      # 3 fifths = 1 chain of 4 chords
-            (['-5', '-5'], 2, 1),            # 2 fifths = 1 chain of 3 chords
-            (['-5'], 2, 0),                  # 1 fifth = 0 chains (below min_length)
-
+            (["-5", "-5", "-5"], 2, 1),  # 3 fifths = 1 chain of 4 chords
+            (["-5", "-5"], 2, 1),  # 2 fifths = 1 chain of 3 chords
+            (["-5"], 2, 0),  # 1 fifth = 0 chains (below min_length)
             # Chain with interruption
-            (['-5', '-5', '+2', '-5', '-5'], 2, 2),  # Two separate chains
-
+            (["-5", "-5", "+2", "-5", "-5"], 2, 2),  # Two separate chains
             # Chain at beginning
-            (['-5', '-5', '-5', '+2', '+3'], 2, 1),  # Chain then other motion
-
+            (["-5", "-5", "-5", "+2", "+3"], 2, 1),  # Chain then other motion
             # Chain at end
-            (['+2', '+3', '-5', '-5', '-5'], 2, 1),  # Other motion then chain
-
+            (["+2", "+3", "-5", "-5", "-5"], 2, 1),  # Other motion then chain
             # Mixed fifth motions (+4 equivalent to -5)
-            (['+4', '+4', '-5'], 2, 1),      # +4 and -5 both count as fifth motion
-
+            (["+4", "+4", "-5"], 2, 1),  # +4 and -5 both count as fifth motion
             # No chains
-            (['+2', '+3', '+4', '-2'], 2, 0),  # No consecutive fifth motions
-
+            (["+2", "+3", "+4", "-2"], 2, 0),  # No consecutive fifth motions
             # Empty motion
-            ([], 2, 0),                      # Empty should return no chains
-
+            ([], 2, 0),  # Empty should return no chains
             # Single motion
-            (['-5'], 1, 1),                  # With min_length=1, single fifth counts
+            (["-5"], 1, 1),  # With min_length=1, single fifth counts
         ]
 
         for root_motion, min_length, expected_chain_count in test_cases:
-            events = MockEvents([''] + root_motion)  # Add empty first motion
+            events = MockEvents([""] + root_motion)  # Add empty first motion
 
-            result = extractor._detect_circle_of_fifths_chains(events, min_length=min_length)
+            result = extractor._detect_circle_of_fifths_chains(
+                events, min_length=min_length
+            )
 
             # Verify result structure
             assert isinstance(result, dict)
-            assert 'type' in result
-            assert 'chains' in result
-            assert result['type'] == 'circle5'
+            assert "type" in result
+            assert "chains" in result
+            assert result["type"] == "circle5"
 
-            chains = result['chains']
-            assert len(chains) == expected_chain_count, f"Motion {root_motion} (min_length={min_length}): expected {expected_chain_count} chains, got {len(chains)}"
+            chains = result["chains"]
+            assert (
+                len(chains) == expected_chain_count
+            ), f"Motion {root_motion} (min_length={min_length}): expected {expected_chain_count} chains, got {len(chains)}"
 
             # Verify chain structure
             for chain in chains:
                 assert isinstance(chain, dict)
-                assert 'start' in chain
-                assert 'length' in chain
-                assert isinstance(chain['start'], int)
-                assert isinstance(chain['length'], int)
-                assert chain['length'] >= min_length + 1  # Chains are measured in chords (transitions + 1)
+                assert "start" in chain
+                assert "length" in chain
+                assert isinstance(chain["start"], int)
+                assert isinstance(chain["length"], int)
+                assert (
+                    chain["length"] >= min_length + 1
+                )  # Chains are measured in chords (transitions + 1)
 
     def test_circle_of_fifths_edge_cases(self, extractor):
         """Test edge cases in circle of fifths detection."""
@@ -224,34 +230,34 @@ class TestLowLevelEventsCoverage:
         # Test edge cases that might cause issues
         edge_cases = [
             # Very long chain
-            (['-5'] * 10, 3),
-
+            (["-5"] * 10, 3),
             # Chain ending at the end (tests final chain detection)
-            (['+2', '-5', '-5', '-5'], 2),
-
+            (["+2", "-5", "-5", "-5"], 2),
             # Alternating fifth directions
-            (['-5', '+4', '-5', '+4'], 2),
-
+            (["-5", "+4", "-5", "+4"], 2),
             # Chain with exactly minimum length
-            (['-5', '-5'], 2),  # 2 transitions = 3 chords, min_length=2
-
+            (["-5", "-5"], 2),  # 2 transitions = 3 chords, min_length=2
             # Single chord (no motion at all)
             ([], 1),
         ]
 
         for root_motion, min_length in edge_cases:
-            events = MockEvents([''] + root_motion)
+            events = MockEvents([""] + root_motion)
 
             # Should not crash
             try:
-                result = extractor._detect_circle_of_fifths_chains(events, min_length=min_length)
+                result = extractor._detect_circle_of_fifths_chains(
+                    events, min_length=min_length
+                )
                 assert isinstance(result, dict)
-                assert 'chains' in result
+                assert "chains" in result
 
                 # All chains should meet minimum length requirement
-                for chain in result['chains']:
-                    transitions = chain['length'] - 1
-                    assert transitions >= min_length, f"Chain length {chain['length']} should have ≥{min_length} transitions"
+                for chain in result["chains"]:
+                    transitions = chain["length"] - 1
+                    assert (
+                        transitions >= min_length
+                    ), f"Chain length {chain['length']} should have ≥{min_length} transitions"
 
             except Exception as e:
                 pytest.fail(f"Circle of fifths detection failed for {root_motion}: {e}")
@@ -271,17 +277,17 @@ class TestLowLevelEventsCoverage:
 
         # Test with None values (should use fallback logic)
         tokens = [
-            MockToken(),              # None
-            MockToken(None),         # Explicit None
-            MockToken(5),            # Valid motion
-            MockToken(None),         # None after valid
+            MockToken(),  # None
+            MockToken(None),  # Explicit None
+            MockToken(5),  # Valid motion
+            MockToken(None),  # None after valid
         ]
 
         motions = extractor._detect_root_motion(tokens)
 
         # Should handle None values gracefully
         assert len(motions) == len(tokens)
-        assert motions[0] == ''  # First always empty
+        assert motions[0] == ""  # First always empty
 
         # None values should result in some default motion
         for motion in motions[1:]:
@@ -302,12 +308,12 @@ class TestLowLevelEventsCoverage:
 
         # Test with various malformed chord symbols
         malformed_cases = [
-            ([""], ["C"]),                          # Empty chord symbol
-            (["InvalidChord"], ["C"]),              # Invalid chord
-            (["C", "", "G"], ["C", "F", "G"]),      # Mixed valid/invalid
-            (["C//"], ["C"]),                       # Double slash
-            (["C/"], ["C"]),                        # Trailing slash
-            (["/C"], ["C"]),                        # Leading slash
+            ([""], ["C"]),  # Empty chord symbol
+            (["InvalidChord"], ["C"]),  # Invalid chord
+            (["C", "", "G"], ["C", "F", "G"]),  # Mixed valid/invalid
+            (["C//"], ["C"]),  # Double slash
+            (["C/"], ["C"]),  # Trailing slash
+            (["/C"], ["C"]),  # Leading slash
         ]
 
         for malformed_chords, valid_chords in malformed_cases:
@@ -353,21 +359,23 @@ class TestLowLevelEventsCoverage:
 
                 # Test specific mappings
                 if normalized == 0:
-                    assert motion == 'same'
+                    assert motion == "same"
                 elif normalized in [1, 11]:
-                    assert motion == 'chromatic'
+                    assert motion == "chromatic"
                 elif normalized == 2:
-                    assert motion == '+2'
+                    assert motion == "+2"
                 elif normalized == 10:
-                    assert motion == '-2'
+                    assert motion == "-2"
                 elif normalized in [5, 7]:
-                    assert motion in ['+4', '-5']  # Both are fifth-related
+                    assert motion in ["+4", "-5"]  # Both are fifth-related
                 else:
                     # Other intervals should be formatted as signed integers
                     assert isinstance(motion, str)
 
             except Exception as e:
-                pytest.fail(f"Root motion detection failed for interval {interval}: {e}")
+                pytest.fail(
+                    f"Root motion detection failed for interval {interval}: {e}"
+                )
 
     def test_pedal_point_complex_patterns(self, extractor):
         """Test complex pedal point patterns for edge case coverage."""
@@ -375,18 +383,14 @@ class TestLowLevelEventsCoverage:
         complex_patterns = [
             # Multiple pedal sections
             [0, 0, 0, 7, 7, 7, 5],  # C pedal, then G pedal
-
             # Pedal interrupted by single different note
-            [0, 0, 7, 0, 0],        # C pedal interrupted by G
-
+            [0, 0, 7, 0, 0],  # C pedal interrupted by G
             # Very long pedal
-            [0] * 10,               # 10-chord pedal
-
+            [0] * 10,  # 10-chord pedal
             # Pedal of length exactly 2
-            [0, 0, 7],              # Minimum pedal length
-
+            [0, 0, 7],  # Minimum pedal length
             # Alternating pattern (no sustained pedal)
-            [0, 7, 0, 7, 0],        # Should not detect pedal
+            [0, 7, 0, 7, 0],  # Should not detect pedal
         ]
 
         for pattern in complex_patterns:
@@ -400,4 +404,6 @@ class TestLowLevelEventsCoverage:
             for i in range(len(pattern) - 1):
                 if pattern[i] == pattern[i + 1]:
                     # Both positions should be flagged as pedal
-                    assert pedal_flags[i] and pedal_flags[i + 1], f"Pattern {pattern} at positions {i}, {i+1}"
+                    assert (
+                        pedal_flags[i] and pedal_flags[i + 1]
+                    ), f"Pattern {pattern} at positions {i}, {i+1}"

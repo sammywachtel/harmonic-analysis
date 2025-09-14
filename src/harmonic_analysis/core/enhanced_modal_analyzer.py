@@ -16,8 +16,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from ..analysis_types import EvidenceType
-from ..utils.chord_inversions import analyze_chord_inversion
-from ..utils.scales import KEY_SIGNATURES
+from .utils.chord_inversions import analyze_chord_inversion
+from .utils.scales import KEY_SIGNATURES
 
 # EvidenceType moved to types.py for shared usage
 
@@ -368,30 +368,30 @@ class EnhancedModalAnalyzer:
         # PARENT KEY VALIDATION PENALTIES
         if validation_result is not None:
             outside_key_ratio = validation_result["outside_key_ratio"]
-            print(
-                f"🔍 MODAL VALIDATOR: outside_key_ratio={outside_key_ratio:.3f}, "
-                f"confidence before penalty={final_confidence:.3f}"
-            )
+            # print(
+            #     f"🔍 MODAL VALIDATOR: outside_key_ratio={outside_key_ratio:.3f}, "
+            #     f"confidence before penalty={final_confidence:.3f}"
+            # )
 
             # Apply confidence penalties based on how many chords are outside the key
             if outside_key_ratio > 0.5:
                 final_confidence *= 0.3  # Heavy penalty for >50% outside key
-                print(
-                    f"🔍 MODAL VALIDATOR: Applied heavy penalty (0.3), "
-                    f"new confidence={final_confidence:.3f}"
-                )
+                # print(
+                #     f"🔍 MODAL VALIDATOR: Applied heavy penalty (0.3), "
+                #     f"new confidence={final_confidence:.3f}"
+                # )
             elif outside_key_ratio > 0.3:
                 final_confidence *= 0.5  # Moderate penalty for >30% outside key
-                print(
-                    f"🔍 MODAL VALIDATOR: Applied moderate penalty (0.5), "
-                    f"new confidence={final_confidence:.3f}"
-                )
+                # print(
+                #     f"🔍 MODAL VALIDATOR: Applied moderate penalty (0.5), "
+                #     f"new confidence={final_confidence:.3f}"
+                # )
             elif outside_key_ratio > 0.1:
                 final_confidence *= 0.7  # Light penalty for >10% outside key
-                print(
-                    f"🔍 MODAL VALIDATOR: Applied light penalty (0.7), "
-                    f"new confidence={final_confidence:.3f}"
-                )
+                # print(
+                #     f"🔍 MODAL VALIDATOR: Applied light penalty (0.7), "
+                #     f"new confidence={final_confidence:.3f}"
+                # )
 
             # Add contextual evidence about key validation
             if outside_key_ratio > 0.1:
@@ -1269,6 +1269,58 @@ class EnhancedModalAnalyzer:
         match = re.match(r"^([A-G][#b]?)", key_signature)
         return match.group(1) if match else "C"
 
+    # --- NEW: Standard async API entry point ---
+    async def analyze_modal(
+        self, chords: List[str], parent_key: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Standard async entry point for modal analysis with stable output format.
+
+        Args:
+            chords: List of chord symbols to analyze
+            parent_key: Optional key hint (e.g., "C major")
+
+        Returns:
+            Dictionary with stable keys:
+            {
+                "confidence": float,
+                "roman_numerals": List[str],
+                "parent_key": str,
+                "mode": str,
+                "reasoning": str,
+            }
+        """
+        import asyncio
+
+        # Properly run sync method in thread pool for async hygiene
+        result = await asyncio.to_thread(
+            self.analyze_modal_characteristics, chords, parent_key
+        )
+
+        if result is None:
+            return {
+                "confidence": 0.0,
+                "roman_numerals": [],
+                "parent_key": parent_key or "C major",
+                "mode": "Ionian",  # Default mode
+                "reasoning": "No modal characteristics detected",
+            }
+
+        return {
+            "confidence": result.confidence,
+            "roman_numerals": result.roman_numerals,
+            "parent_key": result.parent_key_signature,
+            "mode": result.mode_name,
+            "reasoning": (
+                f"Detected {result.mode_name} with {result.confidence:.1%} confidence. "
+            )
+            + (
+                f"Characteristics: {', '.join(result.characteristics)}"
+                if result.characteristics
+                else ""
+            ),
+        }
+
 
 # Convenience function export to match dynamic import expectations
 async def analyze_modal_progression(
@@ -1284,5 +1336,10 @@ async def analyze_modal_progression(
     Returns:
         ModalAnalysisResult if modal characteristics detected, None otherwise
     """
+    import asyncio
+
     analyzer = EnhancedModalAnalyzer()
-    return analyzer.analyze_modal_characteristics(chords, parent_key)
+    # Properly run sync method in thread pool for async hygiene
+    return await asyncio.to_thread(
+        analyzer.analyze_modal_characteristics, chords, parent_key
+    )

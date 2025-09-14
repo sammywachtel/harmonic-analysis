@@ -5,24 +5,22 @@ Converts the output from FunctionalHarmonyAnalyzer into Token objects
 that can be processed by the pattern matching engine.
 """
 
-from typing import List, Dict, Optional, Any
 import re
+from typing import Any, List, Optional
+
+from ..utils.scales import NOTE_TO_PITCH_CLASS
 from .matcher import Token
 
 
 class TokenConverter:
     """Converts functional harmony analysis results to pattern engine tokens."""
 
-    def __init__(self):
-        # Note name to pitch class mapping for bass motion calculation
-        self.note_to_pc = {
-            'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4,
-            'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9,
-            'A#': 10, 'Bb': 10, 'B': 11
-        }
+    def __init__(self) -> None:
+        # Use shared note-to-pitch-class mapping
+        self.note_to_pc = NOTE_TO_PITCH_CLASS
 
         # Roman numeral patterns for extraction
-        self.roman_pattern = re.compile(r'([b#]*)([ivxIVX]+)([°ø+]?)(\d*)')
+        self.roman_pattern = re.compile(r"([b#]*)([ivxIVX]+)([°ø+]?)(\d*)")
 
     def convert_analysis_to_tokens(
         self,
@@ -37,20 +35,24 @@ class TokenConverter:
           2) Use upstream Roman numerals if present & trustworthy; else generate once
           3) Apply normalizations (minor subtonic; backdoor preference in major)
           4) Derive roles (reuse upstream where valid, else recompute)
-          5) Build Token list with ancillary info (bass motion, soprano estimate, secondary_of)
+          5) Build Token list with ancillary info (bass motion, soprano
+             estimate, secondary_of)
         """
         # ---- 1) Effective key+mode ----
-        default_key = 'C major'
-        key_center = getattr(analysis_result, 'key_center', default_key) or default_key
-        chords_analysis = getattr(analysis_result, 'chords', []) or []
-        mode = getattr(analysis_result, 'mode', None)  # may be None/'major'/'minor'/'modal'
+        default_key = "C major"
+        key_center = getattr(analysis_result, "key_center", default_key) or default_key
+        chords_analysis = getattr(analysis_result, "chords", []) or []
+        mode = getattr(
+            analysis_result, "mode", None
+        )  # may be None/'major'/'minor'/'modal'
 
-        if mode is None or mode == 'modal':
-            # fall back to extracting from key_center string when analyzer didn't set a concrete mode
+        if mode is None or mode == "modal":
+            # fall back to extracting from key_center string when analyzer
+            # didn't set a concrete mode
             mode = self._extract_mode(key_center)
 
         # ---- 2) Base roman numerals ----
-        upstream_romans = [getattr(ch, 'roman_numeral', '') for ch in chords_analysis]
+        upstream_romans = [getattr(ch, "roman_numeral", "") for ch in chords_analysis]
         have_upstream = any(bool(r) for r in upstream_romans)
 
         if have_upstream:
@@ -78,8 +80,14 @@ class TokenConverter:
         )
 
         # ---- 4) Roles ----
-        upstream_roles = [self._function_to_role(getattr(ch, 'function', None), rn)
-                          for ch, rn in zip(chords_analysis, roman_numerals)] if chords_analysis else []
+        upstream_roles = (
+            [
+                self._function_to_role(getattr(ch, "function", None), rn)
+                for ch, rn in zip(chords_analysis, roman_numerals)
+            ]
+            if chords_analysis
+            else []
+        )
         have_roles = any(bool(r) for r in upstream_roles)
         if not used_upstream_romans or not have_roles:
             # Recompute roles when romans were regenerated or upstream roles are missing
@@ -89,16 +97,24 @@ class TokenConverter:
 
         # ---- 5) Build Tokens ----
         tokens: List[Token] = []
-        for i, (chord_sym, roman, role) in enumerate(zip(chord_symbols, roman_numerals, chord_roles)):
+        for i, (chord_sym, roman, role) in enumerate(
+            zip(chord_symbols, roman_numerals, chord_roles)
+        ):
             # Bass motion from previous chord
-            bass_motion = self._calculate_bass_motion(chord_symbols[i-1], chord_sym) if i > 0 else None
+            bass_motion = (
+                self._calculate_bass_motion(chord_symbols[i - 1], chord_sym)
+                if i > 0
+                else None
+            )
 
             # Interpret mode for token (resolve 'modal' lazily per token if needed)
-            token_mode = mode if mode != 'modal' else self._extract_mode(key_center)
+            token_mode = mode if mode != "modal" else self._extract_mode(key_center)
 
             # Parse extra info from roman
             quality, inversion, flags = self._parse_roman_numeral(roman)
-            soprano_degree = self._estimate_soprano_degree(roman, i == len(chord_symbols) - 1)
+            soprano_degree = self._estimate_soprano_degree(
+                roman, i == len(chord_symbols) - 1
+            )
             secondary_of = self._detect_secondary_of(roman)
 
             tokens.append(
@@ -115,7 +131,9 @@ class TokenConverter:
 
         return tokens
 
-    def _generate_roman_numerals(self, chord_symbols: List[str], key_center: str) -> List[str]:
+    def _generate_roman_numerals(
+        self, chord_symbols: List[str], key_center: str
+    ) -> List[str]:
         """Generate Roman numerals from chord symbols and key center."""
         # This is a simplified implementation - in practice, we'd use
         # the existing roman numeral analysis from the library
@@ -123,8 +141,8 @@ class TokenConverter:
 
         # Extract key root and mode
         key_parts = key_center.split()
-        key_root = key_parts[0] if key_parts else 'C'
-        is_minor = len(key_parts) > 1 and 'minor' in key_parts[1].lower()
+        key_root = key_parts[0] if key_parts else "C"
+        is_minor = len(key_parts) > 1 and "minor" in key_parts[1].lower()
 
         # Simple mapping (this would be much more sophisticated in practice)
         key_pc = self.note_to_pc.get(key_root, 0)
@@ -149,43 +167,48 @@ class TokenConverter:
 
         for roman in roman_numerals:
             # Extract the base roman numeral
-            base_roman = re.sub(r'[^ivxIVX]', '', roman.lower())
+            base_roman = re.sub(r"[^ivxIVX]", "", roman.lower())
 
             # Map to functional roles
-            if base_roman in ['i', 'iii', 'vi']:
-                role = 'T'  # Tonic
-            elif base_roman in ['ii', 'iv']:
-                role = 'PD'  # Predominant
-            elif base_roman in ['v', 'vii']:
-                role = 'D'  # Dominant
+            if base_roman in ["i", "iii", "vi"]:
+                role = "T"  # Tonic
+            elif base_roman in ["ii", "iv"]:
+                role = "PD"  # Predominant
+            elif base_roman in ["v", "vii"]:
+                role = "D"  # Dominant
             else:
                 # Default based on position - common in pop progressions
-                role = 'T'
+                role = "T"
 
             roles.append(role)
 
         return roles
 
-    def _normalize_minor_subtonic(self, chord_symbols: List[str], roman_numerals: List[str], key_center: str) -> List[str]:
+    def _normalize_minor_subtonic(
+        self, chord_symbols: List[str], roman_numerals: List[str], key_center: str
+    ) -> List[str]:
         """Ensure subtonic in minor (scale degree ♭7) is spelled ♭VII rather than VII.
         This runs regardless of whether romans come from upstream or are generated here.
 
         Rules:
         - Only in minor mode (derived from key_center).
-        - If a roman base is 'VII' but the chord root is the natural subtonic (a whole step below tonic),
+        - If a roman base is 'VII' but the chord root is the natural
+          subtonic (a whole step below tonic),
           rewrite 'VII' -> 'bVII' (preserving any trailing figures like 7/6, etc.).
-        - Do NOT change genuine leading-tone harmonies (e.g., diminished vii°) or obvious secondaries that clearly
-          indicate a raised 7th context. We keep it conservative: we skip when the roman contains '°' or 'ø'.
+        - Do NOT change genuine leading-tone harmonies (e.g., diminished
+          vii°) or obvious secondaries that clearly
+          indicate a raised 7th context. We keep it conservative: we skip
+          when the roman contains '°' or 'ø'.
         """
         try:
-            is_minor = self._extract_mode(key_center) == 'minor'
+            is_minor = self._extract_mode(key_center) == "minor"
         except Exception:
             is_minor = False
         if not is_minor or not roman_numerals:
             return roman_numerals
 
         # Compute pitch class for tonic and natural subtonic (whole step below tonic)
-        key_root = (key_center.split() or ['C'])[0]
+        key_root = (key_center.split() or ["C"])[0]
         key_pc = self.note_to_pc.get(key_root, 0)
         natural_subtonic_pc = (key_pc - 2) % 12  # tonic minus whole step
 
@@ -194,7 +217,7 @@ class TokenConverter:
             if not rn:
                 continue
             # skip clear leading-tone diminished/half-diminished chords
-            if '°' in rn or 'ø' in rn:
+            if "°" in rn or "ø" in rn:
                 continue
             # determine chord root pc
             root = self._extract_chord_root(ch)
@@ -202,16 +225,16 @@ class TokenConverter:
             if chord_pc is None:
                 continue
             # base roman letters (strip accidentals and figures for base compare)
-            base = re.sub(r'[^ivxIVX]', '', rn)
-            if base.upper() == 'VII' and chord_pc == natural_subtonic_pc:
+            base = re.sub(r"[^ivxIVX]", "", rn)
+            if base.upper() == "VII" and chord_pc == natural_subtonic_pc:
                 # If already flat (bVII or ♭VII), leave it alone
-                if re.match(r'^[b♭]+\s*VII', rn, flags=re.IGNORECASE):
+                if re.match(r"^[b♭]+\s*VII", rn, flags=re.IGNORECASE):
                     continue
                 # Replace only a plain 'VII' (not already prefixed) with 'bVII'
-                m = re.search(r'(?<![b♭])VII', rn, flags=re.IGNORECASE)
+                m = re.search(r"(?<![b♭])VII", rn, flags=re.IGNORECASE)
                 if m:
                     start, end = m.start(), m.end()
-                    new_rn = rn[:start] + 'bVII' + rn[end:]
+                    new_rn = rn[:start] + "bVII" + rn[end:]
                     fixed[i] = new_rn
         return fixed
 
@@ -222,7 +245,8 @@ class TokenConverter:
         key_center: str,
         mode: str,
     ) -> List[str]:
-        """Prefer bVII (or bVII7) over secondary labels on the natural subtonic in major keys.
+        """Prefer bVII (or bVII7) over secondary labels on the natural
+        subtonic in major keys.
         Example in C major: Bb7 should be bVII7 (not V7/bIII) for the backdoor cadence.
         """
         if not roman_numerals:
@@ -282,46 +306,46 @@ class TokenConverter:
             return ""
 
         # Handle two-character roots (with accidentals)
-        if len(chord) >= 2 and chord[1] in ['b', '#']:
+        if len(chord) >= 2 and chord[1] in ["b", "#"]:
             return chord[:2]
         else:
             return chord[0]
 
     def _extract_mode(self, key_center: str) -> str:
         """Extract mode from key center string."""
-        if 'minor' in key_center.lower():
-            return 'minor'
+        if "minor" in key_center.lower():
+            return "minor"
         else:
-            return 'major'
+            return "major"
 
     def _parse_roman_numeral(self, roman: str) -> tuple:
         """Parse roman numeral for quality, inversion, and flags."""
-        quality = 'triad'  # Default
+        quality = "triad"  # Default
         inversion = None
         flags = []
 
         # Check for 7th chords
-        if '7' in roman:
-            quality = '7'
+        if "7" in roman:
+            quality = "7"
 
         # Check for diminished/half-diminished
-        if '°' in roman:
-            quality = 'dim'
-            flags.append('diminished')
-        elif 'ø' in roman:
-            quality = 'half_dim'
-            flags.append('half_diminished')
+        if "°" in roman:
+            quality = "dim"
+            flags.append("diminished")
+        elif "ø" in roman:
+            quality = "half_dim"
+            flags.append("half_diminished")
 
         # Check for inversions (simplified)
-        if '6' in roman and '64' not in roman:
-            inversion = '6'
-            flags.append('first_inversion')
-        elif '64' in roman:
-            inversion = '64'
-            flags.append('second_inversion')
+        if "6" in roman and "64" not in roman:
+            inversion = "6"
+            flags.append("first_inversion")
+        elif "64" in roman:
+            inversion = "64"
+            flags.append("second_inversion")
             # Check for cadential 6/4
-            if roman.startswith('I') or roman.startswith('i'):
-                flags.append('cadential_64')
+            if roman.startswith("I") or roman.startswith("i"):
+                flags.append("cadential_64")
 
         return quality, inversion, flags
 
@@ -332,7 +356,7 @@ class TokenConverter:
 
         if is_final:
             # Final chords often end on tonic (scale degree 1)
-            if roman.upper().startswith('I'):
+            if roman.upper().startswith("I"):
                 return 1
 
         # Could be enhanced with voice-leading analysis
@@ -341,8 +365,8 @@ class TokenConverter:
     def _detect_secondary_of(self, roman: str) -> Optional[str]:
         """Detect secondary dominants in roman numeral notation."""
         # Look for V/x or vii°/x patterns
-        if '/' in roman:
-            parts = roman.split('/')
+        if "/" in roman:
+            parts = roman.split("/")
             if len(parts) == 2:
                 return parts[1]  # Return the target of the secondary
 
@@ -351,24 +375,54 @@ class TokenConverter:
     def _interval_to_roman(self, interval: int, is_minor: bool, chord: str) -> str:
         """Convert interval to roman numeral (simplified mapping)."""
         # This is a very basic mapping - real implementation would be more sophisticated
-        major_romans = ['I', 'bII', 'II', 'bIII', 'III', 'IV', 'bV', 'V', 'bVI', 'VI', 'bVII', 'VII']
+        major_romans = [
+            "I",
+            "bII",
+            "II",
+            "bIII",
+            "III",
+            "IV",
+            "bV",
+            "V",
+            "bVI",
+            "VI",
+            "bVII",
+            "VII",
+        ]
         # Minor-mode mapping adjusted so that:
         # - interval 10 (e.g., G in A minor) maps to ♭VII (subtonic), not VII
         # - interval 9 (e.g., F# in A minor) maps to ♯VI
-        minor_romans = ['i', 'bII', 'ii', 'III', 'iv', 'IV', 'bVI', 'v', 'VI', '♯VI', 'bVII', 'vii°']
+        minor_romans = [
+            "i",
+            "bII",
+            "ii",
+            "III",
+            "iv",
+            "IV",
+            "bVI",
+            "v",
+            "VI",
+            "♯VI",
+            "bVII",
+            "vii°",
+        ]
 
         if is_minor:
             base_roman = minor_romans[interval]
         else:
             base_roman = major_romans[interval]
 
-        # --- Minor-key dominant correction: emit uppercase V when chord quality is major/dominant.
-        # Dominant is 7 semitones above tonic; if the chord symbol is clearly major-ish, prefer 'V' over 'v'.
+        # --- Minor-key dominant correction: emit uppercase V when chord
+        # quality is major/dominant.
+        # Dominant is 7 semitones above tonic; if the chord symbol is
+        # clearly major-ish, prefer 'V' over 'v'.
         if is_minor and interval == 7:
             name_l = chord.lower()
-            is_majorish = (('maj' in name_l) or ('m' not in name_l))  # no explicit minor marker
-            if is_majorish and base_roman.startswith('v'):
-                base_roman = 'V' + base_roman[1:]
+            is_majorish = ("maj" in name_l) or (
+                "m" not in name_l
+            )  # no explicit minor marker
+            if is_majorish and base_roman.startswith("v"):
+                base_roman = "V" + base_roman[1:]
 
         # Add chord quality indicators (triad quality + seventh type)
         cl = chord.lower()
@@ -383,7 +437,9 @@ class TokenConverter:
         # Detect a minor triad symbol immediately after the root (avoid matching 'maj')
         # Examples that should match: Am, Fm7, D#m, Gbm7
         # Examples that should NOT match: Amaj7, CM7, C∆7
-        is_minor_triad = bool(re.match(r"^[A-G](?:#|b)?m(?!aj)", chord, flags=re.IGNORECASE))
+        is_minor_triad = bool(
+            re.match(r"^[A-G](?:#|b)?m(?!aj)", chord, flags=re.IGNORECASE)
+        )
 
         # Lowercase base roman for minor triads (e.g., Fm7 in C major -> iv7)
         if is_minor_triad:
@@ -397,52 +453,55 @@ class TokenConverter:
 
         return base_roman
 
-    def _function_to_role(self, function, roman: str = "") -> str:
+    def _function_to_role(self, function: Any, roman: str = "") -> str:
         """Convert ChordFunction enum to T/PD/D role string."""
         # Import here to avoid circular imports
         try:
             from ...analysis_types import ChordFunction
 
             if function == ChordFunction.TONIC:
-                return 'T'
+                return "T"
             elif function in [ChordFunction.PREDOMINANT, ChordFunction.SUBDOMINANT]:
-                return 'PD'
+                return "PD"
             elif function == ChordFunction.DOMINANT:
-                return 'D'
+                return "D"
             elif function == ChordFunction.SUBMEDIANT:
-                return 'T'  # vi often functions as tonic substitute
+                return "T"  # vi often functions as tonic substitute
             elif function == ChordFunction.MEDIANT:
-                return 'T'  # iii often functions as tonic substitute
+                return "T"  # iii often functions as tonic substitute
             elif function == ChordFunction.LEADING_TONE:
-                return 'D'  # vii° functions as dominant
+                return "D"  # vii° functions as dominant
             elif function == ChordFunction.CHROMATIC:
                 # Check if this is a chromatic dominant (like V7)
-                if 'V' in roman and '7' in roman:
-                    return 'D'
+                if "V" in roman and "7" in roman:
+                    return "D"
                 else:
-                    return 'T'  # Default for other chromatic functions
+                    return "T"  # Default for other chromatic functions
             else:
-                return 'T'
+                return "T"
         except ImportError:
             # Fallback if analysis_types not available
             function_str = str(function).lower()
-            if 'tonic' in function_str:
-                return 'T'
-            elif 'predominant' in function_str or 'subdominant' in function_str:
-                return 'PD'
-            elif 'dominant' in function_str or 'leading_tone' in function_str:
-                return 'D'
-            elif 'mediant' in function_str or 'submediant' in function_str:
-                return 'T'  # Mediant/submediant often function as tonic substitutes
+            if "tonic" in function_str:
+                return "T"
+            elif "predominant" in function_str or "subdominant" in function_str:
+                return "PD"
+            elif "dominant" in function_str or "leading_tone" in function_str:
+                return "D"
+            elif "mediant" in function_str or "submediant" in function_str:
+                return "T"  # Mediant/submediant often function as tonic substitutes
             else:
-                return 'T'
+                return "T"
 
 
 # Shared entry point for external callers (e.g., FunctionalHarmonyAnalyzer)
 # to obtain a Roman numeral using the same logic as the pattern engine
 # (including minor subtonic normalization).
 
-def romanize_chord(chord_symbol: str, key_center: str, profile: str = "classical") -> str:
+
+def romanize_chord(
+    chord_symbol: str, key_center: str, profile: str = "classical"
+) -> str:
     """Return a Roman numeral for a single chord in the given key.
 
     This uses TokenConverter's internal mapping plus normalization so that

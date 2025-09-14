@@ -114,5 +114,8 @@ htmlcov/
 .mypy_cache/
 
 # Generated test data (created by CI)
-tests/integration/generated/*.json
-tests/integration/generated/*.csv
+tests/data/generated/*.json
+tests/data/generated/*.csv
+
+# Development-only calibration data files (baseline data is in assets/)
+tools/calibration/*.json

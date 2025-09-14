@@ -383,13 +383,18 @@ class ScaleMelodyAnalyzer:
                 # Convert to relative major (minor root + major third = relative major)
                 minor_pc = self.note_map.get(minor_root)
                 if minor_pc is not None:
-                    relative_major_pc = (minor_pc + 3) % 12  # Minor 3rd up = relative major
+                    relative_major_pc = (
+                        minor_pc + 3
+                    ) % 12  # Minor 3rd up = relative major
                     parent_root = self._pitch_class_to_note(relative_major_pc)
                 else:
                     continue
             else:
                 continue  # Skip unknown scale types
 
+            # Skip if parent_root is None
+            if parent_root is None:
+                continue
             parent_pc = self.note_map.get(parent_root)
             if parent_pc is None:
                 continue

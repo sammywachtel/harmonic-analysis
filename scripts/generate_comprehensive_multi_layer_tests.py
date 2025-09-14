@@ -26,8 +26,8 @@ Usage:
     python scripts/generate_comprehensive_multi_layer_tests.py
 
 Output:
-    tests/generated/integration/comprehensive-multi-layer-tests.json
-    tests/generated/integration/comprehensive-multi-layer-tests.csv
+    tests/data/generated/comprehensive-multi-layer-tests.json
+    tests/data/generated/comprehensive-multi-layer-tests.csv
 
 Historical Note:
 Originally had a critical bug in chord_to_roman_numeral() that returned "I"
@@ -1831,21 +1831,74 @@ class ComprehensiveMultiLayerGenerator:
                     },
                 ]
             )
-        # Add more modes as needed
-        else:
-            # Default Ionian-style progressions
+        elif mode == "Lydian":
             progressions.extend(
                 [
                     {
-                        "chords": [root, self.get_chord_at_interval(root, 5), root],
-                        "explanation": f"I-IV-I {mode}",
+                        "chords": [
+                            root,
+                            self.get_chord_at_interval(root, 6),  # #IV (tritone)
+                            self.get_chord_at_interval(root, 7),  # V
+                            root,
+                        ],
+                        "explanation": "I-#IV-V-I Lydian with #4 characteristic",
                     },
                     {
-                        "chords": [root, self.get_chord_at_interval(root, 7), root],
-                        "explanation": f"I-V-I {mode}",
+                        "chords": [root, self.get_chord_at_interval(root, 6), root],
+                        "explanation": "I-#IV-I Lydian cadence",
                     },
                 ]
             )
+        elif mode == "Aeolian":
+            progressions.extend(
+                [
+                    {
+                        "chords": [
+                            f"{root}m",
+                            self.get_chord_at_interval(root, 8),  # bVI
+                            self.get_chord_at_interval(root, 10),  # bVII
+                            f"{root}m",
+                        ],
+                        "explanation": "i-bVI-bVII-i Aeolian with b6, b7",
+                    },
+                    {
+                        "chords": [
+                            f"{root}m",
+                            self.get_chord_at_interval(root, 8),
+                            f"{root}m",
+                        ],
+                        "explanation": "i-bVI-i Aeolian cadence",
+                    },
+                ]
+            )
+        elif mode == "Locrian":
+            progressions.extend(
+                [
+                    {
+                        "chords": [
+                            f"{root}°",  # diminished tonic
+                            self.get_chord_at_interval(root, 1),  # bII
+                            self.get_chord_at_interval(root, 6),  # bV (tritone)
+                            f"{root}°",
+                        ],
+                        "explanation": "i°-bII-bV-i° Locrian with b2, b5",
+                    },
+                    {
+                        "chords": [
+                            f"{root}°",
+                            self.get_chord_at_interval(root, 1),
+                            f"{root}°",
+                        ],
+                        "explanation": "i°-bII-i° Locrian cadence",
+                    },
+                ]
+            )
+        elif mode == "Ionian":
+            # Skip Ionian modal tests - it's just major scale (functional, not modal)
+            progressions = []
+        else:
+            # Fallback for any remaining undefined modes
+            progressions = []
 
         return progressions
 
@@ -2132,13 +2185,18 @@ class ComprehensiveMultiLayerGenerator:
         # Generate Roman numeral based on scale degree and chord quality
         if is_minor:
             degree_map = {
-                0: "i",
-                2: "ii°",
-                3: "bIII",
-                5: "iv",
-                7: "v",
-                8: "bVI",
-                10: "bVII",
+                0: "i",  # tonic
+                1: "bII",  # Neapolitan/Phrygian II
+                2: "ii°",  # supertonic (diminished)
+                3: "bIII",  # mediant (relative major)
+                4: "III",  # raised mediant
+                5: "iv",  # subdominant
+                6: "#iv°",  # raised subdominant (tritone)
+                7: "v",  # dominant
+                8: "bVI",  # submediant
+                9: "VI",  # raised submediant
+                10: "bVII",  # subtonic
+                11: "vii°",  # leading tone (diminished)
             }
             base_numeral = degree_map.get(scale_degree, "?")
 
@@ -2148,13 +2206,18 @@ class ComprehensiveMultiLayerGenerator:
 
         else:
             degree_map = {
-                0: "I",
-                2: "ii",
-                4: "iii",
-                5: "IV",
-                7: "V",
-                9: "vi",
-                11: "vii°",
+                0: "I",  # tonic
+                1: "bII",  # Neapolitan
+                2: "ii",  # supertonic
+                3: "bIII",  # flat mediant (borrowed from minor)
+                4: "iii",  # mediant
+                5: "IV",  # subdominant
+                6: "bV",  # tritone substitution
+                7: "V",  # dominant
+                8: "bVI",  # flat submediant (borrowed from minor)
+                9: "vi",  # submediant
+                10: "bVII",  # flat seventh (borrowed from minor)
+                11: "vii°",  # leading tone (diminished)
             }
             base_numeral = degree_map.get(scale_degree, "?")
 
@@ -2391,7 +2454,7 @@ class ComprehensiveMultiLayerGenerator:
         print("\n🚀 EXPORTING REVOLUTIONARY MULTI-LAYER TESTS!")
 
         output_dir = os.path.join(
-            os.path.dirname(__file__), "..", "tests", "integration", "generated"
+            os.path.dirname(__file__), "..", "tests", "data", "generated"
         )
         os.makedirs(output_dir, exist_ok=True)
 

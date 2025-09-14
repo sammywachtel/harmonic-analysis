@@ -3,13 +3,11 @@
 A comprehensive Python library for music theory analysis, providing sophisticated
 algorithms for functional harmony, modal analysis, and chromatic harmony detection.
 
-🆕 NEW: Advanced Pattern Matching Engine
-For chord progression analysis, use the new PatternAnalysisService:
-    from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
-
-⚠️  DEPRECATION NOTICE:
-- analyze_chord_progression() and analyze_progression_multiple() are deprecated
-- Use PatternAnalysisService for better pattern recognition and accuracy
+🆕 Advanced Pattern Matching Engine
+For chord progression analysis, use PatternAnalysisService:
+    from harmonic_analysis.services.pattern_analysis_service import (
+        PatternAnalysisService,
+    )
 
 This is the main API layer providing essential functions for 90% of users.
 For specialized functionality, see:
@@ -27,9 +25,18 @@ __version__ = "0.2.0rc4"
 # LAYER 1: MAIN API - Essential Functions for 90% of Users
 # =============================================================================
 
+# Configuration types
+# Import common result types
+from .analysis_types import (
+    AnalysisOptions,
+    AnalysisSuggestions,
+    KeySuggestion,
+    PedagogicalLevel,
+)
+
 # Import all user-facing APIs from the api package
 # Core analysis functions
-from .api.analysis import analyze_chord_progression, analyze_melody, analyze_scale
+from .api.analysis import analyze_melody, analyze_scale
 
 # Character and emotional analysis
 from .api.character import (
@@ -72,26 +79,8 @@ from .api.musical_data import (
 # Import utility functions from core
 from .core.scale_melody_analysis import ScaleMelodyAnalysisResult, analyze_scale_melody
 
-# Import common result types from services
-from .services.multiple_interpretation_service import (
-    AlternativeAnalysis,
-    InterpretationAnalysis,
-    MultipleInterpretationResult,
-    PedagogicalLevel,
-    analyze_progression_multiple,
-)
-
-# Import new Pattern Analysis Service
-from .services.pattern_analysis_service import PatternAnalysisService
-
-# Configuration types
-from .analysis_types import AnalysisOptions, AnalysisSuggestions, KeySuggestion
-
-# Utility functions
-from .utils.analysis_helpers import describe_contour
-
 # Music theory constants
-from .utils.music_theory_constants import (
+from .core.utils.music_theory_constants import (
     ALL_MAJOR_KEYS,
     ALL_MINOR_KEYS,
     ALL_MODES,
@@ -100,23 +89,39 @@ from .utils.music_theory_constants import (
     get_modal_characteristics,
 )
 
+# Import DTO types for pattern analysis
+from .dto import (
+    AnalysisEnvelope,
+    AnalysisSummary,
+    AnalysisType,
+    PatternMatchDTO,
+    SectionDTO,
+)
+
+# Import new Pattern Analysis Service
+from .services.pattern_analysis_service import PatternAnalysisService
+
+# Utility functions
+from .utils.analysis_helpers import describe_contour
+
 __all__ = [
     # Version
     "__version__",
-    # 🆕 NEW: Advanced Pattern Analysis (RECOMMENDED)
+    # 🆕 Advanced Pattern Analysis (RECOMMENDED)
     "PatternAnalysisService",
-    # Core analysis functions (4) - chord progression functions are DEPRECATED
-    "analyze_chord_progression",  # ⚠️ DEPRECATED: Use PatternAnalysisService
+    # DTO types for pattern analysis
+    "AnalysisEnvelope",
+    "AnalysisSummary",
+    "AnalysisType",
+    "PatternMatchDTO",
+    "SectionDTO",
+    # Core analysis functions
     "analyze_melody",
     "analyze_scale",
-    "analyze_progression_multiple",  # ⚠️ DEPRECATED: Use PatternAnalysisService
     # Configuration (2)
     "AnalysisOptions",
     "PedagogicalLevel",
-    # Common result types (6)
-    "MultipleInterpretationResult",
-    "InterpretationAnalysis",
-    "AlternativeAnalysis",
+    # Common result types
     "ScaleMelodyAnalysisResult",
     "AnalysisSuggestions",
     "KeySuggestion",

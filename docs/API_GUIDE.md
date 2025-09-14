@@ -4,47 +4,51 @@
 
 ### Basic Chord Progression Analysis
 ```python
-from harmonic_analysis import analyze_progression_multiple
-from harmonic_analysis.analysis_types import AnalysisOptions
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 # Simple analysis
-result = await analyze_progression_multiple(['C', 'F', 'G', 'C'])
-print(f"Primary: {result.primary_analysis.analysis}")
-print(f"Confidence: {result.primary_analysis.confidence:.2f}")
+service = PatternAnalysisService()
+result = await service.analyze_with_patterns_async(['C', 'F', 'G', 'C'], profile="classical")
+print(f"Primary: {' - '.join(result.primary.roman_numerals)}")
+print(f"Confidence: {result.primary.confidence:.2f}")
 
 # With options
-options = AnalysisOptions(
-    parent_key="C major",
-    pedagogical_level="intermediate",
-    confidence_threshold=0.6,
-    max_alternatives=2
+service = PatternAnalysisService()
+result = await service.analyze_with_patterns_async(
+    ['Am', 'F', 'C', 'G'],
+    profile="classical",
+    key_hint="C major",
+    best_cover=True  # Enable multiple interpretations
 )
-result = await analyze_progression_multiple(['Am', 'F', 'C', 'G'], options)
 ```
 
 ### Multiple Interpretation Results
 ```python
 # Access primary analysis
-primary = result.primary_analysis
-print(f"Type: {primary.type}")           # FUNCTIONAL, MODAL, or CHROMATIC
-print(f"Analysis: {primary.analysis}")   # Human-readable description
-print(f"Roman: {primary.roman_numerals}")# I vi IV V
-print(f"Key: {primary.key_signature}")   # C major
+primary = result.primary
+print(f"Type: {primary.type.value}")         # functional, modal, etc.
+print(f"Roman: {' - '.join(primary.roman_numerals)}")  # I - vi - IV - V
+print(f"Key: {primary.key_signature}")       # C major
+print(f"Confidence: {primary.confidence:.2f}")
 
 # Access alternatives
-for alt in result.alternative_analyses:
-    print(f"Alternative: {alt.analysis} (confidence: {alt.confidence:.2f})")
-    print(f"Relationship: {alt.relationship_to_primary}")
+for alt in result.alternatives:
+    print(f"Alternative: {' - '.join(alt.roman_numerals)} (confidence: {alt.confidence:.2f})")
+    print(f"Type: {alt.type.value}")
 ```
 
 ### Evidence and Reasoning Access
 ```python
 # Examine analytical evidence
-for evidence in result.primary_analysis.evidence:
-    print(f"Evidence: {evidence.description}")
-    print(f"Strength: {evidence.strength:.2f}")
-    print(f"Type: {evidence.type}")
-    print(f"Basis: {evidence.musical_basis}")
+for evidence in result.evidence:
+    print(f"Evidence: {evidence.reason}")
+    print(f"Details: {evidence.details}")
+
+# Examine detected patterns
+for pattern in result.primary.patterns:
+    print(f"Pattern: {pattern.name}")
+    print(f"Score: {pattern.score:.2f}")
+    print(f"Span: chords {pattern.start}-{pattern.end}")
 ```
 
 ## Integration Patterns
@@ -53,15 +57,16 @@ for evidence in result.primary_analysis.evidence:
 The library is designed for seamless web API integration:
 
 ```python
-from harmonic_analysis import analyze_progression_multiple
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 # Simple REST endpoint integration
 async def analyze_progression_endpoint(progression: List[str]):
-    result = await analyze_progression_multiple(progression)
+    service = PatternAnalysisService()
+    result = await service.analyze_with_patterns_async(progression, profile="classical")
     return {
-        "primary_analysis": result.primary_analysis,
-        "alternatives": result.alternative_analyses,
-        "metadata": result.metadata
+        "primary_analysis": result.primary.to_dict(),
+        "alternatives": [alt.to_dict() for alt in result.alternatives],
+        "analysis_time_ms": result.analysis_time_ms
     }
 ```
 
@@ -70,16 +75,17 @@ The library provides structured output for application consumption:
 
 ```python
 # Structured output for application integration
-result = await analyze_progression_multiple(['C', 'F', 'G', 'C'])
+service = PatternAnalysisService()
+result = await service.analyze_with_patterns_async(['C', 'F', 'G', 'C'], profile="classical")
 
 # Access structured data
 analysis_data = {
-    "type": result.primary_analysis.type,
-    "analysis": result.primary_analysis.analysis,
-    "confidence": result.primary_analysis.confidence,
-    "roman_numerals": result.primary_analysis.roman_numerals,
-    "key_signature": result.primary_analysis.key_signature,
-    "evidence": [e.description for e in result.primary_analysis.evidence]
+    "type": result.primary.type.value,
+    "roman_numerals": result.primary.roman_numerals,
+    "confidence": result.primary.confidence,
+    "key_signature": result.primary.key_signature,
+    "patterns": [p.name for p in result.primary.patterns],
+    "evidence": [e.reason for e in result.evidence]
 }
 ```
 

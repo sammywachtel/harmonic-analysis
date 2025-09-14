@@ -10,8 +10,8 @@ of truth for musical vocabulary across all application layers.
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..analysis_types import MelodyTrack, MelodyEvent
-from ..utils.scales import (
+from ..analysis_types import MelodyEvent, MelodyTrack
+from ..core.utils.scales import (
     ALL_SCALE_SYSTEMS,
     BLUES_SCALE_MODES,
     DOUBLE_HARMONIC_MAJOR_MODES,
@@ -514,11 +514,9 @@ def get_scale_reference_for_frontend() -> Dict[str, Any]:
 # STAGE C: Melody-Chord Alignment Utilities
 # =============================================================================
 
+
 def align_melody_to_chords(
-    melody: MelodyTrack,
-    chords: List[str],
-    starts: List[float],
-    ends: List[float]
+    melody: MelodyTrack, chords: List[str], starts: List[float], ends: List[float]
 ) -> List[List[MelodyEvent]]:
     """Return per-chord list of melody events within each [start,end) window.
 
@@ -548,11 +546,11 @@ def align_melody_to_chords(
     aligned: List[List[MelodyEvent]] = [[] for _ in chords]
 
     # Handle case where melody might be None or have no events
-    if not melody or not hasattr(melody, 'events') or not melody.events:
+    if not melody or not hasattr(melody, "events") or not melody.events:
         return aligned
 
     for event in melody.events:
-        if not hasattr(event, 'onset') or not hasattr(event, 'duration'):
+        if not hasattr(event, "onset") or not hasattr(event, "duration"):
             continue
 
         onset = event.onset
@@ -560,7 +558,8 @@ def align_melody_to_chords(
 
         # Check overlap with each chord window
         for i, (start, end) in enumerate(zip(starts, ends)):
-            # Simple overlap test: event overlaps if onset < chord_end AND event_end > chord_start
+            # Simple overlap test: event overlaps if onset < chord_end
+            # AND event_end > chord_start
             if (onset < end) and (end_time > start):
                 aligned[i].append(event)
 
@@ -568,8 +567,7 @@ def align_melody_to_chords(
 
 
 def soprano_degrees_per_chord(
-    melody_aligned: List[List[MelodyEvent]],
-    key_center: str
+    melody_aligned: List[List[MelodyEvent]], key_center: str
 ) -> List[Optional[int]]:
     """Map top (soprano) pitch per chord to scale degree 1..7 in the active key.
 
@@ -593,17 +591,31 @@ def soprano_degrees_per_chord(
     # Parse key center
     try:
         parts = key_center.split()
-        tonic_name = parts[0] if parts else 'C'
-        mode = parts[1] if len(parts) > 1 else 'major'
+        tonic_name = parts[0] if parts else "C"
+        mode = parts[1] if len(parts) > 1 else "major"
     except (IndexError, AttributeError):
-        tonic_name = 'C'
-        mode = 'major'
+        tonic_name = "C"
+        mode = "major"
 
     # Note name to pitch class mapping
     name_to_pc = {
-        "C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
-        "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
-        "A#": 10, "Bb": 10, "B": 11
+        "C": 0,
+        "C#": 1,
+        "Db": 1,
+        "D": 2,
+        "D#": 3,
+        "Eb": 3,
+        "E": 4,
+        "F": 5,
+        "F#": 6,
+        "Gb": 6,
+        "G": 7,
+        "G#": 8,
+        "Ab": 8,
+        "A": 9,
+        "A#": 10,
+        "Bb": 10,
+        "B": 11,
     }
     tonic_pc = name_to_pc.get(tonic_name, 0)
 
@@ -622,7 +634,7 @@ def soprano_degrees_per_chord(
 
         # Find the highest pitch sounding in this chord window
         try:
-            pitches = [event.pitch for event in chord_events if hasattr(event, 'pitch')]
+            pitches = [event.pitch for event in chord_events if hasattr(event, "pitch")]
             if not pitches:
                 degrees.append(None)
                 continue

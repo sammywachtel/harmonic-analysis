@@ -188,14 +188,13 @@ def _collect_functional_evidence(self, chords, functional_result):
 ### Debugging Confidence Issues
 ```python
 # To trace confidence calculation for any progression:
-result = await analyze_progression_multiple(['C', 'F', 'G'])
-functional_analysis = result.primary_analysis  # or find in alternatives
+service = PatternAnalysisService()
+result = await service.analyze_with_patterns_async(['C', 'F', 'G'], profile="classical")
+primary_analysis = result.primary
 
-print(f"Total Confidence: {functional_analysis.confidence:.3f}")
-for i, evidence in enumerate(functional_analysis.evidence):
-    weight = EVIDENCE_WEIGHTS.get(evidence.type, 0.1)
-    contribution = evidence.strength * weight
-    print(f"{i+1}. {evidence.type.value}: {evidence.strength:.3f} × {weight} = {contribution:.3f}")
+print(f"Total Confidence: {primary_analysis.confidence:.3f}")
+for i, evidence in enumerate(result.evidence):
+    print(f"{i+1}. {evidence.reason}: {evidence.details}")
 ```
 
 ### Configuration Points

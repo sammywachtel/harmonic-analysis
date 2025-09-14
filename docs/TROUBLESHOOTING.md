@@ -59,7 +59,7 @@ for e in evidence:
 ```python
 # Analyze specific failing test case
 import json
-from src.harmonic_analysis.multiple_interpretation_service import analyze_progression_multiple
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 # Load test case
 with open('tests/generated/comprehensive-multi-layer-tests.json') as f:
@@ -70,15 +70,16 @@ chords = failing_test['chords']
 expected = failing_test['expected_functional']
 
 # Run analysis
-result = await analyze_progression_multiple(chords)
-actual = result.primary_analysis
+service = PatternAnalysisService()
+result = await service.analyze_with_patterns_async(chords, profile="classical")
+actual = result.primary
 
 print(f"Test ID: {failing_test['id']}")
 print(f"Chords: {chords}")
 print(f"Expected Key: {expected['key_center']} (conf: {expected['confidence']})")
 print(f"Actual Key: {actual.key_signature} (conf: {actual.confidence})")
-print(f"Evidence Count: {len(actual.evidence)}")
-print(f"Evidence Types: {[e.type for e in actual.evidence]}")
+print(f"Evidence Count: {len(result.evidence)}")
+print(f"Evidence Types: {[e.reason for e in result.evidence]}")
 ```
 
 ## Performance Optimization
@@ -110,9 +111,10 @@ cache = AnalysisCache(max_size=1000, ttl_minutes=30)  # Increased for high-volum
 # Profile analysis performance
 import time
 import asyncio
-from src.harmonic_analysis.multiple_interpretation_service import analyze_progression_multiple
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 async def profile_analysis():
+    service = PatternAnalysisService()
     test_progressions = [
         ['C', 'F', 'G', 'C'],
         ['Am', 'F', 'C', 'G'],
@@ -122,7 +124,7 @@ async def profile_analysis():
 
     start = time.time()
     for progression in test_progressions:
-        result = await analyze_progression_multiple(progression)
+        result = await service.analyze_with_patterns_async(progression, profile="classical")
     end = time.time()
 
     print(f"Average analysis time: {(end - start) / len(test_progressions) * 1000:.2f}ms")
@@ -137,7 +139,8 @@ asyncio.run(profile_analysis())
 ```python
 # Example error handling patterns
 try:
-    result = await analyze_progression_multiple(['C', 'InvalidChord', 'G'])
+    service = PatternAnalysisService()
+    result = await service.analyze_with_patterns_async(['C', 'InvalidChord', 'G'], profile="classical")
 except ValueError as e:
     print(f"Chord parsing error: {e}")
     # Fallback to partial analysis or chord validation
@@ -187,8 +190,9 @@ custom_evidence = AnalysisEvidence(
 ```python
 async def batch_analyze_progressions(progressions_batch):
     """Efficiently analyze multiple progressions with shared context"""
+    service = PatternAnalysisService()
     results = await asyncio.gather(*[
-        analyze_progression_multiple(progression)
+        service.analyze_with_patterns_async(progression, profile="classical")
         for progression in progressions_batch
     ])
 
@@ -232,15 +236,16 @@ class CustomMultipleInterpretationService(MultipleInterpretationService):
 ```python
 # Test web API integration
 import pytest
-from harmonic_analysis import analyze_progression_multiple
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 async def test_api_wrapper():
     """Test API wrapper function for web services"""
     progression = ["C", "F", "G", "C"]
-    result = await analyze_progression_multiple(progression)
+    service = PatternAnalysisService()
+    result = await service.analyze_with_patterns_async(progression, profile="classical")
 
     # Verify API response structure
-    assert hasattr(result, 'primary_analysis')
+    assert hasattr(result, 'primary')
     assert hasattr(result, 'alternative_analyses')
     assert hasattr(result, 'metadata')
     assert result.primary_analysis.confidence > 0.5
@@ -251,10 +256,11 @@ async def test_api_wrapper():
 # Test application interface compatibility
 async def test_application_interface_compatibility():
     """Ensure Python output provides expected data structure"""
-    result = await analyze_progression_multiple(['C', 'F', 'G', 'C'])
+    service = PatternAnalysisService()
+    result = await service.analyze_with_patterns_async(['C', 'F', 'G', 'C'], profile="classical")
 
     # Verify required fields for application consumption
-    assert hasattr(result.primary_analysis, 'type')
+    assert hasattr(result.primary, 'type')
     assert hasattr(result.primary_analysis, 'analysis')
     assert hasattr(result.primary_analysis, 'confidence')
     assert hasattr(result, 'alternative_analyses')

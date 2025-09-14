@@ -164,13 +164,14 @@ class MultipleInterpretationResult:
 # STAGE C: Voice-Leading and Melodic Analysis Data Structures
 # =============================================================================
 
+
 @dataclass
 class KeyCandidate:
     """A candidate key with confidence and provenance information."""
 
-    name: str                # e.g., "C major"
-    confidence: float        # confidence score (0.0 to 1.0)
-    source: str              # "user_hint", "prior:scale", or "estimated"
+    name: str  # e.g., "C major"
+    confidence: float  # confidence score (0.0 to 1.0)
+    source: str  # "user_hint", "prior:scale", or "estimated"
 
 
 @dataclass
@@ -184,10 +185,10 @@ class ScalePrior:
 class MelodyEvent:
     """A single melodic event with timing and pitch information."""
 
-    onset: float             # onset time in seconds or beats
-    pitch: int               # MIDI pitch number
-    duration: float          # duration in seconds or beats
-    ppq: Optional[float] = None      # pulses per quarter note (optional)
+    onset: float  # onset time in seconds or beats
+    pitch: int  # MIDI pitch number
+    duration: float  # duration in seconds or beats
+    ppq: Optional[float] = None  # pulses per quarter note (optional)
     bar_offset: Optional[float] = None  # position within bar (optional)
 
 
@@ -207,8 +208,29 @@ class MelodicEvents:
     """
 
     soprano_degree: List[Optional[int]]  # per-index soprano scale degrees (1-7) or None
-    voice_4_to_3: List[bool]              # per-index 4→3 suspension flags
-    voice_7_to_1: List[bool]              # per-index 7→1 resolution flags
-    fi_to_sol: List[bool]                 # per-index ♯4→5 melodic motion flags
-    le_to_sol: List[bool]                 # per-index ♭6→5 melodic motion flags
-    source: str                           # "melody" or "inference"
+    voice_4_to_3: List[bool]  # per-index 4→3 suspension flags
+    voice_7_to_1: List[bool]  # per-index 7→1 resolution flags
+    fi_to_sol: List[bool]  # per-index ♯4→5 melodic motion flags
+    le_to_sol: List[bool]  # per-index ♭6→5 melodic motion flags
+    source: str  # "melody" or "inference"
+
+
+@dataclass
+class ModalCharacteristic:
+    """A detected modal characteristic with supporting evidence."""
+
+    label: str  # e.g., "mixolydian_color (bVII)", "borrowed_iv_from_minor"
+    evidence: List[str]  # short strings like "bVII present with I in major context"
+
+
+@dataclass
+class ModalAnalysisResult:
+    """Result of modal analysis with characteristics and confidence."""
+
+    characteristics: List[ModalCharacteristic]
+    parent_key_relationship: Optional[str]  # "aligns" | "conflicts" | None
+    confidence: float  # 0.0–1.0
+
+    # Optional downstream UX fields
+    inferred_mode: Optional[str] = None  # e.g., "Mixolydian", "Dorian"
+    rationale: Optional[str] = None
