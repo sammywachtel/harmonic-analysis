@@ -1785,6 +1785,16 @@ class ComprehensiveMultiLayerGenerator:
                         "chords": [root, self.get_chord_at_interval(root, 10), root],
                         "explanation": "I-bVII-I Mixolydian cadence",
                     },
+                    # NEW: Mixolydian vamp pattern added for calibration coverage
+                    {
+                        "chords": [
+                            root,
+                            self.get_chord_at_interval(root, 10),
+                            root,
+                            self.get_chord_at_interval(root, 10),
+                        ],
+                        "explanation": "I-bVII-I-bVII Mixolydian vamp (characteristic ♭VII)",
+                    },
                 ]
             )
         elif mode == "Dorian":
@@ -1806,6 +1816,34 @@ class ComprehensiveMultiLayerGenerator:
                             f"{root}m",
                         ],
                         "explanation": "i-IV-i Dorian characteristic",
+                    },
+                    # NEW: Modal vamp patterns added for calibration coverage
+                    {
+                        "chords": [
+                            f"{root}m",
+                            self.get_chord_at_interval(root, 5),
+                            f"{root}m",
+                            self.get_chord_at_interval(root, 5),
+                        ],
+                        "explanation": "i-IV-i-IV Dorian vamp (characteristic major IV)",
+                    },
+                    {
+                        "chords": [
+                            f"{root}m",
+                            f"{self.get_chord_at_interval(root, 2)}m",
+                            f"{root}m",
+                            f"{self.get_chord_at_interval(root, 2)}m",
+                        ],
+                        "explanation": "i-ii-i-ii Dorian vamp (natural ii chord)",
+                    },
+                    {
+                        "chords": [
+                            f"{root}m",
+                            self.get_chord_at_interval(root, 10),
+                            f"{root}m",
+                            self.get_chord_at_interval(root, 10),
+                        ],
+                        "explanation": "i-bVII-i-bVII Dorian vamp (♭VII characteristic)",
                     },
                 ]
             )
@@ -1829,6 +1867,16 @@ class ComprehensiveMultiLayerGenerator:
                         ],
                         "explanation": "i-bII-bVII-i Phrygian",
                     },
+                    # NEW: Phrygian vamp pattern added for calibration coverage
+                    {
+                        "chords": [
+                            f"{root}m",
+                            self.get_chord_at_interval(root, 1),
+                            f"{root}m",
+                            self.get_chord_at_interval(root, 1),
+                        ],
+                        "explanation": "i-bII-i-bII Phrygian vamp (characteristic ♭II)",
+                    },
                 ]
             )
         elif mode == "Lydian":
@@ -1846,6 +1894,16 @@ class ComprehensiveMultiLayerGenerator:
                     {
                         "chords": [root, self.get_chord_at_interval(root, 6), root],
                         "explanation": "I-#IV-I Lydian cadence",
+                    },
+                    # NEW: Lydian vamp pattern added for calibration coverage
+                    {
+                        "chords": [
+                            root,
+                            self.get_chord_at_interval(root, 6),  # #IV
+                            root,
+                            self.get_chord_at_interval(root, 6),  # #IV
+                        ],
+                        "explanation": "I-#IV-I-#IV Lydian vamp (characteristic #IV)",
                     },
                 ]
             )

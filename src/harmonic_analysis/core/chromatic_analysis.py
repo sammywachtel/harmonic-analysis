@@ -79,6 +79,8 @@ class ChromaticAnalyzer:
     Processes chromatic elements from functional harmony analysis and
     organizes them into secondary dominants, borrowed chords, and
     chromatic mediants with resolution patterns.
+
+    Implements precedence rules to prevent misclassification.
     """
 
     def analyze_chromatic_elements(

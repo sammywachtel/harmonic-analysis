@@ -1,105 +1,98 @@
-# 🎯 Confidence Calibration Notebooks
+# Calibration Analysis Notebooks
 
-This directory contains Jupyter notebooks for analyzing and calibrating confidence scores from the harmonic analysis system.
+This directory contains enhanced Jupyter notebooks for comprehensive confidence calibration analysis.
 
-## 📚 Available Notebooks
+## 📊 Available Notebooks
 
-### 🌟 **Confidence_Calibration_Enhanced.ipynb** (Recommended)
-**Enhanced visualization and analysis notebook** with:
-- **Color-coded calibration zones** (🟢 Good, 🟡 Fair, 🔴 Poor)
-- **Good vs Bad calibration examples** with specific progressions
-- **Problem area highlighting** in error distribution plots
-- **Category-specific analysis** showing which progression types need calibration
-- **Downloadable results** and calibration mappings
+### `Confidence_Calibration_Analyses.ipynb`
+**Enhanced analysis and visualization notebook with detailed statistical insights and professional charts.**
 
-**Features:**
-- Visual indicators showing exactly where calibration is needed
-- Detailed explanations of what good/bad calibration looks like
-- Interactive charts with colored zones and error statistics
-- Real examples from the test suite
+**Enhanced Features:**
+- 📊 **Pre-calibration performance analysis** with bias and variance decomposition
+- ⚙️ **Post-calibration validation results** showing improvement metrics
+- 🎯 **Visual calibration quality assessment** with color-coded quality zones
+- 📈 **Enhanced reliability plots** with sample-size proportional markers
+- 🎼 **Category-specific performance breakdown** by progression type
+- 🔍 **Detailed ECE calculations** with per-track analysis (functional/modal)
+- 📊 **Tail error analysis** for low and high confidence regions
+- 💡 **Good vs bad calibration examples** with concrete musical progressions
+- 📉 **Bin-level statistics** with sample counts and error analysis
+- 💨 **Professional charts** with statistical annotations and quality indicators
 
-### 📊 **Confidence_Calibration_Consolidated.ipynb**
-**Original comprehensive notebook** covering:
-- Basic baseline generation and analysis
-- Simple calibration mapping learning
-- Pre/post calibration comparisons
-- Standard scatter plots and histograms
+**Prerequisites:**
+Run the calibration pipeline first to generate required data:
+```bash
+# From tools/calibration/ directory
+python calibration_pipeline.py all
 
-## 🚀 Quick Start
-
-1. **Install dependencies:**
-   ```bash
-   pip install jupyter matplotlib seaborn pandas numpy
-   ```
-
-2. **Run the enhanced notebook:**
-   ```bash
-   cd tools/calibration/notebooks/
-   jupyter notebook Confidence_Calibration_Enhanced.ipynb
-   ```
-
-3. **Follow the guided workflow:**
-   - Generate or load confidence baseline
-   - Analyze pre-calibration performance
-   - Learn calibration mapping
-   - Apply and validate calibration
-
-## 📈 Understanding the Visualizations
-
-### Color Zones
-- 🟢 **Green Zone**: Well-calibrated (error < 0.1)
-- 🟡 **Yellow Zone**: Needs adjustment (error 0.1-0.2)
-- 🔴 **Red Zone**: Poorly calibrated (error > 0.2)
-
-### Key Metrics
-- **MAE (Mean Absolute Error)**: Average prediction error
-- **Bias**: Systematic over/under-confidence
-- **Pass Rate**: Percentage of cases within tolerance
-
-### Good vs Bad Examples
-The enhanced notebook shows specific chord progressions that demonstrate:
-- **Good calibration**: Expected vs actual confidence match closely
-- **Bad calibration**: Significant mismatch requiring adjustment
-
-## 🔧 Integration with Tests
-
-The notebooks work with the test suite:
-```python
-# Generate baseline from test data
-python scripts/export_baseline.py \
-    --tests tests/data/generated/comprehensive-multi-layer-tests.json \
-    --out tools/calibration/confidence_baseline.json
-
-# Run calibration validation test
-python -m pytest tests/integration/test_confidence_against_baseline.py -v
+# Or run stages individually:
+python calibration_pipeline.py generate
+python calibration_pipeline.py validate
+python calibration_pipeline.py deploy
 ```
 
-## 📊 Output Files
+**Usage:**
+1. Ensure prerequisites are met (calibration pipeline completed)
+2. Start Jupyter: `jupyter lab` or `jupyter notebook`
+3. Open `Confidence_Calibration_Analyses.ipynb`
+4. Run all cells to generate comprehensive analysis with enhanced visualizations
 
-The notebooks generate:
-- **`confidence_baseline.json`**: Raw analysis results
-- **`calibration_mapping.json`**: Learned calibration offsets
-- **`confidence_calibrated.json`**: Calibrated results for validation
+**Output Highlights:**
+- Visual calibration plots with green/orange/red quality zones
+- Reliability plots showing where calibration works best
+- Statistical summaries with actionable recommendations
+- ECE monitoring for production quality assurance
 
-## 🎨 Customization
+## 🔧 Requirements
 
-You can adjust the analysis by modifying:
-- **Tolerance thresholds**: Change `HA_PER_CASE_TOL` and `HA_MAE_TOL`
-- **Visualization colors**: Modify the color zones in plotting functions
-- **Categories**: Add category-specific calibration rules
+**Generated Data Files (from calibration pipeline):**
+- `../confidence_baseline.json` - Raw analysis baseline with test expectations
+- `../calibration_mapping.json` - 4-stage calibration parameters and bucket mappings
+- `../calibration_validation_df.json` - Validation results for ECE and performance analysis
 
-## 🤝 Contributing
+**Python Dependencies:**
+- `matplotlib`, `seaborn` - Enhanced visualizations
+- `numpy`, `pandas` - Statistical analysis
+- `sklearn` - Isotonic regression utilities
+- Harmonic analysis library modules (automatically configured)
 
-To add new calibration methods:
-1. Add the method in a new cell
-2. Include visualizations showing before/after
-3. Update the summary section with recommendations
-4. Test with the validation suite
+## 📈 Enhanced Output
 
-## ⚡ Tips for Best Results
+**Statistical Analysis:**
+- **Performance metrics** (MAE, ECE, bias) with detailed breakdowns
+- **Pre/post-calibration comparisons** showing system improvements
+- **Quality zone analysis** (Excellent < 0.05, Good < 0.10, Fair < 0.15, Poor > 0.15)
 
-1. **Run on representative data**: Use comprehensive test suite
-2. **Check category-specific patterns**: Some progression types behave differently
-3. **Validate on held-out data**: Don't overfit to training set
-4. **Monitor edge cases**: Pay attention to extreme confidence values
-5. **Update regularly**: Re-calibrate as the analysis system evolves
+**Professional Visualizations:**
+- **Calibration scatter plots** with color-coded quality zones and error magnitude
+- **Reliability plots** with sample-size proportional markers and calibration quality coloring
+- **Category performance charts** showing case counts with MAE overlays
+- **Error distribution histograms** with bias indicators and reference lines
+
+**Production Insights:**
+- **ECE monitoring** for each track (functional/modal) with < 0.03 targets
+- **Tail error analysis** for extreme confidence regions (< 0.1, > 0.9)
+- **Concrete examples** of good vs poor calibration with musical progressions
+- **Actionable recommendations** for calibration improvements and quality gates
+
+**Quality Monitoring:**
+- **Bin-level statistics** with sample counts and individual point analysis
+- **Statistical significance** indicators for reliability assessment
+- **Production readiness** assessment with specific quality thresholds
+
+## 🎯 Quality Standards
+
+**Calibration Quality Thresholds:**
+- 🟢 **Excellent**: Error < 0.05 (Green zones)
+- 🟠 **Good**: Error 0.05-0.10 (Orange zones)
+- 🟡 **Fair**: Error 0.10-0.15 (Light orange zones)
+- 🔴 **Poor**: Error > 0.15 (Red zones)
+
+**Production Targets:**
+- ECE < 0.03 per track for production deployment
+- Tail MAE < 0.15 in extreme confidence regions
+- Bias within ±0.05 for excellent, ±0.10 for acceptable
+
+---
+*Part of the Harmonic Analysis Confidence Calibration System*
+*Enhanced with professional statistical analysis and actionable insights*

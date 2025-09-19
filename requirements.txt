@@ -1,6 +1,6 @@
 # Production dependencies for harmonic-analysis library
-# This library uses only Python standard library modules
-# No external runtime dependencies required
-
-# Note: This file exists to satisfy requirements-dev.txt which includes "-r requirements.txt"
-# but the library itself has no external runtime dependencies.
+# Scientific computing dependencies for pattern engine calibration
+numpy>=1.20.0
+scipy>=1.7.0
+scikit-learn>=1.0.0
+typing-extensions>=4.0.0

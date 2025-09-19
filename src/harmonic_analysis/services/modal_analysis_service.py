@@ -30,7 +30,43 @@ class ModalAnalysisService:
         Returns:
             ModalAnalysisResult with characteristics, confidence, and evidence
         """
-        # Use the standardized async API
+        # Try to get the full analysis result with evidence
+        full_result = self._analyzer.analyze_modal_characteristics(
+            chord_symbols=chord_symbols, parent_key=key_hint
+        )
+
+        if full_result:
+            # If we got a full result with evidence, return it wrapped in our DTO
+            raw_chars = getattr(full_result, "characteristics", [])
+            characteristics = []
+            for c in raw_chars:
+                if isinstance(c, str):
+                    # Handle string characteristics (legacy format)
+                    characteristics.append(ModalCharacteristic(label=c, evidence=[]))
+                else:
+                    # Handle object characteristics
+                    characteristics.append(
+                        ModalCharacteristic(
+                            label=getattr(c, "label", str(c)),
+                            evidence=getattr(c, "evidence", []),
+                        )
+                    )
+
+            return ModalAnalysisResult(
+                characteristics=characteristics,
+                parent_key_relationship=None,  # Will be determined later if needed
+                confidence=full_result.confidence,
+                inferred_mode=full_result.mode_name,
+                rationale=getattr(full_result, "reasoning", "Modal analysis completed"),
+                evidence=getattr(
+                    full_result, "evidence", []
+                ),  # Pass through the evidence
+                roman_numerals=getattr(
+                    full_result, "roman_numerals", []
+                ),  # CRITICAL: Pass through roman numerals
+            )
+
+        # Fallback to the async API if analyze_modal_characteristics returns None
         modal_dict = await self._analyzer.analyze_modal(
             chords=chord_symbols, parent_key=key_hint
         )
@@ -104,6 +140,9 @@ class ModalAnalysisService:
             confidence=confidence,
             inferred_mode=mode_name,
             rationale=modal_dict.get("reasoning", "Modal analysis completed"),
+            roman_numerals=modal_dict.get(
+                "roman_numerals", []
+            ),  # Include roman numerals from fallback too
         )
 
     def analyze(

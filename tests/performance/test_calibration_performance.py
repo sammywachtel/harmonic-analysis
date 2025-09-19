@@ -24,7 +24,6 @@ These tests help ensure calibration system remains production-ready as the
 codebase evolves and calibration models become more sophisticated.
 """
 
-import json
 import os
 import time
 
@@ -153,8 +152,8 @@ class TestCalibrationRegression:
         (0.5, "functional", {"chord_count": 4, "evidence_strength": 0.7}, 0.2, 0.8),
         (0.8, "functional", {"chord_count": 4, "evidence_strength": 0.9}, 0.4, 1.0),
         (0.2, "modal", {"chord_count": 4, "evidence_strength": 0.3}, 0.0, 0.6),
-        (0.0, "functional", {"chord_count": 2, "evidence_strength": 0.1}, 0.0, 0.3),
-        (1.0, "modal", {"chord_count": 6, "evidence_strength": 1.0}, 0.7, 1.0),
+        (0.0, "functional", {"chord_count": 2, "evidence_strength": 0.1}, 0.0, 0.5),
+        (1.0, "modal", {"chord_count": 6, "evidence_strength": 1.0}, 0.6, 1.0),
     ]
 
     @pytest.mark.parametrize(

@@ -11,8 +11,9 @@ Updated to use the new ModalFunctionalArbitrator as specified in music-alg-2g.md
 
 import logging
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
+from harmonic_analysis.analysis_types import EvidenceType
 from harmonic_analysis.core.arbitration import ModalFunctionalArbitrator
 from harmonic_analysis.dto import (
     AnalysisSummary,
@@ -49,6 +50,11 @@ class ArbitrationPolicy:
     enable_pattern_based_classification: bool = True
     enable_progression_type_heuristics: bool = True
 
+    # Evidence-based modal arbitration (feature flag for new logic)
+    enable_evidence_based_modal_arbitration: bool = (
+        False  # Set to True to enable new logic
+    )
+
 
 class AnalysisArbitrationService:
     """
@@ -64,6 +70,43 @@ class AnalysisArbitrationService:
         self.policy = policy or ArbitrationPolicy()
         self.arbitrator = ModalFunctionalArbitrator()
 
+    def _score_modal_evidence(self, items: List[Any]) -> Tuple[bool, float, List[str]]:
+        """Score typed modal evidence into (has_evidence, score∈[0,1], labels).
+
+        Favor CADENTIAL/STRUCTURAL, then INTERVALLIC, then CONTEXTUAL.
+
+        Args:
+            items: List of ModalEvidence objects
+
+        Returns:
+            Tuple of (has_evidence, score, labels)
+        """
+        if not items:
+            return False, 0.0, []
+
+        score = 0.0
+        labels: List[str] = []
+
+        for e in items:
+            et = getattr(e, "type", None)
+            desc = getattr(e, "description", "")
+            s = float(getattr(e, "strength", 0.0))
+
+            if et == EvidenceType.CADENTIAL:
+                score += max(0.25, 0.7 * s)
+            elif et == EvidenceType.STRUCTURAL:
+                score += max(0.15, 0.5 * s)
+            elif et == EvidenceType.INTERVALLIC:
+                score += max(0.10, 0.4 * s)
+            elif et == EvidenceType.CONTEXTUAL:
+                score += max(0.05, 0.3 * s)
+
+            if desc:
+                labels.append(desc)
+
+        score = max(0.0, min(1.0, score))
+        return (score > 0.20), score, labels[:6]
+
     def _get_outside_key_ratio(self, modal_summary: AnalysisSummary) -> float:
         """Extract outside_key_ratio from modal analysis result."""
         # Check if modal_summary has validator info
@@ -76,7 +119,7 @@ class AnalysisArbitrationService:
             )
         return 0.0
 
-    def _has_authentic_cadence(self, patterns) -> bool:
+    def _has_authentic_cadence(self, patterns: Any) -> bool:
         """Check if patterns contain an authentic cadence."""
         if not patterns:
             return False
@@ -92,6 +135,92 @@ class AnalysisArbitrationService:
             and ("authentic" in (pm.get("name", "").lower()))
             for pm in patterns
         )
+
+    def _has_modal_characteristics(
+        self, summary: AnalysisSummary
+    ) -> Tuple[bool, List[str]]:
+        """
+        Check if analysis contains strong modal characteristics.
+
+        Returns:
+            Tuple of (has_modal_chars, list_of_characteristics)
+        """
+        if not summary or not summary.roman_numerals:
+            return False, []
+
+        modal_indicators = []
+        romans = summary.roman_numerals
+
+        # Check for diagnostic modal roman numerals
+        modal_romans = {
+            "bVII": "Mixolydian ♭VII",
+            "♭VII": "Mixolydian ♭VII",
+            "bII": "Phrygian ♭II",
+            "♭II": "Phrygian ♭II",
+            "bVI": "Aeolian ♭VI",
+            "♭VI": "Aeolian ♭VI",
+            "#IV": "Lydian #IV",
+            "♯IV": "Lydian #IV",
+        }
+
+        for roman in romans:
+            if roman in modal_romans:
+                modal_indicators.append(modal_romans[roman])
+
+        # Check for modal progressions
+        roman_sequence = " → ".join(romans)
+
+        # Mixolydian patterns (most common modal indicators)
+        if any(
+            pattern in roman_sequence
+            for pattern in ["I → bVII", "bVII → I", "I → bVII → IV"]
+        ):
+            modal_indicators.append("Mixolydian cadential pattern")
+
+        # Dorian patterns
+        if any(pattern in roman_sequence for pattern in ["i → IV", "iv → I"]):
+            modal_indicators.append("Dorian iv-I pattern")
+
+        # Phrygian patterns
+        if any(pattern in roman_sequence for pattern in ["i → bII", "bII → i"]):
+            modal_indicators.append("Phrygian bII pattern")
+
+        return len(modal_indicators) > 0, modal_indicators
+
+    def _calculate_modal_characteristic_score(self, modal_chars: List[str]) -> float:
+        """
+        Calculate a numeric score for modal characteristics strength.
+
+        Returns:
+            Float score from 0.0 to 1.0 based on modal evidence strength
+        """
+        if not modal_chars:
+            return 0.0
+
+        # Weight different types of modal evidence
+        characteristic_weights = {
+            "Mixolydian ♭VII": 0.8,  # Strong modal indicator
+            "Mixolydian cadential pattern": 0.6,  # Strong pattern evidence
+            "Phrygian ♭II": 0.7,  # Strong modal indicator
+            "Phrygian bII pattern": 0.5,  # Pattern evidence
+            "Dorian iv-I pattern": 0.4,  # Moderate pattern evidence
+            "Lydian #IV": 0.7,  # Strong modal indicator
+            "Aeolian ♭VI": 0.6,  # Moderate modal indicator
+        }
+
+        total_score = 0.0
+        for char in modal_chars:
+            # Find matching characteristic (partial match for flexibility)
+            for key, weight in characteristic_weights.items():
+                if key in char or char in key:
+                    total_score += weight
+                    break
+            else:
+                # Unknown characteristic gets default weight
+                total_score += 0.3
+
+        # Normalize to [0, 1] range with diminishing returns
+        return min(1.0, total_score)
 
     def arbitrate(
         self,
@@ -131,39 +260,131 @@ class AnalysisArbitrationService:
         modal_summary.functional_confidence = func_conf
         modal_summary.modal_confidence = modal_conf
 
-        # Get additional signals for tie-breaking
+        # Get additional signals for arbitration
         outside_key_ratio = self._get_outside_key_ratio(modal_summary)
         has_auth_cadence = self._has_authentic_cadence(functional_summary.patterns)
 
-        # Enhanced arbitration logic from music-alg-2i.md
-        winner = "functional"
-        rationale = ""
+        # Check for modal characteristics in functional analysis (shows we detected modal elements)
+        has_modal_chars, modal_chars = self._has_modal_characteristics(
+            functional_summary
+        )
+        modal_char_score = self._calculate_modal_characteristic_score(modal_chars)
 
-        if modal_conf > func_conf + 0.10:
-            winner = "modal"
-            rationale = (
-                f"Modal confidence ({modal_conf:.2f}) exceeds functional by > 0.10"
+        # NEW: Evidence-based modal analysis (when feature flag enabled)
+        modal_evidence_items = []
+        modal_evidence_labels: List[str] = []
+        has_evidence_markers = False
+        evidence_score = 0.0
+
+        if self.policy.enable_evidence_based_modal_arbitration:
+            # Materialize modal evidence (prefer what modal_summary already carries)
+            modal_evidence_items = getattr(modal_summary, "modal_evidence", None) or []
+
+            if not modal_evidence_items:
+                # Fallback: try to get evidence from the analyzer directly
+                try:
+                    from harmonic_analysis.services.modal_analysis_service import (
+                        ModalAnalysisService,
+                    )
+
+                    _modal_svc = ModalAnalysisService()
+                    _modal = _modal_svc._analyzer.analyze_modal_characteristics(
+                        chord_symbols=chord_symbols,
+                        parent_key=getattr(functional_summary, "key_signature", None),
+                    )
+                    if _modal and hasattr(_modal, "evidence"):
+                        modal_evidence_items = _modal.evidence
+                except Exception:
+                    # Arbitration must not crash on evidence lookup
+                    modal_evidence_items = []
+
+            # Score the evidence
+            has_evidence_markers, evidence_score, modal_evidence_labels = (
+                self._score_modal_evidence(modal_evidence_items)
             )
-        elif func_conf > modal_conf + 0.10:
-            winner = "functional"
-            rationale = (
-                f"Functional confidence ({func_conf:.2f}) exceeds modal by > 0.10"
-            )
-        else:
-            # Tie-breaking logic
-            if outside_key_ratio >= 0.25 and not has_auth_cadence:
-                winner = "modal"
-                rationale = (
-                    f"Tie-break: High outside-key ratio "
-                    f"({outside_key_ratio:.2f}) and no authentic cadence"
-                )
+
+        # Utility-based arbitration per music-alg-5a-mod-v-func.md
+        # Tunable weights
+        w1, w2, w3, w4 = 1.0, 0.6, 0.4, 0.2  # Modal utility weights
+        v1, v2, v3 = 1.0, 0.2, 0.4  # Functional utility weights
+        tau_okr = 0.20  # Outside key ratio threshold
+        delta_guardband = 0.10  # Guardband for confidence protection
+
+        # Calculate outside key ratio term (only positive contribution)
+        okr_term = max(0.0, outside_key_ratio - tau_okr)
+
+        # Calculate utilities
+        # Use evidence score when feature flag is enabled, otherwise use char score
+        modal_score_for_utility = (
+            evidence_score
+            if self.policy.enable_evidence_based_modal_arbitration
+            else modal_char_score
+        )
+
+        utility_modal = (
+            w1 * modal_conf
+            + w2 * modal_score_for_utility
+            + w3 * okr_term
+            - w4 * (1.0 if has_auth_cadence else 0.0)
+        )
+
+        utility_functional = (
+            v1 * func_conf + v2 * (1.0 if has_auth_cadence else 0.0) - v3 * okr_term
+        )
+
+        # Initial decision by utility
+        winner = "modal" if utility_modal > utility_functional else "functional"
+        rationale = (
+            f"Decision by utility_v1 (modal={utility_modal:.3f}, "
+            f"functional={utility_functional:.3f})"
+        )
+
+        # Apply guardbands when modal wins
+        if winner == "modal":
+            if self.policy.enable_evidence_based_modal_arbitration:
+                # NEW: Evidence-based guardband logic
+                # Guardband 1: Modal confidence must be within delta_guardband of functional
+                confidence_gap = func_conf - modal_conf
+
+                if confidence_gap > delta_guardband:
+                    winner = "functional"
+                    rationale += (
+                        f"; guardband kept functional (gap {confidence_gap:.2f} > "
+                        f"delta {delta_guardband:.2f})"
+                    )
+                # Guardband 2: Must have actual modal evidence markers present
+                elif not has_evidence_markers:
+                    winner = "functional"
+                    rationale += "; no modal evidence markers present"
+                else:
+                    # Modal wins with evidence and within guardband
+                    rationale += (
+                        f"; modal wins with evidence: {modal_evidence_labels[:3]}, "
+                        f"score={evidence_score:.2f}, guardband OK"
+                    )
             else:
-                winner = "functional"
-                rationale = (
-                    f"Tie-break: Functional preferred (okr"
-                    f"={outside_key_ratio:.2f},"
-                    f"auth_cadence={has_auth_cadence})"
-                )
+                # EXISTING: Original guardband logic
+                # Guardband 1: Modal confidence must not be much lower than functional
+                # BUT allow override for very strong modal characteristics (high modal_char_score)
+                confidence_gap = func_conf - modal_conf
+                max_allowed_gap = delta_guardband + (
+                    modal_char_score * 0.15
+                )  # Extra allowance for strong modal chars
+
+                if confidence_gap > max_allowed_gap:
+                    winner = "functional"
+                    rationale += (
+                        f"; guardband kept functional (gap {confidence_gap:.2f} > "
+                        f"max_allowed {max_allowed_gap:.2f})"
+                    )
+                # Guardband 2: Must have actual modal markers present
+                elif not has_modal_chars:
+                    winner = "functional"
+                    rationale += "; no modal markers present"
+
+        # Add utility breakdown for transparency
+        if has_modal_chars:
+            rationale += f" [modal_chars: {', '.join(modal_chars[:2])}]"
 
         # Set primary and alternatives based on winner
         if winner == "modal":
@@ -185,13 +406,29 @@ class AnalysisArbitrationService:
                 else ProgressionType.CLEAR_FUNCTIONAL
             )
 
+        # Add debug information to warnings for observability
+        warnings = []
+        if self.policy.enable_evidence_based_modal_arbitration:
+            warnings.append(
+                f"arb_v2: func={func_conf:.3f}, modal={modal_conf:.3f}, "
+                f"okr={outside_key_ratio:.2f}, auth_cadence={has_auth_cadence}, "
+                f"evidence_markers={modal_evidence_labels[:3] if has_evidence_markers else []}, "
+                f"evidence_score={evidence_score:.3f}"
+            )
+        else:
+            warnings.append(
+                f"arb_v1: func={func_conf:.3f}, modal={modal_conf:.3f}, "
+                f"okr={outside_key_ratio:.2f}, auth_cadence={has_auth_cadence}, "
+                f"modal_chars={modal_chars[:3] if has_modal_chars else []}"
+            )
+
         return ArbitrationResult(
             primary=primary,
             alternatives=alternatives,
             confidence_gap=confidence_gap,
             progression_type=progression_type,
             rationale=rationale,
-            warnings=[],
+            warnings=warnings,
         )
 
     def _classify_progression_type(

@@ -206,7 +206,7 @@ class TestCalibrationLogging:
         )
 
         with caplog.at_level(logging.INFO):
-            result = await service.analyze_with_patterns_async(["C", "F", "G"])
+            await service.analyze_with_patterns_async(["C", "F", "G"])
 
         # Should have some log messages
         assert len(caplog.records) > 0

@@ -234,3 +234,7 @@ class ModalAnalysisResult:
     # Optional downstream UX fields
     inferred_mode: Optional[str] = None  # e.g., "Mixolydian", "Dorian"
     rationale: Optional[str] = None
+    evidence: Optional[List[Any]] = None  # List[ModalEvidence] from analyzer
+    roman_numerals: Optional[List[str]] = (
+        None  # Roman numeral sequence for pattern matching
+    )

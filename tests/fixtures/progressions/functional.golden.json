@@ -1,0 +1,79 @@
+{
+  "description": "Golden test fixtures for functional harmony patterns",
+  "progressions": [
+    {
+      "name": "ii_V_progression",
+      "key": "C major",
+      "chords": ["Dm", "G"],
+      "roman_numerals": ["ii", "V"],
+      "expected_matches": [
+        {
+          "pattern_id": "functional.predominant",
+          "span": [0, 2],
+          "confidence_range": [0.75, 0.90]
+        }
+      ]
+    },
+    {
+      "name": "circle_of_fifths",
+      "key": "C major",
+      "chords": ["Am", "Dm", "G", "C"],
+      "roman_numerals": ["vi", "ii", "V", "I"],
+      "expected_matches": [
+        {
+          "pattern_id": "functional.circle_fifth",
+          "span": [0, 4],
+          "confidence_range": [0.80, 0.95]
+        },
+        {
+          "pattern_id": "functional.predominant",
+          "span": [1, 3],
+          "confidence_range": [0.75, 0.90]
+        },
+        {
+          "pattern_id": "cadence.authentic.perfect",
+          "span": [2, 4],
+          "confidence_range": [0.90, 1.0]
+        }
+      ]
+    },
+    {
+      "name": "tonic_prolongation",
+      "key": "F major",
+      "chords": ["F", "Dm", "F"],
+      "roman_numerals": ["I", "vi", "I"],
+      "expected_matches": [
+        {
+          "pattern_id": "functional.tonic_prolongation",
+          "span": [0, 3],
+          "confidence_range": [0.60, 0.75]
+        }
+      ]
+    },
+    {
+      "name": "ii_V_I_progression",
+      "key": "G major",
+      "chords": ["Am", "D", "G"],
+      "roman_numerals": ["ii", "V", "I"],
+      "expected_matches": [
+        {
+          "pattern_id": "functional.predominant",
+          "span": [0, 2],
+          "confidence_range": [0.75, 0.90]
+        },
+        {
+          "pattern_id": "cadence.authentic.perfect",
+          "span": [1, 3],
+          "confidence_range": [0.90, 1.0]
+        }
+      ]
+    }
+  ],
+  "transpositions": [
+    {"key": "C major", "semitones": 0},
+    {"key": "D major", "semitones": 2},
+    {"key": "E♭ major", "semitones": 3},
+    {"key": "F major", "semitones": 5},
+    {"key": "G major", "semitones": 7}
+  ]
+}

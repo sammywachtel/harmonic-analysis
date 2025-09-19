@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harmonic-analysis.org/schemas/patterns.v1.json",
+  "title": "Unified Pattern Engine Schema",
+  "description": "Schema for unified functional and modal pattern definitions",
+  "type": "object",
+  "required": ["version", "patterns"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version number"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "author": { "type": "string" },
+        "created": { "type": "string", "format": "date" },
+        "modified": { "type": "string", "format": "date" }
+      }
+    },
+    "patterns": {
+      "type": "array",
+      "description": "Array of pattern definitions",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "scope", "track", "matchers", "evidence"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]+$",
+            "description": "Unique pattern identifier (e.g., 'cadence.authentic.simple')"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable pattern name"
+          },
+          "scope": {
+            "type": "array",
+            "description": "Analysis scopes this pattern applies to",
+            "items": {
+              "type": "string",
+              "enum": ["harmonic", "melodic", "scale"]
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "track": {
+            "type": "array",
+            "description": "Analysis tracks this pattern contributes to",
+            "items": {
+              "type": "string",
+              "enum": ["functional", "modal"]
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "matchers": {
+            "type": "object",
+            "description": "Pattern matching criteria",
+            "properties": {
+              "chord_seq": {
+                "type": "array",
+                "description": "Sequence of chord symbols to match",
+                "items": { "type": "string" }
+              },
+              "roman_seq": {
+                "type": "array",
+                "description": "Sequence of roman numerals to match",
+                "items": { "type": "string" }
+              },
+              "interval_seq": {
+                "type": "array",
+                "description": "Sequence of melodic intervals",
+                "items": { "type": "integer" }
+              },
+              "scale_degrees": {
+                "type": "array",
+                "description": "Scale degrees involved",
+                "items": { "type": "integer", "minimum": 1, "maximum": 7 }
+              },
+              "mode": {
+                "type": "string",
+                "description": "Required mode context",
+                "enum": ["major", "minor", "dorian", "phrygian", "lydian", "mixolydian", "aeolian", "locrian"]
+              },
+              "transposition_invariant": {
+                "type": "boolean",
+                "description": "Whether pattern should be transposed to all keys",
+                "default": true
+              },
+              "constraints": {
+                "type": "object",
+                "description": "Additional matching constraints",
+                "properties": {
+                  "soprano_degree": {
+                    "type": "array",
+                    "items": { "type": "integer" }
+                  },
+                  "bass_motion": {
+                    "type": "string",
+                    "enum": ["ascending", "descending", "leap", "step"]
+                  },
+                  "key_context": {
+                    "type": "string",
+                    "enum": ["diatonic", "chromatic", "mixed"]
+                  },
+                  "position": {
+                    "type": "string",
+                    "enum": ["start", "middle", "end", "any"]
+                  }
+                }
+              },
+              "window": {
+                "type": "object",
+                "description": "Matching window parameters",
+                "properties": {
+                  "len": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Window length in chords"
+                  },
+                  "overlap_ok": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Allow overlapping matches"
+                  },
+                  "min_gap": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0,
+                    "description": "Minimum gap between matches"
+                  }
+                }
+              }
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "required": ["weight"],
+            "description": "Evidence configuration",
+            "properties": {
+              "weight": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "Base evidence weight"
+              },
+              "features": {
+                "type": "array",
+                "description": "Features to extract",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "outside_key_ratio",
+                    "has_auth_cadence",
+                    "modal_char_score",
+                    "chromatic_density",
+                    "voice_leading_smoothness",
+                    "harmonic_rhythm",
+                    "tonal_clarity"
+                  ]
+                }
+              },
+              "confidence_fn": {
+                "type": "string",
+                "description": "Confidence function name (plugin or built-in)",
+                "default": "identity"
+              },
+              "uncertainty": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "Uncertainty measure for probabilistic patterns"
+              }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Pattern metadata",
+            "properties": {
+              "tags": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "priority": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100,
+                "default": 50,
+                "description": "Pattern priority (higher = evaluated first)"
+              },
+              "description": {
+                "type": "string",
+                "description": "Detailed pattern description"
+              },
+              "examples": {
+                "type": "array",
+                "description": "Example progressions that match",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "chords": { "type": "array", "items": { "type": "string" } },
+                    "key": { "type": "string" },
+                    "description": { "type": "string" }
+                  }
+                }
+              },
+              "false_positives": {
+                "type": "array",
+                "description": "Known false positive cases",
+                "items": { "type": "string" }
+              },
+              "references": {
+                "type": "array",
+                "description": "Academic or theoretical references",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

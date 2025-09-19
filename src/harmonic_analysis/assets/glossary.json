@@ -161,5 +161,196 @@
     "mixture_modal": "Patterns involving modal mixture and borrowed chords from parallel modes.",
     "pd_d_chain": "Chains of predominant to dominant progressions, often involving sequences.",
     "jazz_pop": "Harmonic patterns common in jazz and popular music styles."
+  },
+  "feature_terms": {
+    "raised6_ratio": {
+      "human_name": "Raised 6th Ratio",
+      "aliases": ["raised6_ratio", "sharp6_ratio", "♯6_ratio"],
+      "category": "scale",
+      "scope": ["scale", "melodic"],
+      "definition": "Share of melodic/scale events that use a raised 6th degree relative to the local key hypothesis (e.g., Dorian signature).",
+      "computation": {
+        "windowing": "computed over sliding windows (e.g., 8–16 beats) rebased to the current key; ties and ornaments may be de-weighted",
+        "formula": "count(degree == raised 6) / count(all pitch events considered)",
+        "units": "ratio_0_to_1"
+      },
+      "ui": {
+        "label": "Raised 6th",
+        "short": "♯6%",
+        "tooltip": "Proportion of raised 6th tones in the window. High values often indicate Dorian coloration.",
+        "format": "percent",
+        "precision": 2
+      },
+      "examples": ["In D Dorian, B natural appears frequently vs. Bb."],
+      "related": ["flat7_ratio", "modal_char_score"]
+    },
+    "flat7_ratio": {
+      "human_name": "Flat 7th Ratio",
+      "aliases": ["flat7_ratio", "b7_ratio", "♭7_ratio"],
+      "category": "scale",
+      "scope": ["scale", "melodic"],
+      "definition": "Share of events using a lowered 7th scale degree (♭7) relative to key hypothesis; supports Mixolydian/Dorian analyses.",
+      "computation": {
+        "windowing": "sliding windows; rebased to key",
+        "formula": "count(degree == flat 7) / count(all pitch events)",
+        "units": "ratio_0_to_1"
+      },
+      "ui": {
+        "label": "Flat 7th",
+        "short": "♭7%",
+        "tooltip": "How often ♭7 appears. Often pairs with V harmony in Mixolydian contexts.",
+        "format": "percent",
+        "precision": 2
+      },
+      "examples": ["In G Mixolydian, F natural appears prominently."],
+      "related": ["b7_over_V_hits", "modal_char_score"]
+    },
+    "lt_suppression": {
+      "human_name": "Leading‑tone Suppression",
+      "aliases": ["lt_suppression", "leading_tone_suppression"],
+      "category": "melodic",
+      "scope": ["melodic", "scale"],
+      "definition": "Degree to which the diatonic leading tone (7) is avoided or underrepresented in melodic material relative to expectation for tonal closures.",
+      "computation": {
+        "windowing": "phrase/window level; stronger weight on strong beats and cadential positions",
+        "formula": "1 − (weighted_count(degree == 7) / weighted_count(all pitch events))",
+        "units": "ratio_0_to_1 (higher = more suppression)"
+      },
+      "ui": {
+        "label": "LT Suppression",
+        "short": "LT↓",
+        "tooltip": "Suppression of the leading tone (7). High values suggest modal color (e.g., Dorian).",
+        "format": "percent",
+        "precision": 2
+      },
+      "examples": ["Cadential areas avoid B natural in A minor variants, favoring modal color."],
+      "related": ["raised6_ratio", "modal_char_score"]
+    },
+    "b7_over_V_hits": {
+      "human_name": "♭7 over V Hits",
+      "aliases": ["b7_over_V_hits", "flat7_over_V_hits"],
+      "category": "co_occurrence",
+      "scope": ["melodic", "harmonic"],
+      "definition": "Count (or normalized count) of melodic ♭7 instances sounding over V harmony in the same window.",
+      "computation": {
+        "windowing": "bar-level or phrase-level; align melody to harmony grid",
+        "formula": "count(melody_degree == ♭7 AND harmony_roman_root == V)",
+        "units": "count"
+      },
+      "ui": {
+        "label": "♭7 over V",
+        "short": "♭7∥V",
+        "tooltip": "How often ♭7 coincides with V harmony — a Mixolydian cue.",
+        "format": "integer"
+      },
+      "examples": ["In C major with G harmony, F natural appears in melody."],
+      "related": ["flat7_ratio", "Mixolydian"]
+    },
+    "outside_key_ratio": {
+      "human_name": "Outside‑key Ratio",
+      "aliases": ["outside_key_ratio", "okr"],
+      "category": "aggregate",
+      "scope": ["harmonic", "melodic", "scale"],
+      "definition": "Share of events (harmony or melody) not belonging to the current diatonic collection.",
+      "computation": {
+        "windowing": "sliding windows; separate harmonic and melodic tallies optional",
+        "formula": "count(events outside diatonic set) / count(all events)",
+        "units": "ratio_0_to_1"
+      },
+      "ui": {
+        "label": "Outside Key",
+        "short": "Out%",
+        "tooltip": "Proportion of non‑diatonic material in the window.",
+        "format": "percent",
+        "precision": 2
+      },
+      "examples": ["Chromatic approach tones or secondary dominants increase this value."],
+      "related": ["chromaticism", "modal_interchange"]
+    },
+    "cadential_strength": {
+      "human_name": "Cadential Strength",
+      "aliases": ["cadential_strength"],
+      "category": "aggregate",
+      "scope": ["harmonic", "melodic"],
+      "definition": "Composite score for cadence quality using harmony (V→I, positions) and melody (soprano degree, approach).",
+      "computation": {
+        "windowing": "cadential span (e.g., last 2–4 chords)",
+        "formula": "w1*harmony_pac_like + w2*soprano_on_1 + w3*bass_authentic_motion − penalties(inversions, voice‑leading violations)",
+        "units": "score_0_to_1"
+      },
+      "ui": {
+        "label": "Cadential Strength",
+        "short": "Cadence",
+        "tooltip": "How strongly the passage behaves like a cadence.",
+        "format": "percent",
+        "precision": 2
+      },
+      "examples": ["V–I in root, soprano 1, strong approach → high score."],
+      "related": ["PAC", "IAC", "Cadential_6_4"]
+    },
+    "soprano_stability": {
+      "human_name": "Soprano Stability",
+      "aliases": ["soprano_stability"],
+      "category": "melodic",
+      "scope": ["melodic"],
+      "definition": "Share of phrase‑final soprano notes on stable degrees (1, 3, 5) with small approach intervals.",
+      "computation": {
+        "windowing": "phrase final positions",
+        "formula": "count(final soprano ∈ {1,3,5} with approach ≤ M2) / count(phrase finals)",
+        "units": "ratio_0_to_1"
+      },
+      "ui": {
+        "label": "Soprano Stability",
+        "short": "Sop. stab",
+        "tooltip": "How often phrase endings land on stable soprano tones.",
+        "format": "percent",
+        "precision": 2
+      },
+      "examples": ["Ending on 1 with stepwise approach increases stability."],
+      "related": ["cadential_strength"]
+    },
+    "modal_char_score": {
+      "human_name": "Modal Character Score",
+      "aliases": ["modal_char_score"],
+      "category": "aggregate",
+      "scope": ["harmonic", "melodic", "scale"],
+      "definition": "Aggregate score from modal markers (e.g., ♯6 for Dorian, ♭7 for Mixolydian, avoidance of LT).",
+      "computation": {
+        "windowing": "aggregate over phrase/section",
+        "formula": "weighted_sum(raised6_ratio, flat7_ratio, lt_suppression, b7_over_V_hits, …) normalized to 0..1",
+        "units": "score_0_to_1"
+      },
+      "ui": {
+        "label": "Modal Character",
+        "short": "Modal",
+        "tooltip": "Composite indicator of modal color in the passage.",
+        "format": "percent",
+        "precision": 2
+      },
+      "examples": ["High ♯6 and ♭7 with LT suppressed → strong Dorian/Mixolydian flavor."],
+      "related": ["Dorian", "Mixolydian"]
+    }
+  },
+  "ui_aliases": {
+    "labels": {
+      "lt_suppression": "Leading‑tone suppression",
+      "raised6_ratio": "Raised 6th ratio",
+      "flat7_ratio": "Flat 7th ratio",
+      "b7_over_V_hits": "♭7 over V hits",
+      "outside_key_ratio": "Outside‑key ratio",
+      "cadential_strength": "Cadential strength",
+      "soprano_stability": "Soprano stability",
+      "modal_char_score": "Modal character score"
+    },
+    "tooltips": {
+      "lt_suppression": "Suppression of the diatonic leading tone (7) — higher means fewer 7s.",
+      "raised6_ratio": "Proportion of raised 6th tones in the window (Dorian cue).",
+      "flat7_ratio": "Proportion of ♭7 tones in the window (Mixolydian/Dorian cue).",
+      "b7_over_V_hits": "How often ♭7 coincides with V harmony (Mixolydian cue).",
+      "outside_key_ratio": "Share of notes/chords outside the local diatonic collection.",
+      "cadential_strength": "Composite cadence quality from harmony and melody.",
+      "soprano_stability": "How often phrase endings land on 1/3/5 with stable approach.",
+      "modal_char_score": "Composite modal color score across several markers."
+    }
   }
 }

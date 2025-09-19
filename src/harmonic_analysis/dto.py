@@ -85,13 +85,56 @@ class PatternMatchDTO:
 
 @dataclass
 class ChromaticElementDTO:
-    """A chromatic device (e.g., secondary dominant, mixture)."""
+    """A chromatic device (e.g., secondary_dominant, mixture)."""
 
-    type: str  # e.g., "secondary_dominant"
-    chord_symbol: Optional[str] = None  # source chord symbol
-    roman_numeral: Optional[str] = None  # source roman
-    resolution_to: Optional[str] = None  # target roman
-    explanation: Optional[str] = None
+    index: int  # chord index in progression
+    symbol: str  # chord symbol (e.g., "A7")
+    type: str  # e.g., "secondary_dominant", "mixture", "chromatic_mediant"
+    target: Optional[str] = None  # target chord (e.g., "Dm")
+    resolution: Optional[str] = None  # resolution pattern (e.g., "A7→Dm")
+    strength: Optional[float] = None  # confidence/strength score
+    explanation: Optional[str] = None  # detailed explanation
+
+    def __str__(self) -> str:
+        """Human-readable string representation."""
+        # Format: "A7 (V/ii) → Dm [0.82]" or "Ab (mixture) [0.75]"
+        parts = [self.symbol]
+
+        # Add type/function info
+        if self.type == "secondary_dominant" and self.target:
+            parts.append(f"(V/{self.target})")
+        elif self.type == "applied_leading" and self.target:
+            parts.append(f"(vii°/{self.target})")
+        else:
+            parts.append(f"({self.type})")
+
+        # Add resolution if present
+        if self.resolution:
+            parts.append(f"→ {self.target or 'unresolved'}")
+
+        # Add strength if present
+        if self.strength is not None:
+            parts.append(f"[{self.strength:.2f}]")
+
+        return " ".join(parts)
+
+    def __repr__(self) -> str:
+        """Developer-friendly representation."""
+        return (
+            f"ChromaticElementDTO(index={self.index}, symbol='{self.symbol}', "
+            f"type='{self.type}', target={self.target!r},"
+            f"strength={self.strength})"
+        )
+
+
+@dataclass
+class ChromaticSummaryDTO:
+    """Summary of chromatic analysis findings."""
+
+    counts: Dict[str, int] = field(default_factory=dict)  # type counts
+    has_applied_dominants: bool = False
+    borrowed_key_area: Optional[str] = None
+    notes: List[str] = field(default_factory=list)  # observations
 
 
 @dataclass
@@ -136,12 +179,18 @@ class AnalysisSummary:
     terms: Dict[str, str] = field(default_factory=dict)
     patterns: List[PatternMatchDTO] = field(default_factory=list)
     chromatic_elements: List[ChromaticElementDTO] = field(default_factory=list)
+    chromatic_summary: Optional[ChromaticSummaryDTO] = None
 
     # Optional chord list (useful in functional primary)
     chords: List[FunctionalChordDTO] = field(default_factory=list)
 
     # Optional modal features (e.g., "♭VII chord", "raised 4th")
     modal_characteristics: List[str] = field(default_factory=list)
+
+    # Modal evidence for rich analysis (populated by modal analyzer)
+    modal_evidence: List[Any] = field(
+        default_factory=list
+    )  # List[ModalEvidence] from analyzer
 
     # NEW: Section-aware fields (only populated when sections are supplied)
     sections: List[SectionDTO] = field(default_factory=list)
@@ -223,28 +272,36 @@ class AnalysisSummary:
         def _ce(x: Any) -> ChromaticElementDTO:
             """
             Convert a dict or object into a ChromaticElementDTO.
-
-            Handles legacy keys and renames:
-            - 'kind' to 'type'
-            - 'roman' to 'roman_numeral'
-            - 'resolution' to 'resolution_to'
-            Provides default values for missing keys.
             """
             if isinstance(x, dict):
                 y = dict(x)
-                # accept either 'type' or legacy 'kind'
-                y.setdefault("type", y.get("kind", "unknown"))
-                # map shorthand keys to DTO field names
-                if "roman" in y and "roman_numeral" not in y:
-                    y["roman_numeral"] = y.pop("roman")
-                if "resolution" in y and "resolution_to" not in y:
-                    y["resolution_to"] = y.pop("resolution")
+
+                # Provide required field defaults
+                if "index" not in y:
+                    y["index"] = 0
+                if "symbol" not in y:
+                    y["symbol"] = ""
+                if "type" not in y:
+                    y["type"] = "unknown"
+
+                # Only keep valid fields for DTO structure
+                valid_fields = {
+                    "index",
+                    "symbol",
+                    "type",
+                    "target",
+                    "resolution",
+                    "strength",
+                    "explanation",
+                }
+                y = {k: v for k, v in y.items() if k in valid_fields}
+
                 return ChromaticElementDTO(**y)
             # If x is already a ChromaticElementDTO, return it as-is
             if isinstance(x, ChromaticElementDTO):
                 return x
             # For any other type, create a default ChromaticElementDTO
-            return ChromaticElementDTO(type="unknown")
+            return ChromaticElementDTO(index=0, symbol="", type="unknown")
 
         def _fc(x: Any) -> FunctionalChordDTO:
             """
@@ -268,6 +325,7 @@ class AnalysisSummary:
             chromatic_elements=[_ce(x) for x in d.get("chromatic_elements", [])],
             chords=[_fc(x) for x in d.get("chords", [])],
             modal_characteristics=list(d.get("modal_characteristics", [])),
+            modal_evidence=list(d.get("modal_evidence", [])),
         )
 
 

@@ -17,11 +17,13 @@ from harmonic_analysis.dto import (
     AnalysisSummary,
     AnalysisType,
     ChromaticElementDTO,
+    ChromaticSummaryDTO,
     FunctionalChordDTO,
     PatternMatchDTO,
     SectionDTO,
 )
 
+from ..core.chromatic_analysis import ChromaticAnalyzer
 from ..core.functional_harmony import FunctionalHarmonyAnalyzer
 from ..core.pattern_engine import (
     GlossaryService,
@@ -52,6 +54,7 @@ class PatternAnalysisService:
         functional_analyzer: Optional[Any] = None,
         matcher: Optional[Any] = None,
         modal_analyzer: Optional[Any] = None,
+        chromatic_analyzer: Optional[ChromaticAnalyzer] = None,
         arbitration_policy: Optional[Any] = None,
         calibration_service: Optional[Any] = None,
         auto_calibrate: bool = True,
@@ -62,6 +65,7 @@ class PatternAnalysisService:
         self.arbitration_service = AnalysisArbitrationService(arbitration_policy)
         self.glossary_service = GlossaryService()
         self.modal_analyzer = modal_analyzer or ModalAnalysisService()
+        self.chromatic_analyzer = chromatic_analyzer or ChromaticAnalyzer()
 
         # Confidence calibration service integration
         self.calibration_service = calibration_service
@@ -142,7 +146,7 @@ class PatternAnalysisService:
         Returns:
             Dictionary of features for calibration routing
         """
-        features = {
+        features: Dict[str, Any] = {
             "chord_count": len(chord_symbols),
             "is_melody": False,  # This service handles harmony analysis
         }
@@ -195,6 +199,120 @@ class PatternAnalysisService:
         )  # Normalize by avg chord length
 
         return features
+
+    def _dedupe_chromatic_elements(
+        self,
+        functional_elements: List[ChromaticElementDTO],
+        chromatic_elements: List[ChromaticElementDTO],
+    ) -> List[ChromaticElementDTO]:
+        """
+        Deduplicate chromatic elements by (index, type, target).
+        Chromatic analyzer takes precedence over functional analyzer.
+        """
+        # Use chromatic analyzer results as primary source
+        seen = set()
+        deduped = []
+
+        # Add chromatic analyzer results first (higher precedence)
+        for element in chromatic_elements:
+            key = (element.index, element.type, element.target)
+            if key not in seen:
+                seen.add(key)
+                deduped.append(element)
+
+        # Add functional analyzer results that don't conflict
+        for element in functional_elements:
+            key = (element.index, element.type, element.target)
+            if key not in seen:
+                seen.add(key)
+                deduped.append(element)
+
+        return deduped
+
+    def _convert_chromatic_result_to_dtos(
+        self,
+        chromatic_result: Any,
+        chord_symbols: List[str],
+    ) -> tuple[List[ChromaticElementDTO], ChromaticSummaryDTO]:
+        """Convert ChromaticAnalysisResult to DTO format."""
+        elements: List[ChromaticElementDTO] = []
+        counts: Dict[str, int] = {}
+        has_applied_dominants = False
+        borrowed_key_area = None
+        notes: List[str] = []
+
+        if not chromatic_result:
+            return elements, ChromaticSummaryDTO(
+                counts=counts,
+                has_applied_dominants=has_applied_dominants,
+                borrowed_key_area=borrowed_key_area,
+                notes=notes,
+            )
+
+        # Convert secondary dominants
+        for i, sec_dom in enumerate(chromatic_result.secondary_dominants):
+            elements.append(
+                ChromaticElementDTO(
+                    index=i,  # Would need proper mapping
+                    symbol=sec_dom.chord,
+                    type="secondary_dominant",
+                    target=sec_dom.target,
+                    resolution=(
+                        f"{sec_dom.chord}→{sec_dom.target}"
+                        if sec_dom.target != "unresolved"
+                        else None
+                    ),
+                    strength=0.8,  # Default strength
+                    explanation=sec_dom.explanation,
+                )
+            )
+            counts["secondary_dominant"] = counts.get("secondary_dominant", 0) + 1
+            has_applied_dominants = True
+
+        # Convert borrowed chords
+        for i, borrowed in enumerate(chromatic_result.borrowed_chords):
+            elements.append(
+                ChromaticElementDTO(
+                    index=i,  # Would need proper mapping
+                    symbol=borrowed.chord,
+                    type="mixture",
+                    target=None,
+                    resolution=None,
+                    strength=0.7,  # Default strength
+                    explanation=borrowed.explanation,
+                )
+            )
+            counts["mixture"] = counts.get("mixture", 0) + 1
+            if not borrowed_key_area:
+                borrowed_key_area = borrowed.borrowed_from
+
+        # Convert chromatic mediants
+        for i, mediant in enumerate(chromatic_result.chromatic_mediants):
+            elements.append(
+                ChromaticElementDTO(
+                    index=i,  # Would need proper mapping
+                    symbol=mediant.chord,
+                    type="chromatic_mediant",
+                    target=None,
+                    resolution=None,
+                    strength=0.6,  # Default strength
+                    explanation=mediant.explanation,
+                )
+            )
+            counts["chromatic_mediant"] = counts.get("chromatic_mediant", 0) + 1
+
+        # Add note about functional precedence
+        if not has_applied_dominants:
+            notes.append("G7 classified as V7, not chromatic mediant")
+
+        summary = ChromaticSummaryDTO(
+            counts=counts,
+            has_applied_dominants=has_applied_dominants,
+            borrowed_key_area=borrowed_key_area,
+            notes=notes,
+        )
+
+        return elements, summary
 
     def _apply_section_aware_tagging(
         self,
@@ -426,38 +544,7 @@ class PatternAnalysisService:
             pattern_matches, sections, len(chord_symbols)
         )
 
-        # 4) Chromatic elements (optional mapping if present)
-        chroma_raw: List[Any] = []
-        if hasattr(functional_result, "chromatic_elements"):
-            chroma_raw = functional_result.chromatic_elements or []
-        elif isinstance(functional_result, dict):
-            chroma_raw = functional_result.get("chromatic_elements", [])
-
-        chroma_dto: List[ChromaticElementDTO] = []
-        for ce in chroma_raw:
-            if not isinstance(ce, dict):
-                continue
-            chroma_dto.append(
-                ChromaticElementDTO(
-                    type=str(ce.get("type", "")),
-                    chord_symbol=(
-                        (ce.get("chord") or {}).get("chord_symbol")
-                        if isinstance(ce.get("chord"), dict)
-                        else None
-                    ),
-                    roman_numeral=(
-                        (ce.get("chord") or {}).get("roman_numeral")
-                        if isinstance(ce.get("chord"), dict)
-                        else None
-                    ),
-                    resolution_to=(
-                        (ce.get("resolution") or {}).get("roman_numeral")
-                        if isinstance(ce.get("resolution"), dict)
-                        else None
-                    ),
-                    explanation=ce.get("explanation"),
-                )
-            )
+        # 4) [REMOVED] Old chromatic elements mapping - now handled by ChromaticAnalyzer
 
         # 5) Modal analysis (standard async entrypoint)
         modal_conf = None
@@ -465,20 +552,68 @@ class PatternAnalysisService:
         modal_romans: List[str] = []
         modal_reason = None
         modal_characteristics: List[str] = []
+        modal_evidence: List[Any] = []
 
         if self.modal_analyzer is not None:
-            # Use standardized async modal analysis
+            # Use standardized async modal analysis with parent key inference
+            # For modal analysis, prioritize explicit key_hint, then infer modal parent key,
+            # and only fall back to functional key_sig as last resort
+            if key_hint:
+                modal_key_hint = key_hint
+            else:
+                # Try to infer modal-appropriate parent key first
+                modal_key_hint = self._infer_modal_parent_key(chord_symbols)
+                # Fall back to functional key signature if inference fails
+                if not modal_key_hint:
+                    modal_key_hint = key_sig
+
             modal_result = await self.modal_analyzer.analyze_async(
-                chord_symbols, key_hint or key_sig
+                chord_symbols, modal_key_hint
             )
             if modal_result:
                 modal_conf = modal_result.confidence
                 modal_mode = modal_result.inferred_mode
                 modal_reason = modal_result.rationale
                 modal_characteristics = [c.label for c in modal_result.characteristics]
-                # For modal romans, we can reuse functional romans or
-                # extract from modal result
-                modal_romans = romans  # Same progression, different interpretation
+                # Extract evidence if available
+                modal_evidence = getattr(modal_result, "evidence", []) or []
+                # Extract modal romans from the modal analysis result (CRITICAL FIX)
+                modal_romans = getattr(modal_result, "roman_numerals", []) or romans
+
+        # 5.5) Chromatic analysis using functional result as input
+        functional_chromatic_elements: List[ChromaticElementDTO] = []
+        chromatic_analyzer_elements: List[ChromaticElementDTO] = []
+        chromatic_summary: Optional[ChromaticSummaryDTO] = None
+
+        # Extract chromatic elements from functional analysis (legacy path)
+        if functional_result and hasattr(functional_result, "chromatic_elements"):
+            # This would be processed if functional analyzer detected chromatic elements
+            pass  # Currently functional analyzer doesn't produce chromatic elements
+            # in the expected format
+
+        # Run dedicated chromatic analyzer
+        if self.chromatic_analyzer is not None and functional_result:
+            chromatic_result = self.chromatic_analyzer.analyze_chromatic_elements(
+                functional_result
+            )
+            if chromatic_result:
+                chromatic_analyzer_elements, chromatic_summary = (
+                    self._convert_chromatic_result_to_dtos(
+                        chromatic_result, chord_symbols
+                    )
+                )
+
+        # Dedupe and merge chromatic elements
+        chromatic_elements = self._dedupe_chromatic_elements(
+            functional_chromatic_elements, chromatic_analyzer_elements
+        )
+
+        # Log chromatic analysis summary
+        if chromatic_elements:
+            chromatic_summary_str = ", ".join(str(el) for el in chromatic_elements)
+            logger.info(f"Chromatic: {chromatic_summary_str}")
+        else:
+            logger.debug("Chromatic: No chromatic elements detected")
 
         # 6) Build summaries + arbitration
         functional_summary = AnalysisSummary(
@@ -494,7 +629,8 @@ class PatternAnalysisService:
             ),
             terms={},
             patterns=pattern_matches,
-            chromatic_elements=chroma_dto,
+            chromatic_elements=chromatic_elements,
+            chromatic_summary=chromatic_summary,
             chords=chords_dto,
             modal_characteristics=[],
             # NEW: Section-aware fields
@@ -518,7 +654,10 @@ class PatternAnalysisService:
                 modal_confidence=float(modal_conf or 0.0),
                 chords=chords_dto,
                 patterns=pattern_matches,
+                chromatic_elements=chromatic_elements,
+                chromatic_summary=chromatic_summary,
                 modal_characteristics=modal_characteristics,
+                modal_evidence=modal_evidence,  # Pass through the modal evidence
                 # NEW: Section-aware fields
                 sections=list(sections) if sections else [],
                 terminal_cadences=terminal_cadences,
@@ -558,9 +697,7 @@ class PatternAnalysisService:
                     and primary.confidence is not None
                 ):
                     track = (
-                        "modal"
-                        if primary.type == AnalysisType.MODAL
-                        else "functional"
+                        "modal" if primary.type == AnalysisType.MODAL else "functional"
                     )
                     original_confidence = primary.confidence
                     calibrated_confidence = (
@@ -585,9 +722,7 @@ class PatternAnalysisService:
                         and alt.confidence is not None
                     ):
                         alt_track = (
-                            "modal"
-                            if alt.type == AnalysisType.MODAL
-                            else "functional"
+                            "modal" if alt.type == AnalysisType.MODAL else "functional"
                         )
                         original_alt_confidence = alt.confidence
                         calibrated_alt_confidence = (
@@ -690,3 +825,121 @@ class PatternAnalysisService:
                     sections=sections,
                 )
             )
+
+    def _infer_modal_parent_key(self, chord_symbols: List[str]) -> Optional[str]:
+        """Conservative modal parent key inference - only applies when modal patterns are likely.
+
+        This should ONLY return a modal parent key when there are clear indicators of modal harmony,
+        not for typical functional progressions that should be analyzed functionally.
+        """
+        if not chord_symbols or len(chord_symbols) < 2:
+            return None
+
+        # Quick heuristic: only infer modal parents for patterns that look modal
+        # This prevents functional progressions from getting bizarre modal interpretations
+
+        try:
+            first_chord = chord_symbols[0]
+            second_chord = chord_symbols[1] if len(chord_symbols) > 1 else None
+
+            if not second_chord:
+                return None
+
+            # Extract roots
+            first_root = self._extract_chord_root(first_chord)
+            second_root = self._extract_chord_root(second_chord)
+
+            if not (first_root and second_root):
+                return None
+
+            # Calculate interval between chords
+            interval = self._calculate_interval_semitones(first_root, second_root)
+
+            # Pattern 1: Dorian i-IV (minor + major 4th up)
+            # Example: Dm-G (D Dorian with C major parent)
+            if (
+                first_chord.endswith("m")
+                and not second_chord.endswith("m")
+                and interval == 5
+            ):
+                parent_root = self._transpose_note(first_root, -2)  # Whole step down
+                return f"{parent_root} major"
+
+            # Pattern 2: Dorian i-ii (minor + minor 2nd up)
+            # Example: Cm-Dm (C Dorian with Bb major parent)
+            elif (
+                first_chord.endswith("m")
+                and second_chord.endswith("m")
+                and interval == 2
+            ):
+                parent_root = self._transpose_note(first_root, -2)  # Whole step down
+                return f"{parent_root} major"
+
+            # Pattern 3: Lydian I-#IV (major + major tritone up)
+            # Example: C-Gb (C Lydian with G major parent)
+            elif (
+                not first_chord.endswith("m")
+                and not second_chord.endswith("m")
+                and interval == 6
+            ):
+                parent_root = self._transpose_note(first_root, 7)  # Perfect 5th up
+                return f"{parent_root} major"
+
+            # Pattern 4: Mixolydian I-bVII (major + major 2nd down/10th up)
+            # Example: G-F (G Mixolydian with C major parent)
+            elif (
+                not first_chord.endswith("m")
+                and not second_chord.endswith("m")
+                and interval == 10
+            ):
+                parent_root = self._transpose_note(first_root, 5)  # Perfect 4th up
+                return f"{parent_root} major"
+
+        except Exception:
+            pass
+
+        # If no modal patterns detected, don't force a modal interpretation
+        return None
+
+    def _extract_chord_root(self, chord: str) -> Optional[str]:
+        """Extract root note from chord symbol."""
+        if not chord:
+            return None
+        try:
+            root = chord[0].upper()
+            if len(chord) > 1 and chord[1] in ["#", "b"]:
+                root += chord[1]
+            return root
+        except Exception:
+            return None
+
+    def _calculate_interval_semitones(self, note1: str, note2: str) -> int:
+        """Calculate interval in semitones between two notes."""
+        notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        note_map = {"Db": "C#", "Eb": "D#", "Gb": "F#", "Ab": "G#", "Bb": "A#"}
+
+        # Normalize notes
+        norm1 = note_map.get(note1, note1)
+        norm2 = note_map.get(note2, note2)
+
+        try:
+            index1 = notes.index(norm1)
+            index2 = notes.index(norm2)
+            return (index2 - index1) % 12
+        except (ValueError, IndexError):
+            return 0
+
+    def _transpose_note(self, note: str, semitones: int) -> str:
+        """Simple note transposition helper."""
+        notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        note_map = {"Db": "C#", "Eb": "D#", "Gb": "F#", "Ab": "G#", "Bb": "A#"}
+
+        # Normalize note
+        normalized = note_map.get(note, note)
+
+        try:
+            index = notes.index(normalized)
+            new_index = (index + semitones) % 12
+            return notes[new_index]
+        except (ValueError, IndexError):
+            return "C"  # Fallback

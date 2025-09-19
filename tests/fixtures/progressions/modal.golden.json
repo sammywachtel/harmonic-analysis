@@ -1,0 +1,102 @@
+{
+  "description": "Golden test fixtures for modal patterns",
+  "progressions": [
+    {
+      "name": "dorian_i_bVII",
+      "key": "D dorian",
+      "chords": ["Dm", "C"],
+      "roman_numerals": ["i", "♭VII"],
+      "expected_matches": [
+        {
+          "pattern_id": "modal.dorian.i_bVII",
+          "span": [0, 2],
+          "confidence_range": [0.75, 0.90]
+        }
+      ]
+    },
+    {
+      "name": "dorian_i_IV",
+      "key": "E dorian",
+      "chords": ["Em", "A"],
+      "roman_numerals": ["i", "IV"],
+      "expected_matches": [
+        {
+          "pattern_id": "modal.dorian.i_IV",
+          "span": [0, 2],
+          "confidence_range": [0.70, 0.85]
+        }
+      ]
+    },
+    {
+      "name": "phrygian_i_bII",
+      "key": "E phrygian",
+      "chords": ["Em", "F"],
+      "roman_numerals": ["i", "♭II"],
+      "expected_matches": [
+        {
+          "pattern_id": "modal.phrygian.i_bII",
+          "span": [0, 2],
+          "confidence_range": [0.80, 0.95]
+        }
+      ]
+    },
+    {
+      "name": "andalusian_cadence",
+      "key": "A phrygian",
+      "chords": ["Dm", "C", "B♭", "A"],
+      "roman_numerals": ["iv", "♭III", "♭II", "I"],
+      "expected_matches": [
+        {
+          "pattern_id": "modal.andalusian",
+          "span": [0, 4],
+          "confidence_range": [0.85, 1.0]
+        }
+      ]
+    },
+    {
+      "name": "mixolydian_I_bVII",
+      "key": "G mixolydian",
+      "chords": ["G", "F"],
+      "roman_numerals": ["I", "♭VII"],
+      "expected_matches": [
+        {
+          "pattern_id": "modal.mixolydian.I_bVII",
+          "span": [0, 2],
+          "confidence_range": [0.75, 0.90]
+        }
+      ]
+    },
+    {
+      "name": "aeolian_i_v",
+      "key": "A aeolian",
+      "chords": ["Am", "Em"],
+      "roman_numerals": ["i", "v"],
+      "expected_matches": [
+        {
+          "pattern_id": "modal.aeolian.i_v",
+          "span": [0, 2],
+          "confidence_range": [0.65, 0.80]
+        }
+      ]
+    },
+    {
+      "name": "lydian_I_II",
+      "key": "F lydian",
+      "chords": ["F", "G"],
+      "roman_numerals": ["I", "II"],
+      "expected_matches": [
+        {
+          "pattern_id": "modal.lydian.I_II",
+          "span": [0, 2],
+          "confidence_range": [0.70, 0.85]
+        }
+      ]
+    }
+  ],
+  "transpositions": [
+    {"key": "D dorian", "semitones": 0},
+    {"key": "E dorian", "semitones": 2},
+    {"key": "F# dorian", "semitones": 4},
+    {"key": "A dorian", "semitones": 7}
+  ]
+}

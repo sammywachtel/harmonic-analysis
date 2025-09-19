@@ -4,10 +4,13 @@ A comprehensive Python library for music theory analysis, providing sophisticate
 algorithms for functional harmony, modal analysis, and chromatic harmony detection.
 
 🆕 Advanced Pattern Matching Engine
-For chord progression analysis, use PatternAnalysisService:
-    from harmonic_analysis.services.pattern_analysis_service import (
-        PatternAnalysisService,
-    )
+For chord progression analysis, choose between:
+
+Legacy Service (stable):
+    from harmonic_analysis import PatternAnalysisService
+
+Next-Generation Unified Engine (recommended for new projects):
+    from harmonic_analysis import UnifiedPatternService
 
 This is the main API layer providing essential functions for 90% of users.
 For specialized functionality, see:
@@ -94,12 +97,16 @@ from .dto import (
     AnalysisEnvelope,
     AnalysisSummary,
     AnalysisType,
+    ChromaticElementDTO,
+    ChromaticSummaryDTO,
     PatternMatchDTO,
     SectionDTO,
 )
 
-# Import new Pattern Analysis Service
+# Import Pattern Analysis Services
 from .services.pattern_analysis_service import PatternAnalysisService
+# 🆕 Import Unified Pattern Service (Next Generation)
+from .services.unified_pattern_service import UnifiedPatternService
 
 # Utility functions
 from .utils.analysis_helpers import describe_contour
@@ -107,12 +114,15 @@ from .utils.analysis_helpers import describe_contour
 __all__ = [
     # Version
     "__version__",
-    # 🆕 Advanced Pattern Analysis (RECOMMENDED)
-    "PatternAnalysisService",
+    # 🆕 Advanced Pattern Analysis
+    "PatternAnalysisService",  # Legacy service
+    "UnifiedPatternService",  # Next-generation unified engine
     # DTO types for pattern analysis
     "AnalysisEnvelope",
     "AnalysisSummary",
     "AnalysisType",
+    "ChromaticElementDTO",
+    "ChromaticSummaryDTO",
     "PatternMatchDTO",
     "SectionDTO",
     # Core analysis functions

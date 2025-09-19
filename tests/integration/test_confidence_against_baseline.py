@@ -104,7 +104,7 @@ def test_confidence_against_baseline():
         pytest.fail(
             f"Required baseline file not found: {BASELINE_JSON}. "
             f"This file should be part of the repository for functionality testing. "
-            f"Run scripts/export_baseline.py to generate it or ensure it's committed to git."
+            f"Run 'python tools/calibration/calibration_pipeline.py generate' to generate it or ensure it's committed to git."
         )
 
     if not os.path.exists(MAPPING_JSON):
@@ -150,9 +150,7 @@ def test_confidence_against_baseline():
         # Apply calibration mapping by analysis type (defaults to functional)
         analysis_type = (row.get("type") or "functional").lower()
         if hasattr(calib, "apply_calibration"):
-            actual = float(
-                calib.apply_calibration(raw_actual, analysis_type, mapping)
-            )
+            actual = float(calib.apply_calibration(raw_actual, analysis_type, mapping))
         else:
             actual = _apply_calibration_local(raw_actual, analysis_type, mapping)
 

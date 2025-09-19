@@ -153,8 +153,8 @@ class TestCalibrationEdgeCases:
 class TestCalibrationMappingValidation:
     """Test calibration mapping validation."""
 
-    def test_missing_tracks(self, tmp_path):
-        """Test handling of calibration mapping without tracks."""
+    def test_missing_tracks_key(self, tmp_path):
+        """Test handling of calibration mapping without tracks key."""
         invalid_mapping = {
             "version": "test",
             "created_at": "2025-01-01T00:00:00Z",
@@ -167,15 +167,50 @@ class TestCalibrationMappingValidation:
         with pytest.raises((KeyError, ValueError)):
             CalibrationService(str(mapping_file))
 
+    def test_missing_file(self, tmp_path):
+        """Test handling when calibration mapping file doesn't exist."""
+        nonexistent_file = tmp_path / "nonexistent_calibration.json"
+
+        with pytest.raises(ValueError, match="Failed to load calibration mapping"):
+            CalibrationService(str(nonexistent_file))
+
     def test_empty_tracks(self, tmp_path):
         """Test handling of calibration mapping with empty tracks."""
-        invalid_mapping = {"tracks": {}}  # Empty tracks
+        empty_mapping = {"tracks": {}}  # Empty tracks
 
         mapping_file = tmp_path / "empty_tracks.json"
-        mapping_file.write_text(json.dumps(invalid_mapping))
+        mapping_file.write_text(json.dumps(empty_mapping))
 
-        with pytest.raises((KeyError, ValueError)):
-            CalibrationService(str(mapping_file))
+        # CalibrationService should accept empty tracks (fault-tolerant design)
+        service = CalibrationService(str(mapping_file))
+
+        # Should have no available tracks
+        assert service.get_available_tracks() == []
+
+        # Should work in pass-through mode and return valid results
+        features = {"chord_count": 4, "evidence_strength": 0.7}
+        result = service.calibrate_confidence(0.5, "functional", features)
+
+        # Should return a valid confidence score (raw confidence in pass-through mode)
+        assert isinstance(result, float)
+        assert 0.0 <= result <= 1.0
+
+    def test_none_mapping_passthrough(self):
+        """Test CalibrationService with None mapping (pass-through mode)."""
+        # Should not raise an exception
+        service = CalibrationService(None)
+
+        # Should work in pass-through mode and return valid results
+        features = {"chord_count": 4, "evidence_strength": 0.7}
+        result = service.calibrate_confidence(0.5, "functional", features)
+
+        # Should return a valid confidence score
+        assert isinstance(result, float)
+        assert 0.0 <= result <= 1.0
+
+        # In pass-through mode, should return input unchanged or apply minimal processing
+        # The exact behavior depends on implementation, but should be predictable
+        assert result is not None
 
     def test_malformed_calibration_params(self, tmp_path):
         """Test handling of malformed calibration parameters."""

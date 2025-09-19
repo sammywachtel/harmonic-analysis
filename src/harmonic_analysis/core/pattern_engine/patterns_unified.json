@@ -1,0 +1,494 @@
+{
+  "version": 1,
+  "metadata": {
+    "description": "Unified pattern definitions for functional and modal analysis with scale/melodic patterns",
+    "author": "Harmonic Analysis Library",
+    "created": "2024-09-18",
+    "modified": "2024-09-19"
+  },
+  "patterns": [
+    {
+      "id": "cadence.authentic.perfect",
+      "name": "Perfect Authentic Cadence",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "roman_seq": ["V", "I"],
+        "constraints": {
+          "soprano_degree": [1],
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.95,
+        "features": ["has_auth_cadence", "tonal_clarity"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["cadence", "functional", "closure"],
+        "priority": 90,
+        "description": "V-I with soprano on tonic, strongest functional cadence"
+      }
+    },
+    {
+      "id": "cadence.authentic.imperfect",
+      "name": "Imperfect Authentic Cadence",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "roman_seq": ["V", "I"],
+        "constraints": {
+          "soprano_degree": [3, 5],
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.85,
+        "features": ["has_auth_cadence"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["cadence", "functional"],
+        "priority": 85,
+        "description": "V-I with soprano on 3rd or 5th"
+      }
+    },
+    {
+      "id": "cadence.plagal",
+      "name": "Plagal Cadence",
+      "scope": ["harmonic"],
+      "track": ["functional", "modal"],
+      "matchers": {
+        "roman_seq": ["IV", "I"],
+        "window": {
+          "len": 2,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.75,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["cadence", "plagal", "modal"],
+        "priority": 70,
+        "description": "IV-I 'Amen' cadence, weaker functional closure"
+      }
+    },
+    {
+      "id": "cadence.half",
+      "name": "Half Cadence",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "roman_seq": [".*", "V"],
+        "constraints": {
+          "position": "end"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.70,
+        "features": ["harmonic_rhythm"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["cadence", "functional", "open"],
+        "priority": 65,
+        "description": "Movement to V, creates expectation"
+      }
+    },
+    {
+      "id": "modal.dorian.i_bVII",
+      "name": "Dorian i-♭VII",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["i", "♭VII"],
+        "mode": "dorian",
+        "transposition_invariant": true,
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.80,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_dorian"
+      },
+      "metadata": {
+        "tags": ["modal", "dorian", "characteristic"],
+        "priority": 75,
+        "description": "Characteristic Dorian progression using ♭VII"
+      }
+    },
+    {
+      "id": "modal.dorian.i_IV",
+      "name": "Dorian i-IV",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["i", "IV"],
+        "mode": "dorian",
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.75,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_dorian"
+      },
+      "metadata": {
+        "tags": ["modal", "dorian"],
+        "priority": 70,
+        "description": "Dorian progression with major IV"
+      }
+    },
+    {
+      "id": "modal.phrygian.i_bII",
+      "name": "Phrygian i-♭II",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["i", "♭II"],
+        "mode": "phrygian",
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.85,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["modal", "phrygian", "characteristic"],
+        "priority": 80,
+        "description": "Characteristic Phrygian half-step motion"
+      }
+    },
+    {
+      "id": "modal.andalusian",
+      "name": "Andalusian Cadence",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["iv", "♭III", "♭II", "I"],
+        "mode": "phrygian",
+        "window": {
+          "len": 4,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.90,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["modal", "phrygian", "andalusian", "flamenco"],
+        "priority": 85,
+        "description": "Classic Andalusian/Flamenco progression"
+      }
+    },
+    {
+      "id": "functional.predominant",
+      "name": "Predominant Function",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "roman_seq": ["ii", "V"],
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.80,
+        "features": ["tonal_clarity"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["functional", "predominant"],
+        "priority": 75,
+        "description": "ii-V predominant to dominant motion"
+      }
+    },
+    {
+      "id": "functional.circle_fifth",
+      "name": "Circle of Fifths Progression",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "roman_seq": ["vi", "ii", "V", "I"],
+        "window": {
+          "len": 4
+        }
+      },
+      "evidence": {
+        "weight": 0.85,
+        "features": ["tonal_clarity", "voice_leading_smoothness"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["functional", "circle_progression"],
+        "priority": 80,
+        "description": "Classic circle of fifths progression"
+      }
+    },
+    {
+      "id": "chromatic.secondary_dominant",
+      "name": "Secondary Dominant",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "chord_seq": ["V/.*", ".*"],
+        "constraints": {
+          "key_context": "chromatic"
+        },
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.70,
+        "features": ["chromatic_density", "outside_key_ratio"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["chromatic", "secondary_dominant", "tonicization"],
+        "priority": 65,
+        "description": "Secondary dominant resolution"
+      }
+    },
+    {
+      "id": "modal.mixolydian.I_bVII",
+      "name": "Mixolydian I-♭VII",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["I", "♭VII"],
+        "mode": "mixolydian",
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.80,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["modal", "mixolydian", "characteristic"],
+        "priority": 75,
+        "description": "Characteristic Mixolydian with lowered seventh"
+      }
+    },
+    {
+      "id": "modal.aeolian.i_v",
+      "name": "Aeolian Minor v",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["i", "v"],
+        "mode": "aeolian",
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.70,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["modal", "aeolian", "natural_minor"],
+        "priority": 65,
+        "description": "Natural minor v chord (not V)"
+      }
+    },
+    {
+      "id": "functional.tonic_prolongation",
+      "name": "Tonic Prolongation",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "roman_seq": ["I", "vi", "I"],
+        "window": {
+          "len": 3
+        }
+      },
+      "evidence": {
+        "weight": 0.65,
+        "features": ["tonal_clarity"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["functional", "prolongation"],
+        "priority": 60,
+        "description": "Tonic prolongation through vi"
+      }
+    },
+    {
+      "id": "modal.lydian.I_II",
+      "name": "Lydian I-II",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["I", "II"],
+        "mode": "lydian",
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.75,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["modal", "lydian", "characteristic"],
+        "priority": 70,
+        "description": "Lydian with raised 4th scale degree"
+      }
+    },
+    {
+      "id": "scale.dorian.characteristic",
+      "name": "Dorian Scale Pattern",
+      "scope": ["scale", "melodic"],
+      "track": ["modal"],
+      "matchers": {
+        "scale_degrees": [1, 2, 3, 4, 5, 6, 7],
+        "mode": "dorian",
+        "constraints": {
+          "key_context": "diatonic"
+        }
+      },
+      "evidence": {
+        "weight": 0.85,
+        "features": ["modal_char_score", "modal_char_score"],
+        "confidence_fn": "logistic_dorian"
+      },
+      "metadata": {
+        "tags": ["scale", "modal", "dorian"],
+        "priority": 80,
+        "description": "Dorian mode with characteristic raised 6th"
+      }
+    },
+    {
+      "id": "melody.leading_tone_resolution",
+      "name": "Leading Tone Resolution",
+      "scope": ["melodic"],
+      "track": ["functional"],
+      "matchers": {
+        "interval_seq": [1],
+        "scale_degrees": [7, 1],
+        "constraints": {
+          "position": "end"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": true
+        }
+      },
+      "evidence": {
+        "weight": 0.90,
+        "features": ["tonal_clarity", "voice_leading_smoothness"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["melodic", "functional", "leading_tone"],
+        "priority": 85,
+        "description": "Classic 7-8 leading tone resolution"
+      }
+    },
+    {
+      "id": "melody.modal_seventh_descent",
+      "name": "Modal Seventh Descent",
+      "scope": ["melodic"],
+      "track": ["modal"],
+      "matchers": {
+        "interval_seq": [-2],
+        "scale_degrees": [7, 6],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": true
+        }
+      },
+      "evidence": {
+        "weight": 0.80,
+        "features": ["modal_char_score", "voice_leading_smoothness"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["melodic", "modal", "seventh"],
+        "priority": 75,
+        "description": "Modal ♭7-6 descent avoiding leading tone"
+      }
+    },
+    {
+      "id": "scale.phrygian.characteristic",
+      "name": "Phrygian Scale Pattern",
+      "scope": ["scale"],
+      "track": ["modal"],
+      "matchers": {
+        "scale_degrees": [1, 2, 3, 4, 5, 6, 7],
+        "mode": "phrygian",
+        "constraints": {
+          "key_context": "diatonic"
+        }
+      },
+      "evidence": {
+        "weight": 0.85,
+        "features": ["modal_char_score", "modal_char_score"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["scale", "modal", "phrygian"],
+        "priority": 80,
+        "description": "Phrygian mode with characteristic flat 2nd"
+      }
+    },
+    {
+      "id": "melody.chromatic_passing_tone",
+      "name": "Chromatic Passing Tone",
+      "scope": ["melodic"],
+      "track": ["functional"],
+      "matchers": {
+        "interval_seq": [1, 1],
+        "constraints": {
+          "key_context": "chromatic"
+        },
+        "window": {
+          "len": 3,
+          "overlap_ok": true
+        }
+      },
+      "evidence": {
+        "weight": 0.70,
+        "features": ["chromatic_density", "voice_leading_smoothness"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["melodic", "chromatic", "passing_tone"],
+        "priority": 65,
+        "description": "Chromatic passing tone creating smooth voice leading"
+      }
+    }
+  ]
+}

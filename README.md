@@ -144,7 +144,7 @@ harmonic-analysis/
 │
 ├── 📁 scripts/                         # Development and maintenance scripts
 │   ├── quality_check.py                # Linting, typing, and test runner
-│   ├── confidence_calibration_analysis.py # Confidence scoring validation
+│   ├── generate_comprehensive_multi_layer_tests.py # Test case generation
 │   └── music_expert_review.py          # Expert review validation
 │
 ├── 📁 docs/                            # Documentation

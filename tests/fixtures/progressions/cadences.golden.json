@@ -1,0 +1,81 @@
+{
+  "description": "Golden test fixtures for cadence patterns",
+  "progressions": [
+    {
+      "name": "perfect_authentic_cadence",
+      "key": "C major",
+      "chords": ["G", "C"],
+      "roman_numerals": ["V", "I"],
+      "expected_matches": [
+        {
+          "pattern_id": "cadence.authentic.perfect",
+          "span": [0, 2],
+          "confidence_range": [0.90, 1.0]
+        }
+      ]
+    },
+    {
+      "name": "imperfect_authentic_cadence",
+      "key": "F major",
+      "chords": ["C", "F"],
+      "roman_numerals": ["V", "I"],
+      "expected_matches": [
+        {
+          "pattern_id": "cadence.authentic.imperfect",
+          "span": [0, 2],
+          "confidence_range": [0.80, 0.95]
+        }
+      ]
+    },
+    {
+      "name": "plagal_cadence",
+      "key": "G major",
+      "chords": ["C", "G"],
+      "roman_numerals": ["IV", "I"],
+      "expected_matches": [
+        {
+          "pattern_id": "cadence.plagal",
+          "span": [0, 2],
+          "confidence_range": [0.70, 0.85]
+        }
+      ]
+    },
+    {
+      "name": "half_cadence",
+      "key": "D major",
+      "chords": ["G", "A"],
+      "roman_numerals": ["IV", "V"],
+      "expected_matches": [
+        {
+          "pattern_id": "cadence.half",
+          "span": [0, 2],
+          "confidence_range": [0.65, 0.80]
+        }
+      ]
+    },
+    {
+      "name": "multiple_cadences",
+      "key": "C major",
+      "chords": ["F", "G", "C", "F", "C"],
+      "roman_numerals": ["IV", "V", "I", "IV", "I"],
+      "expected_matches": [
+        {
+          "pattern_id": "cadence.authentic.perfect",
+          "span": [1, 3],
+          "confidence_range": [0.90, 1.0]
+        },
+        {
+          "pattern_id": "cadence.plagal",
+          "span": [3, 5],
+          "confidence_range": [0.70, 0.85]
+        }
+      ]
+    }
+  ],
+  "transpositions": [
+    {"key": "C major", "semitones": 0},
+    {"key": "D major", "semitones": 2},
+    {"key": "E♭ major", "semitones": 3},
+    {"key": "F# major", "semitones": 6}
+  ]
+}

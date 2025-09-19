@@ -22,14 +22,14 @@ mypy src/ --ignore-missing-imports
 ### Maintenance Scripts
 ```bash
 # Confidence calibration analysis (essential for debugging)
-python scripts/confidence_calibration_analysis.py
+python tools/calibration/calibration_pipeline.py all
 
 # Regenerate comprehensive test data (when needed)
 python scripts/generate_comprehensive_multi_layer_tests.py
 ```
 
 **Key Maintenance Tools:**
-- **`scripts/confidence_calibration_analysis.py`**: Essential for confidence calibration and debugging. Used to identify critical bugs that improved functional harmony success rates.
+- **`tools/calibration/calibration_pipeline.py`**: Complete confidence calibration system for baseline generation, training, validation, and deployment.
 - **`scripts/generate_comprehensive_multi_layer_tests.py`**: Generates 427+ comprehensive test cases with multi-layer expectations for comprehensive validation.
 
 See `scripts/README.md` for detailed documentation of maintenance scripts.

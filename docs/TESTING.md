@@ -25,8 +25,31 @@ class EdgeCaseType(Enum):
     STATIC_HARMONY = "static_harmony"            # No harmonic motion
 ```
 
-**Behavioral Expectations:**
+-**Behavioral Expectations:**
 - **Single Chords**: ≤0.4 confidence, acknowledge limitations in reasoning
+
+### Arbitration Policy Threshold Validation (New)
+
+**File**: `tests/integration/test_arbitration_policy_thresholds.py`
+
+**Purpose**: Ensure that arbitration policy defaults (functional vs modal) do not drift silently.  
+These tests bracket the exact threshold values implemented in `AnalysisArbitrationService`.
+
+**Arbitration Policy Defaults**:
+- Min functional confidence: **0.50**
+- Min modal confidence: **0.40**
+- Functional dominance margin: **+0.10**
+- Modal dominance margin: **+0.15**
+- Evidence‑weighted modal override: **False by default**
+
+**Parity Test Checklist**:
+- Min functional gate at 0.49 vs 0.50
+- Min modal gate at 0.39 vs 0.40
+- Functional margin at +0.09 vs +0.10
+- Modal margin at +0.14 vs +0.15
+- Override flag off vs on
+
+**Success Criteria**: These threshold behaviors must remain stable across releases. Tests must fail if defaults change without documentation updates.
 - **Static Harmony**: ≤0.3 confidence, mention repetition/static nature
 - **Pathological Input**: ≤0.5 confidence, acknowledge unusual nature
 - **Contextual Dependency**: ≤0.6 confidence, acknowledge ambiguity

@@ -460,7 +460,7 @@ class FunctionalHarmonyAnalyzer:
                 2: ["diminished"],  # ii°
                 3: ["major"],  # III
                 5: ["minor"],  # iv
-                7: ["minor"],  # v (or major V)
+                7: ["minor", "major", "dominant"],  # v (or V, or V7)
                 8: ["major"],  # VI
                 10: ["major"],  # bVII (subtonic)
             }
@@ -472,7 +472,7 @@ class FunctionalHarmonyAnalyzer:
                 2: ["minor"],  # ii
                 4: ["minor"],  # iii
                 5: ["major"],  # IV
-                7: ["major"],  # V
+                7: ["major", "dominant"],  # V (can be V or V7)
                 9: ["minor"],  # vi
                 11: ["diminished"],  # vii°
             }
@@ -521,10 +521,14 @@ class FunctionalHarmonyAnalyzer:
         if actual == "suspended" and expected in ["major", "minor"]:
             return True
 
-        # Dominant 7th is NOT diatonic in most contexts
-        # (key indicator of secondary dominants)
+        # PRECEDENCE RULE: V7 in home key is diatonic functional, not chromatic
+        # Dominant 7th matches expected dominant (V chord can be V or V7)
+        if actual == "dominant7" and expected == "dominant":
+            return True
+
+        # Pure dominant7 chord only matches if explicitly expected
         if actual == "dominant7":
-            return False
+            return expected == "dominant7"
 
         return False
 

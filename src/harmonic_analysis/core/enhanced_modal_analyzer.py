@@ -123,6 +123,10 @@ class EnhancedModalAnalyzer:
             ModalPattern("i-bVII-IV-i", ["Dorian"], 0.95, PatternContext.STRUCTURAL),
             ModalPattern("i-IV-bVII", ["Dorian"], 0.85, PatternContext.STRUCTURAL),
             ModalPattern("IV-i", ["Dorian"], 0.80, PatternContext.CADENTIAL),
+            # Dorian vamp patterns (CRITICAL FIX)
+            ModalPattern("i-IV-i-IV", ["Dorian"], 0.85, PatternContext.STRUCTURAL),
+            ModalPattern("i-ii-i-ii", ["Dorian"], 0.80, PatternContext.STRUCTURAL),
+            ModalPattern("i-bVII-i-bVII", ["Dorian"], 0.85, PatternContext.STRUCTURAL),
             # Mixolydian patterns
             ModalPattern(
                 "I-bVII-IV-I", ["Mixolydian"], 0.95, PatternContext.STRUCTURAL
@@ -133,16 +137,24 @@ class EnhancedModalAnalyzer:
                 "I-IV-bVII-I", ["Mixolydian"], 0.88, PatternContext.STRUCTURAL
             ),
             ModalPattern("I-bVII-IV", ["Mixolydian"], 0.82, PatternContext.STRUCTURAL),
+            # Mixolydian vamp patterns
+            ModalPattern(
+                "I-bVII-I-bVII", ["Mixolydian"], 0.85, PatternContext.STRUCTURAL
+            ),
             # Phrygian patterns
             ModalPattern("i-bII-i", ["Phrygian"], 0.95, PatternContext.STRUCTURAL),
             ModalPattern("bII-i", ["Phrygian"], 0.90, PatternContext.CADENTIAL),
             ModalPattern("i-bII-bVII-i", ["Phrygian"], 0.95, PatternContext.STRUCTURAL),
             ModalPattern("i-bII-bVII", ["Phrygian"], 0.88, PatternContext.STRUCTURAL),
+            # Phrygian vamp patterns
+            ModalPattern("i-bII-i-bII", ["Phrygian"], 0.85, PatternContext.STRUCTURAL),
             # Lydian patterns
             ModalPattern("I-II-I", ["Lydian"], 0.90, PatternContext.STRUCTURAL),
             ModalPattern("I-#IV-I", ["Lydian"], 0.95, PatternContext.STRUCTURAL),
             ModalPattern("I-II-V-I", ["Lydian"], 0.92, PatternContext.STRUCTURAL),
             ModalPattern("I-II-I-II", ["Lydian"], 0.88, PatternContext.STRUCTURAL),
+            # Lydian vamp patterns
+            ModalPattern("I-#IV-I-#IV", ["Lydian"], 0.85, PatternContext.STRUCTURAL),
             # Aeolian patterns
             ModalPattern("i-bVI-bVII-i", ["Aeolian"], 0.90, PatternContext.STRUCTURAL),
             ModalPattern("i-bVII-iv-i", ["Aeolian"], 0.95, PatternContext.STRUCTURAL),

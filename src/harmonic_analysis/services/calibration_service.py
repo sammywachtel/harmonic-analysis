@@ -119,7 +119,7 @@ class CalibrationService:
         Example:
             service = CalibrationService("assets/calibration_mapping.json")
         """
-        self.mapping = {}
+        self.mapping: Dict[str, Any] = {}
         self.is_loaded = False
 
         if mapping_path:
@@ -154,11 +154,11 @@ class CalibrationService:
             }
         }
         """
-        mapping_path = Path(mapping_path)
-        if not mapping_path.exists():
+        path_obj = Path(mapping_path)
+        if not path_obj.exists():
             raise FileNotFoundError(f"Calibration mapping not found: {mapping_path}")
 
-        with open(mapping_path, "r") as f:
+        with open(path_obj, "r") as f:
             self.mapping = json.load(f)
 
         # Validate mapping structure
@@ -376,7 +376,7 @@ class CalibrationService:
                 + (1.0 / (1.0 + note_count / 4.0))
                 + (1.0 - cadence_strength)
             )
-            return min(uncertainty / 3.0, 1.0)  # Normalize
+            return float(min(uncertainty / 3.0, 1.0))  # Normalize
         else:
             # Harmony uncertainty
             outside_key_ratio = features.get("outside_key_ratio", 0.0)
@@ -391,7 +391,7 @@ class CalibrationService:
                 + (1.0 / (1.0 + evidence_strength))
                 + (1.0 / (1.0 + chord_count / 4.0))
             )
-            return min(uncertainty / 3.0, 1.0)  # Normalize
+            return float(min(uncertainty / 3.0, 1.0))  # Normalize
 
     def apply_uncertainty_adjustment(
         self,
@@ -471,6 +471,7 @@ class CalibrationService:
                 "foil_I_V_I": True,
                 "has_flat7": False
             }
+
             calibrated = service.calibrate_confidence(0.85, "functional", features)
 
         Fallback Behavior:
@@ -522,7 +523,9 @@ class CalibrationService:
         uncertainty_params = mapping.get("uncertainty") or track_mapping.get(
             "GLOBAL", {}
         ).get("uncertainty", {})
-        if uncertainty_params:
+
+        # Skip uncertainty adjustment if using identity mapping
+        if uncertainty_params and uncertainty_params.get("method") != "identity":
             confidence = self.apply_uncertainty_adjustment(
                 confidence, track, features, uncertainty_params
             )
@@ -809,7 +812,7 @@ if __name__ == "__main__":
     ]
 
     for track, features, description in test_cases:
-        bucket_info = service.get_bucket_info(track, features)
+        bucket_info = service.get_bucket_info(track, features)  # type: ignore
         print(f"  {description}:")
         print(f"    Track: {bucket_info['track']}, Bucket: {bucket_info['bucket']}")
         print(f"    Uncertainty: {bucket_info['uncertainty']:.3f}")
@@ -828,7 +831,9 @@ if __name__ == "__main__":
     print("\n5️⃣ Testing error handling...")
 
     try:
-        service.calibrate_confidence("invalid", "functional", harmony_features)
+        service.calibrate_confidence(
+            "invalid", "functional", harmony_features  # type: ignore
+        )
     except ValueError as e:
         print(f"  ✅ Caught expected error: {e}")
 

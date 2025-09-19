@@ -23,7 +23,8 @@
       {
         "role": "T",
         "roman_root_any_of": [
-          "I"
+          "I",
+          "i"
         ]
       }
     ],
@@ -66,7 +67,8 @@
       {
         "role": "T",
         "roman_root_any_of": [
-          "I"
+          "I",
+          "i"
         ]
       }
     ],
@@ -245,7 +247,8 @@
       {
         "role": "T",
         "roman_root_any_of": [
-          "I"
+          "I",
+          "i"
         ]
       }
     ],
@@ -274,7 +277,8 @@
       {
         "role": "T",
         "roman_root_any_of": [
-          "I"
+          "I",
+          "i"
         ]
       }
     ],
@@ -303,7 +307,8 @@
       {
         "role": "T",
         "roman_root_any_of": [
-          "I"
+          "I",
+          "i"
         ]
       }
     ],
@@ -1408,7 +1413,7 @@
     "sequence": [
       { "roman_root_any_of": ["I64", "I6/4"] },
       { "roman_root_any_of": ["V", "V7"] },
-      { "roman_root_any_of": ["I"] }
+      { "roman_root_any_of": ["I", "i"] }
     ],
     "constraints": {
       "events_any": ["cadential64@0"],

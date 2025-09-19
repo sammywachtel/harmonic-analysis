@@ -63,7 +63,7 @@ For detailed information about the calibration system:
 
 - **📚 Main Documentation**: [`tools/calibration/README_CALIBRATION.md`](../../../tools/calibration/README_CALIBRATION.md)
 - **📓 Interactive Notebook**: [`tools/calibration/notebooks/Confidence_Calibration_Enhanced.ipynb`](../../../tools/calibration/notebooks/Confidence_Calibration_Enhanced.ipynb)
-- **🔧 Baseline Export Script**: [`scripts/export_baseline.py`](../../../scripts/export_baseline.py) - Generates baseline data for notebook training
+- **🔧 Calibration Pipeline**: [`tools/calibration/calibration_pipeline.py`](../../../tools/calibration/calibration_pipeline.py) - Complete baseline generation and calibration training
 - **📊 Confidence Documentation**: [`docs/CONFIDENCE_CALIBRATION.md`](../../../docs/CONFIDENCE_CALIBRATION.md)
 
 ## File Structure
