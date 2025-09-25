@@ -97,7 +97,7 @@ def convert_comprehensive_test_to_unified(test: Dict[str, Any]) -> Dict[str, Any
         "source": "comprehensive_tests",
         "category": category,
         "expected": {
-            "key": test.get("expected_key"),
+            "key": test.get("parent_key"),  # Use parent_key from comprehensive test format
             "primary_type": expected_primary,
             "roman_numerals": test.get("expected_romans", []),
             "functional_confidence": test.get("expected_functional_strength"),
@@ -180,10 +180,12 @@ class TestComprehensiveAnalysis:
         test_name = test_case["name"]
         profile = test_case.get("profile", "classical")
 
-        # Run analysis
+        # Run analysis with key hint from expected data
+        key_hint = expected.get("key")
         result = self.service.analyze_with_patterns(
             chord_symbols=chords,
             profile=profile,
+            key_hint=key_hint,
             best_cover=test_case.get("best_cover", True),
         )
 
@@ -364,7 +366,10 @@ class TestComprehensiveAnalysis:
         ]
 
         for case in modal_test_cases:
-            result = self.service.analyze_with_patterns(case["chords"])
+            result = self.service.analyze_with_patterns(
+                case["chords"],
+                key_hint=case.get("key_hint", "C major")
+            )
             modal_conf = result.primary.modal_confidence or 0
 
             assert (

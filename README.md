@@ -39,6 +39,31 @@ async def analyze_patterns():
     #   Evidence: Perfect cadence V7→I with strong resolution
 ```
 
+### ⚠️ Key Context Requirements
+
+**Important**: All harmonic analysis functions require key context for accurate modal and harmonic analysis:
+
+```python
+# ✅ Correct: Provide key context
+result = await service.analyze_with_patterns(['Am', 'G', 'F', 'E'], key_hint='A minor')
+
+# ✅ Scale analysis with key context
+from harmonic_analysis import analyze_scale
+result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'], key='C major')
+
+# ✅ Melody analysis with key context
+from harmonic_analysis import analyze_melody
+result = await analyze_melody(['G', 'A', 'B', 'C'], key='G major')
+
+# ❌ Without key context, modal analysis cannot function properly
+# This will raise MissingKeyError for scale/melody analysis
+```
+
+**Why Key Context Matters**:
+- **Modal Analysis**: Requires key context to distinguish between modes (Dorian vs. Natural Minor)
+- **Roman Numerals**: Modal symbols (♭VII, ♯IV) need key validation for proper analysis
+- **Pattern Recognition**: Many patterns depend on harmonic context within a key center
+
 ### Advanced Pattern Analysis Options
 
 The pattern analysis service provides sophisticated configuration options:
@@ -226,7 +251,7 @@ from harmonic_analysis import analyze_scale
 
 async def what_scale_is_this():
     # The notes of D Dorian
-    result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'])
+    result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'], key='C major')
 
     print(result.parent_scales)
     # Output: ['C major', 'F major']
@@ -680,14 +705,14 @@ result.primary_analysis.modal_characteristics  # Character descriptions
 
 ```python
 # Scale analysis tells you what scales contain your notes
-scale_result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'])
+scale_result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'], key='C major')
 
 scale_result.parent_scales     # ['C major', 'F major']
 scale_result.modal_labels      # {'D': 'D Dorian', 'G': 'G Mixolydian', ...}
 scale_result.classification    # 'diatonic', 'modal_borrowing', or 'modal_candidate'
 
 # Melody analysis adds tonic detection
-melody_result = await analyze_melody(['C', 'D', 'E', 'G', 'E', 'D', 'C'])
+melody_result = await analyze_melody(['C', 'D', 'E', 'G', 'E', 'D', 'C'], key='C major')
 
 melody_result.suggested_tonic  # 'C' - what note feels like home
 melody_result.confidence       # 0.85 - how sure about the tonic

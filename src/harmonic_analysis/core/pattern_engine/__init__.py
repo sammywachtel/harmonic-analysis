@@ -18,7 +18,7 @@ from .evidence import Evidence
 from .pattern_engine import AnalysisContext, PatternEngine
 from .pattern_loader import PatternLoader
 from .plugin_registry import PatternEvaluator, PluginRegistry
-from .target_builder import TargetAnnotation, TargetBuilder
+from .target_builder_unified import UnifiedTargetBuilder as TargetBuilder, TargetAnnotation
 
 __all__ = [
     # Legacy (for backwards compatibility during migration)

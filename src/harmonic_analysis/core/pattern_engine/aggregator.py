@@ -5,6 +5,7 @@ This module combines evidence from multiple pattern matches into unified
 functional, modal, and combined confidence scores.
 """
 
+import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
@@ -38,6 +39,7 @@ class Aggregator:
         self.conflict_strategy = conflict_strategy
         self.overlap_decay = overlap_decay
         self.diversity_bonus = diversity_bonus
+        self.logger = logging.getLogger(__name__)
 
     def aggregate(self, evidences: List[Evidence]) -> Dict[str, Any]:
         """
@@ -50,6 +52,7 @@ class Aggregator:
             Dictionary with aggregated scores and debug info:
             - functional_conf: Functional harmony confidence (0.0-1.0)
             - modal_conf: Modal analysis confidence (0.0-1.0)
+            - chromatic_conf: Chromatic harmony confidence (0.0-1.0)
             - combined_conf: Combined confidence (0.0-1.0)
             - debug_breakdown: Detailed scoring breakdown
         """
@@ -57,6 +60,7 @@ class Aggregator:
             return {
                 "functional_conf": 0.0,
                 "modal_conf": 0.0,
+                "chromatic_conf": 0.0,
                 "combined_conf": 0.0,
                 "debug_breakdown": {"evidence_count": 0, "message": "No evidence provided"},
             }
@@ -73,19 +77,23 @@ class Aggregator:
         # Combine tracks into final scores
         functional_conf = min(1.0, track_scores.get("functional", 0.0) + diversity_score)
         modal_conf = min(1.0, track_scores.get("modal", 0.0) + diversity_score)
+        chromatic_conf = min(1.0, track_scores.get("chromatic", 0.0) + diversity_score)
 
         # Combined confidence (weighted average biased toward higher score)
-        if functional_conf > 0 or modal_conf > 0:
-            # Weight slightly toward the higher confidence
-            max_conf = max(functional_conf, modal_conf)
-            min_conf = min(functional_conf, modal_conf)
-            combined_conf = 0.7 * max_conf + 0.3 * min_conf
+        all_confs = [functional_conf, modal_conf, chromatic_conf]
+        active_confs = [c for c in all_confs if c > 0]
+        if active_confs:
+            # Weight slightly toward the highest confidence
+            max_conf = max(active_confs)
+            avg_conf = sum(active_confs) / len(active_confs)
+            combined_conf = 0.7 * max_conf + 0.3 * avg_conf
         else:
             combined_conf = 0.0
 
         return {
             "functional_conf": functional_conf,
             "modal_conf": modal_conf,
+            "chromatic_conf": chromatic_conf,
             "combined_conf": combined_conf,
             "debug_breakdown": {
                 "evidence_count": len(evidences),

@@ -51,7 +51,7 @@
             "description": "Analysis tracks this pattern contributes to",
             "items": {
               "type": "string",
-              "enum": ["functional", "modal"]
+              "enum": ["functional", "modal", "chromatic"]
             },
             "minItems": 1,
             "uniqueItems": true

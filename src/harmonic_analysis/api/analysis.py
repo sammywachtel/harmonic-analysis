@@ -9,6 +9,7 @@ from typing import List, Optional
 
 from ..core.scale_melody_analysis import ScaleMelodyAnalysisResult
 from ..core.scale_melody_analysis import analyze_scale_melody as _analyze_scale_melody
+from ..core.validation_errors import validate_key_for_analysis
 
 
 async def analyze_scale(
@@ -19,16 +20,17 @@ async def analyze_scale(
 
     Args:
         notes: List of note names (e.g., ['C', 'D', 'E', 'F', 'G', 'A', 'B'])
-        key: Optional key context for better classification
+        key: Key context for classification (required)
 
     Returns:
         Scale analysis result with modal labels and contextual classification
 
     Example:
-        >>> result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'])
+        >>> result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'], key='C major')
         >>> print(result.modal_labels['D'])
         'D Dorian'
     """
+    validate_key_for_analysis(key, "scale")
     return _analyze_scale_melody(notes, key, melody=False)
 
 
@@ -40,14 +42,15 @@ async def analyze_melody(
 
     Args:
         notes: List of note names representing a melody
-        key: Optional key context
+        key: Key context anchoring the analysis (required)
 
     Returns:
         Melody analysis result with suggested tonic and confidence
 
     Example:
-        >>> result = await analyze_melody(['G', 'A', 'B', 'C', 'D'])
+        >>> result = await analyze_melody(['G', 'A', 'B', 'C', 'D'], key='G major')
         >>> print(f"Suggested tonic: {result.suggested_tonic}")
         'Suggested tonic: G'
     """
+    validate_key_for_analysis(key, "melody")
     return _analyze_scale_melody(notes, key, melody=True)

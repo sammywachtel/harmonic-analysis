@@ -281,22 +281,9 @@ class AnalysisArbitrationService:
             modal_evidence_items = getattr(modal_summary, "modal_evidence", None) or []
 
             if not modal_evidence_items:
-                # Fallback: try to get evidence from the analyzer directly
-                try:
-                    from harmonic_analysis.services.modal_analysis_service import (
-                        ModalAnalysisService,
-                    )
-
-                    _modal_svc = ModalAnalysisService()
-                    _modal = _modal_svc._analyzer.analyze_modal_characteristics(
-                        chord_symbols=chord_symbols,
-                        parent_key=getattr(functional_summary, "key_signature", None),
-                    )
-                    if _modal and hasattr(_modal, "evidence"):
-                        modal_evidence_items = _modal.evidence
-                except Exception:
-                    # Arbitration must not crash on evidence lookup
-                    modal_evidence_items = []
+                # Legacy fallback removed - modal analysis service deleted
+                # Modal evidence should be provided by the unified pattern engine
+                modal_evidence_items = []
 
             # Score the evidence
             has_evidence_markers, evidence_score, modal_evidence_labels = (

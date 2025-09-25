@@ -1,5 +1,35 @@
 # API Usage Guide
 
+## ⚠️ Key Context Requirements
+
+**All harmonic analysis requires key context for accurate results**. Without proper key context, the library cannot perform modal analysis or validate roman numerals containing modal symbols.
+
+```python
+# ✅ REQUIRED: Always provide key_hint for harmonic analysis
+result = await service.analyze_with_patterns_async(
+    ['Cm', 'F', 'Bb', 'Cm'],
+    key_hint='C dorian',  # Essential for modal analysis
+    profile='classical'
+)
+
+# ✅ Scale analysis requires key parameter
+from harmonic_analysis import analyze_scale
+result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'], key='C major')
+
+# ✅ Melody analysis requires key parameter
+from harmonic_analysis import analyze_melody
+result = await analyze_melody(['G', 'A', 'B', 'C'], key='G major')
+
+# ❌ Without key context: MissingKeyError will be raised
+result = await analyze_scale(['C', 'D', 'E'])  # Error!
+```
+
+**Why Key Context is Required**:
+- **Modal Analysis**: Distinguishes Dorian from natural minor, Mixolydian from major
+- **Roman Numeral Validation**: Modal symbols (♭VII, ♯IV) require key context
+- **Pattern Recognition**: Many harmonic patterns depend on tonal context
+- **Theoretical Accuracy**: Prevents ambiguous or impossible harmonic interpretations
+
 ## Core API Usage Examples
 
 ### Basic Chord Progression Analysis

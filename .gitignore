@@ -119,3 +119,4 @@ tests/data/generated/*.csv
 
 # Development-only calibration data files (baseline data is in assets/)
 tools/calibration/*.json
+/harmonic-analysis.code-workspace

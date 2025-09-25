@@ -6,6 +6,7 @@ that maintain the core algorithm's effectiveness.
 """
 
 import json
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -302,10 +303,6 @@ class SequenceMatchStrategy(MatchStrategy):
                 tok.roman_root() if inversion_sensitive else tok.roman_base()
             )
 
-            # --- NEW: strip secondary dominants/targets (e.g., "V/ii" -> "V") ---
-            if token_cmp_raw and "/" in token_cmp_raw:
-                token_cmp_raw = token_cmp_raw.split("/")[0]
-
             def strip_secondary(s: str) -> str:
                 return s.split("/")[0] if s and "/" in s else s
 
@@ -334,11 +331,36 @@ class SequenceMatchStrategy(MatchStrategy):
                     s = _strip_maj7_markers(s)
                 return s
 
-            token_cmp = norm(token_cmp_raw).lower()
-            normalized_allowed = {norm(strip_secondary(a)).lower() for a in allowed}
+            # First check for regex patterns (before stripping secondaries)
+            token_cmp_full = norm(token_cmp_raw).lower()  # Keep full token for regex matching
 
-            if token_cmp not in normalized_allowed:
-                return False
+            # Check if any allowed pattern is a regex (contains *, +, ?, etc.)
+            regex_match_found = False
+            for pattern_str in allowed:
+                if any(char in pattern_str for char in ['*', '+', '?', '[', ']', '(', ')', '|', '^', '$']):
+                    # This looks like a regex pattern
+                    try:
+                        if re.match(pattern_str.replace('.*', '.*'), token_cmp_full, re.IGNORECASE):
+                            regex_match_found = True
+                            break
+                    except re.error:
+                        # Invalid regex, skip
+                        continue
+
+            if regex_match_found:
+                # Found a regex match, continue with rest of checks
+                pass
+            else:
+                # No regex match found, use traditional exact matching with secondary stripping
+                # --- strip secondary dominants/targets (e.g., "V/ii" -> "V") ---
+                if token_cmp_raw and "/" in token_cmp_raw:
+                    token_cmp_raw = token_cmp_raw.split("/")[0]
+
+                token_cmp = norm(token_cmp_raw).lower()
+                normalized_allowed = {norm(strip_secondary(a)).lower() for a in allowed}
+
+                if token_cmp not in normalized_allowed:
+                    return False
 
         # Check chord quality flags
         if step.flags_any_of and not any(f in tok.flags for f in step.flags_any_of):

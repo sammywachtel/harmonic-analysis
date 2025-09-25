@@ -5,6 +5,8 @@ This module implements the core pattern matching and analysis engine
 that unifies functional and modal analysis through a single pipeline.
 """
 
+import logging
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,9 +24,10 @@ from .aggregator import Aggregator
 from .calibration import CalibrationMapping, Calibrator
 from .evidence import Evidence
 from .glossary import enrich_features, get_summary_terms, load_default_glossary
+from .glossary_service import GlossaryService
 from .pattern_loader import PatternLoader
 from .plugin_registry import PluginRegistry
-from .target_builder import TargetBuilder
+from .target_builder_unified import UnifiedTargetBuilder as TargetBuilder
 
 
 @dataclass
@@ -52,6 +55,14 @@ class AnalysisContext:
 
     metadata: Dict[str, Any]
     """Additional context (tempo, style, etc.)"""
+
+    def __post_init__(self):
+        """Validate key-context requirements after initialization."""
+        from ..validation_errors import validate_key_for_romans
+
+        # Key-Context Normalization: Roman numerals require key context
+        if self.roman_numerals and not self.key:
+            validate_key_for_romans(self.roman_numerals, self.key)
 
 
 class PatternEngine:
@@ -89,14 +100,25 @@ class PatternEngine:
 
         self._patterns: Dict[str, Any] = {}
         self._calibration_mapping: Optional[CalibrationMapping] = None
-        self._glossary: Optional[Dict[str, Any]] = None
+        self._glossary: Dict[str, Any] = {}
+        self._glossary_service: Optional[GlossaryService] = None
+        self.logger = logging.getLogger(__name__)
 
-        # Load glossary on initialization
+        # Load glossary on initialization with graceful fallback
         try:
-            self._glossary = load_default_glossary()
-        except FileNotFoundError:
-            # Graceful fallback if glossary not available
-            self._glossary = {}
+            service = GlossaryService()
+        except Exception:
+            service = None
+
+        if service is not None:
+            self._glossary_service = service
+            self._glossary = dict(service.glossary)
+        else:
+            try:
+                self._glossary = load_default_glossary()
+            except FileNotFoundError:
+                # Glossary is optional during testing; continue with empty store
+                self._glossary = {}
 
     def load_patterns(self, path: Path) -> None:
         """
@@ -149,6 +171,7 @@ class PatternEngine:
         # Apply calibration if available
         functional_conf = self._calibrate(aggregated["functional_conf"])
         modal_conf = self._calibrate(aggregated["modal_conf"])
+        chromatic_conf = self._calibrate(aggregated["chromatic_conf"])
         combined_conf = self._calibrate(aggregated["combined_conf"])
 
         # Build primary analysis
@@ -157,13 +180,14 @@ class PatternEngine:
             evidences,
             functional_conf,
             modal_conf,
+            chromatic_conf,
             combined_conf,
             aggregated["debug_breakdown"],
         )
 
         # Build alternatives if confidence is ambiguous
         alternatives = self._build_alternatives(
-            context, evidences, functional_conf, modal_conf
+            context, evidences, functional_conf, modal_conf, chromatic_conf
         )
 
         # Convert internal evidence to public DTOs
@@ -517,9 +541,24 @@ class PatternEngine:
                 if pattern_item == "*" or pattern_item == ".*":
                     continue  # Wildcard matches anything
 
-                # Normalize for comparison (handle unicode flat symbols)
+                # Check if pattern_item is a regex pattern
+                is_regex = any(char in pattern_item for char in ['*', '+', '?', '[', ']', '(', ')', '|', '^', '$'])
+
+                if is_regex:
+                    try:
+                        # Try regex matching (case-insensitive)
+                        if re.match(pattern_item, context_item, re.IGNORECASE):
+                            continue  # Regex match found
+                        else:
+                            pattern_matches = False
+                            break
+                    except re.error:
+                        # Invalid regex, fall back to exact matching
+                        pass
+
+                # Normalize for comparison (handle unicode flat symbols and strip extensions)
                 pattern_normalized = pattern_item.replace("b", "♭")
-                context_normalized = context_item.replace("b", "♭")
+                context_normalized = self._normalize_roman_for_matching(context_item)
 
                 if pattern_normalized != context_normalized:
                     pattern_matches = False
@@ -577,9 +616,83 @@ class PatternEngine:
 
         return matches
 
+    def _normalize_roman_for_matching(self, roman: str) -> str:
+        """
+        Normalize a roman numeral for pattern matching.
 
+        Strips extensions like 7ths, inversions, and secondary targets
+        so that V7, V64, V/vi all match pattern "V".
 
+        Args:
+            roman: Roman numeral to normalize (e.g., "V7", "V/vi", "vi°7")
 
+        Returns:
+            Base roman numeral (e.g., "V", "V", "vi°")
+        """
+        # Opening move: handle unicode flats
+        normalized = roman.replace("b", "♭")
+
+        # Main play: strip common extensions
+        # Remove 7th indicators (7, 9, 11, 13, maj7, etc.)
+        normalized = re.sub(r'\d+', '', normalized)
+        normalized = re.sub(r'maj', '', normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r'min', '', normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r'add', '', normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r'sus', '', normalized, flags=re.IGNORECASE)
+
+        # Remove inversion figures (64, 6, 43, etc.) - but preserve quality markers like °, ø, +
+        # Careful: don't remove degree numbers like vi, VII, etc.
+        if '/' in normalized:
+            # Handle secondary dominants: V/vi -> V, vii°/V -> vii°
+            normalized = normalized.split('/')[0]
+
+        # Victory lap: clean up any trailing spaces or punctuation
+        normalized = normalized.strip()
+
+        return normalized
+
+    def _find_pattern_by_id(self, pattern_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Find pattern definition by ID.
+
+        Args:
+            pattern_id: Pattern ID to find
+
+        Returns:
+            Pattern definition dictionary or None if not found
+        """
+        patterns = self._patterns.get("patterns", [])
+        for pattern in patterns:
+            if pattern.get("id") == pattern_id:
+                return pattern
+        return None
+
+    def _get_pattern_display_name(self, pattern_def: Optional[Dict[str, Any]], pattern_id: str) -> str:
+        """
+        Get the best display name for a pattern, preferring aliases for test compatibility.
+
+        Args:
+            pattern_def: Pattern definition dictionary (may be None)
+            pattern_id: Fallback pattern ID
+
+        Returns:
+            Display name string
+        """
+        if pattern_def:
+            # Big play: check for aliases in metadata
+            metadata = pattern_def.get("metadata", {})
+            aliases = metadata.get("aliases", [])
+
+            # Time to tackle the tricky bit: use first alias if available
+            if aliases and len(aliases) > 0:
+                return aliases[0]
+
+            # Fallback: use the pattern's "name" field if available
+            if "name" in pattern_def:
+                return pattern_def["name"]
+
+        # Victory lap: fallback to formatted pattern ID
+        return pattern_id.replace(".", " ").title()
 
     def _evaluate_pattern(
         self, pattern: Dict[str, Any], context: AnalysisContext, span: Tuple[int, int]
@@ -632,12 +745,103 @@ class PatternEngine:
             return self._calibration_mapping.apply(raw_score)
         return raw_score
 
+    def _lookup_pattern_glossary(self, pattern_name: str, family: str) -> Optional[Dict[str, Any]]:
+        """Return glossary information for a detected pattern if available."""
+
+        if not self._glossary_service:
+            return None
+
+        # Highest priority: cadence explanations for cadence families
+        if family == "cadence":
+            cadence_info = self._glossary_service.get_cadence_explanation(pattern_name)
+            if cadence_info:
+                result = dict(cadence_info)
+                result.setdefault("term", pattern_name)
+                result.setdefault("type", "cadence")
+                return result
+
+        # General term lookup (matches handle case/spacing)
+        definition = self._glossary_service.get_term_definition(pattern_name)
+        if definition:
+            return {"term": pattern_name, "definition": definition, "type": "term"}
+
+        # Retry with sanitized name (remove punctuation) for broader matches
+        sanitized = re.sub(r"[^A-Za-z0-9 ]+", " ", pattern_name).strip()
+        if sanitized and sanitized.lower() != pattern_name.lower():
+            definition = self._glossary_service.get_term_definition(sanitized)
+            if definition:
+                return {
+                    "term": pattern_name,
+                    "definition": definition,
+                    "type": "term",
+                    "lookup": sanitized,
+                }
+
+        # Fall back to family-level definition if available
+        family_definition = self._glossary_service.get_term_definition(family)
+        if family_definition:
+            return {
+                "term": pattern_name,
+                "definition": family_definition,
+                "type": "family",
+                "family": family,
+            }
+
+        return None
+
+    def _convert_chromatic_elements(self, evidences: List[Evidence], context: AnalysisContext) -> List[Any]:
+        """
+        Convert chromatic evidence into ChromaticElementDTO objects.
+
+        Args:
+            evidences: All evidence from pattern matching
+            context: Analysis context with chords/romans
+
+        Returns:
+            List of chromatic element DTOs
+        """
+        from harmonic_analysis.dto import ChromaticElementDTO
+
+        chromatic_elements = []
+
+        for evidence in evidences:
+            # Only process evidence from chromatic track
+            if "chromatic" not in evidence.track_weights:
+                continue
+
+            # Extract chord positions from span
+            start, end = evidence.span
+            if start < len(context.chords) and end <= len(context.chords):
+                # For secondary dominants, try to identify target and resolution
+                target_chord = None
+                resolution_chord = None
+
+                if evidence.pattern_id.startswith("chromatic.secondary_dominant") or evidence.pattern_id.startswith("chromatic.V_of"):
+                    # Secondary dominant patterns: first chord is dominant, second is target
+                    if end - start == 2:
+                        target_chord = context.chords[start + 1] if start + 1 < len(context.chords) else None
+                        resolution_chord = context.chords[start + 1] if start + 1 < len(context.chords) else None
+
+                # Create chromatic element
+                chromatic_element = ChromaticElementDTO(
+                    type="secondary_dominant" if "secondary_dominant" in evidence.pattern_id or "V_of" in evidence.pattern_id else "chromatic_chord",
+                    chord=context.chords[start] if start < len(context.chords) else "unknown",
+                    position=start,
+                    target=target_chord,
+                    resolution=resolution_chord,
+                    confidence=evidence.raw_score
+                )
+                chromatic_elements.append(chromatic_element)
+
+        return chromatic_elements
+
     def _build_analysis_summary(
         self,
         context: AnalysisContext,
         evidences: List[Evidence],
         functional_conf: float,
         modal_conf: float,
+        chromatic_conf: float,
         combined_conf: float,
         debug_info: Dict[str, Any],
     ) -> AnalysisSummary:
@@ -649,6 +853,7 @@ class PatternEngine:
             evidences: All evidence
             functional_conf: Functional confidence
             modal_conf: Modal confidence
+            chromatic_conf: Chromatic confidence
             combined_conf: Combined confidence
             debug_info: Debug information
 
@@ -656,46 +861,65 @@ class PatternEngine:
             Primary analysis summary
         """
         # Determine primary type based on confidences
-        if functional_conf > modal_conf:
-            analysis_type = AnalysisType.FUNCTIONAL
-            confidence = functional_conf
-        else:
-            analysis_type = AnalysisType.MODAL
-            confidence = modal_conf
+        confidences = [
+            (functional_conf, AnalysisType.FUNCTIONAL),
+            (modal_conf, AnalysisType.MODAL),
+            (chromatic_conf, AnalysisType.CHROMATIC)
+        ]
+        confidence, analysis_type = max(confidences, key=lambda x: x[0])
 
         # Convert evidence to pattern matches
         pattern_matches = []
         for evidence in evidences:
             # Only include patterns that contribute to the primary type
             if analysis_type.value.lower() in evidence.track_weights:
+                # Opening move: look up pattern definition for better naming
+                pattern_def = self._find_pattern_by_id(evidence.pattern_id)
+                pattern_name = self._get_pattern_display_name(pattern_def, evidence.pattern_id)
+
+                family = (
+                    evidence.pattern_id.split(".")[0]
+                    if "." in evidence.pattern_id
+                    else "general"
+                )
                 pattern_match = PatternMatchDTO(
                     start=evidence.span[0],
                     end=evidence.span[1],
                     pattern_id=evidence.pattern_id,
-                    name=evidence.pattern_id.replace(".", " ").title(),
-                    family=evidence.pattern_id.split(".")[0] if "." in evidence.pattern_id else "general",
+                    name=pattern_name,
+                    family=family,
                     score=evidence.raw_score,
                     evidence=[{"features": evidence.features}],
+                    glossary=self._lookup_pattern_glossary(pattern_name, family),
                 )
                 pattern_matches.append(pattern_match)
 
         # Populate terms with glossary enrichment
-        terms = {"analysis_method": "unified_pattern_engine"}
+        terms: Dict[str, Any] = {
+            "analysis_method": {
+                "label": "Unified Pattern Engine",
+                "tooltip": "Evidence-driven harmonic pattern analysis pipeline",
+            }
+        }
+        if self._glossary_service:
+            method_definition = self._glossary_service.get_term_definition(
+                "unified_pattern_engine"
+            )
+            if method_definition:
+                terms["analysis_method"]["tooltip"] = method_definition
         if self._glossary:
             # Collect all feature keys from evidences
             feature_keys = set()
             for evidence in evidences:
                 feature_keys.update(evidence.features.keys())
 
-            # Get summary terms for these features
+            # Get glossary-backed summary terms for these features
             if feature_keys:
                 summary_terms = get_summary_terms(self._glossary, list(feature_keys))
-                # Main play: flatten nested dict to match AnalysisSummary.terms type (Dict[str, str])
-                for key, value_dict in summary_terms.items():
-                    if isinstance(value_dict, dict) and "label" in value_dict:
-                        terms[key] = value_dict["label"]
-                    else:
-                        terms[key] = str(value_dict)
+                terms.update(summary_terms)
+
+        # Generate chromatic elements from chromatic evidence
+        chromatic_elements = self._convert_chromatic_elements(evidences, context)
 
         return AnalysisSummary(
             type=analysis_type,
@@ -705,7 +929,9 @@ class PatternEngine:
             reasoning=f"Pattern-based analysis with {len(evidences)} matches",
             functional_confidence=functional_conf,
             modal_confidence=modal_conf,
+            chromatic_confidence=chromatic_conf,
             patterns=pattern_matches,
+            chromatic_elements=chromatic_elements,
             terms=terms,
         )
 
@@ -715,6 +941,7 @@ class PatternEngine:
         evidences: List[Evidence],
         functional_conf: float,
         modal_conf: float,
+        chromatic_conf: float,
     ) -> List[AnalysisSummary]:
         """
         Build alternative analyses if confidence is ambiguous.
@@ -724,6 +951,7 @@ class PatternEngine:
             evidences: All evidence
             functional_conf: Functional confidence
             modal_conf: Modal confidence
+            chromatic_conf: Chromatic confidence
 
         Returns:
             List of alternative analyses

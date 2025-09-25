@@ -6,7 +6,7 @@ to prevent degradation when signal is insufficient.
 """
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 from scipy import stats
@@ -23,6 +23,19 @@ class CalibrationMetrics:
     correlation: float  # Correlation between raw and targets
     variance: float  # Variance in targets
     sample_count: int  # Number of samples
+
+
+@dataclass(frozen=True)
+class CalibrationReport:
+    """Comprehensive calibration evaluation report."""
+
+    baseline_metrics: CalibrationMetrics  # Pre-calibration metrics
+    calibrated_metrics: CalibrationMetrics  # Post-calibration metrics
+    mapping_type: str  # Type of calibration applied
+    passed_quality_gates: bool  # Whether quality gates were passed
+    improvement_summary: Dict[str, float]  # Metric improvements
+    reliability_bins: Dict[str, List[float]]  # Reliability curve data
+    warnings: List[str]  # Quality warnings
 
 
 @dataclass(frozen=True)
@@ -120,9 +133,20 @@ class Calibrator:
         Returns:
             CalibrationMapping that passes quality gates or identity
         """
-        # Convert to arrays
+        # Convert to arrays and validate
         raw_scores = np.array(list(raw_scores))
         targets = np.array(list(targets))
+
+        # Validate input lengths match
+        if len(raw_scores) != len(targets):
+            return CalibrationMapping(
+                mapping_type="identity",
+                params={},
+                metrics=CalibrationMetrics(
+                    ece=1.0, brier=1.0, correlation=0.0, variance=0.0, sample_count=0
+                ),
+                passed_gates=False,
+            )
 
         # Calculate baseline metrics
         metrics = self._calculate_metrics(raw_scores, targets)
@@ -350,3 +374,104 @@ class Calibrator:
                 return False
 
         return True
+
+    def evaluate_calibration(
+        self,
+        raw_scores: Iterable[float],
+        targets: Iterable[float],
+        mapping: Optional[CalibrationMapping] = None,
+    ) -> CalibrationReport:
+        """
+        Generate comprehensive calibration evaluation report.
+
+        Args:
+            raw_scores: Raw confidence scores
+            targets: Target reliability values
+            mapping: Optional calibration mapping to evaluate
+
+        Returns:
+            Detailed calibration report with metrics and analysis
+        """
+        raw_scores = np.array(list(raw_scores))
+        targets = np.array(list(targets))
+
+        # Calculate baseline metrics
+        baseline_metrics = self._calculate_metrics(raw_scores, targets)
+
+        # Apply calibration if mapping provided
+        if mapping:
+            calibrated_scores = np.array([mapping.apply(x) for x in raw_scores])
+            calibrated_metrics = self._calculate_metrics(calibrated_scores, targets)
+            mapping_type = mapping.mapping_type
+            passed_gates = mapping.passed_gates
+        else:
+            calibrated_metrics = baseline_metrics
+            mapping_type = "none"
+            passed_gates = False
+
+        # Calculate improvements
+        improvement_summary = {
+            "ece_improvement": baseline_metrics.ece - calibrated_metrics.ece,
+            "brier_improvement": baseline_metrics.brier - calibrated_metrics.brier,
+            "correlation_improvement": calibrated_metrics.correlation - baseline_metrics.correlation,
+        }
+
+        # Generate reliability curve data
+        reliability_bins = self._generate_reliability_curve(raw_scores, targets, n_bins=10)
+
+        # Generate quality warnings
+        warnings = []
+        if baseline_metrics.sample_count < self.min_samples:
+            warnings.append(f"Sample count ({baseline_metrics.sample_count}) below minimum ({self.min_samples})")
+        if baseline_metrics.variance < self.min_variance:
+            warnings.append(f"Target variance ({baseline_metrics.variance:.4f}) below minimum ({self.min_variance})")
+        if abs(baseline_metrics.correlation) < self.min_correlation:
+            warnings.append(f"Correlation ({baseline_metrics.correlation:.4f}) below minimum ({self.min_correlation})")
+        if improvement_summary["ece_improvement"] < 0:
+            warnings.append("Calibration increased ECE (degraded calibration)")
+
+        return CalibrationReport(
+            baseline_metrics=baseline_metrics,
+            calibrated_metrics=calibrated_metrics,
+            mapping_type=mapping_type,
+            passed_quality_gates=passed_gates,
+            improvement_summary=improvement_summary,
+            reliability_bins=reliability_bins,
+            warnings=warnings,
+        )
+
+    def _generate_reliability_curve(
+        self, predictions: np.ndarray, targets: np.ndarray, n_bins: int = 10
+    ) -> Dict[str, List[float]]:
+        """Generate reliability curve data for plotting."""
+        if len(predictions) == 0:
+            return {"bin_centers": [], "reliability": [], "confidence": [], "counts": []}
+
+        bin_boundaries = np.linspace(0, 1, n_bins + 1)
+        bin_centers = []
+        reliability = []
+        confidence = []
+        counts = []
+
+        for i in range(n_bins):
+            bin_lower = bin_boundaries[i]
+            bin_upper = bin_boundaries[i + 1]
+
+            # Find predictions in this bin
+            if i == n_bins - 1:  # Last bin includes right boundary
+                in_bin = (predictions >= bin_lower) & (predictions <= bin_upper)
+            else:
+                in_bin = (predictions >= bin_lower) & (predictions < bin_upper)
+
+            if np.sum(in_bin) > 0:
+                bin_centers.append((bin_lower + bin_upper) / 2)
+                reliability.append(np.mean(targets[in_bin]))
+                confidence.append(np.mean(predictions[in_bin]))
+                counts.append(np.sum(in_bin))
+
+        return {
+            "bin_centers": bin_centers,
+            "reliability": reliability,
+            "confidence": confidence,
+            "counts": counts,
+        }

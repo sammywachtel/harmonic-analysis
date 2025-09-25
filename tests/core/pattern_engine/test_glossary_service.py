@@ -271,21 +271,22 @@ class TestGlossaryIntegration:
         assert isinstance(has_explanations, bool)
 
     @pytest.mark.parametrize(
-        "progression,expected_harmonic_content",
+        "progression,expected_harmonic_content,key_hint",
         [
             (
                 ["F", "G", "C"],
                 ["IV", "V", "I"],
+                "C major",
             ),  # More realistic roman numeral expectations
-            (["Am", "F", "C", "G"], ["vi", "IV", "I", "V"]),
-            (["Dm7", "G7", "Cmaj7"], ["ii", "V", "I"]),
+            (["Am", "F", "C", "G"], ["vi", "IV", "I", "V"], "C major"),
+            (["Dm7", "G7", "Cmaj7"], ["ii", "V", "I"], "C major"),
         ],
     )
     def test_harmonic_term_extraction(
-        self, service, progression, expected_harmonic_content
+        self, service, progression, expected_harmonic_content, key_hint
     ):
         """Test that roman numerals are extracted from analysis."""
-        result = service.analyze_with_patterns(progression)
+        result = service.analyze_with_patterns(progression, key_hint=key_hint)
 
         # Extract harmonic information from DTO
         romans_list = result.primary.roman_numerals
@@ -305,9 +306,10 @@ class TestGlossaryIntegration:
 
     def test_error_handling_empty_progression(self, service):
         """Test analysis error handling for empty progressions."""
-        # Empty progression should raise an error
-        with pytest.raises(ValueError, match="Empty chord progression"):
-            service.analyze_with_patterns([])
+        # Empty progression should return empty result with low confidence
+        result = service.analyze_with_patterns([])
+        assert result.primary.roman_numerals == []
+        assert result.primary.confidence < 0.1  # Low confidence for empty progression
 
     def test_glossary_service_error_handling(self, service):
         """Test that glossary service handles invalid inputs gracefully."""

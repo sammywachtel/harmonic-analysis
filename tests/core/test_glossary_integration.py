@@ -167,22 +167,23 @@ class TestPatternEngineGlossaryIntegration:
 
     def test_pattern_engine_loads_glossary_on_init(self):
         """Test that pattern engine loads glossary on initialization."""
-        with patch('harmonic_analysis.core.pattern_engine.pattern_engine.load_default_glossary') as mock_load:
-            mock_load.return_value = {"test": "glossary"}
-
+        with patch('harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryService') as mock_service:
+            instance = mock_service.return_value
+            instance.glossary = {"test": "glossary"}
             engine = PatternEngine()
-
             assert engine._glossary == {"test": "glossary"}
-            mock_load.assert_called_once()
+            mock_service.assert_called_once()
 
     def test_pattern_engine_handles_missing_glossary(self):
         """Test that pattern engine handles missing glossary gracefully."""
-        with patch('harmonic_analysis.core.pattern_engine.pattern_engine.load_default_glossary') as mock_load:
-            mock_load.side_effect = FileNotFoundError("Glossary not found")
+        with patch('harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryService') as mock_service:
+            with patch('harmonic_analysis.core.pattern_engine.pattern_engine.load_default_glossary') as mock_load:
+                mock_service.side_effect = Exception("service unavailable")
+                mock_load.side_effect = FileNotFoundError("Glossary not found")
 
-            engine = PatternEngine()
+                engine = PatternEngine()
 
-            assert engine._glossary == {}
+                assert engine._glossary == {}
 
     def test_evidence_conversion_enriches_features(self):
         """Test that evidence conversion enriches features with glossary."""
@@ -267,9 +268,13 @@ class TestPatternEngineGlossaryIntegration:
         assert "terms" in summary.__dict__
         terms = summary.terms
         assert "analysis_method" in terms
+        assert isinstance(terms["analysis_method"], dict)
+        assert terms["analysis_method"]["label"] == "Unified Pattern Engine"
+        assert "tooltip" in terms["analysis_method"]
+
         assert "pattern_weight" in terms
-        assert terms["pattern_weight"] == "Pattern Weight"
-        # Note: tooltip not included in terms (Dict[str, str]) - only label is flattened
+        assert terms["pattern_weight"]["label"] == "Pattern Weight"
+        assert terms["pattern_weight"].get("tooltip")
 
     def test_end_to_end_glossary_integration(self, tmp_path):
         """Test complete end-to-end glossary integration."""
@@ -279,7 +284,7 @@ class TestPatternEngineGlossaryIntegration:
             "version": 1,
             "patterns": [
                 {
-                    "id": "test.cadence",
+                    "id": "cadence.test",
                     "name": "Test Cadence",
                     "scope": ["harmonic"],
                     "track": ["functional"],
@@ -299,6 +304,16 @@ class TestPatternEngineGlossaryIntegration:
                 "pattern_weight": "Base pattern weight"
             }
         }
+        engine._glossary_service = type(
+            "StubGlossary",
+            (),
+            {
+                "get_cadence_explanation": staticmethod(
+                    lambda name: {"definition": "Test cadence definition"}
+                ),
+                "get_term_definition": staticmethod(lambda term: None),
+            },
+        )()
         engine.load_patterns(pattern_file)
 
         # Analyze
@@ -314,6 +329,7 @@ class TestPatternEngineGlossaryIntegration:
         # Check that terms are populated in primary analysis
         terms = envelope.primary.terms
         assert "analysis_method" in terms
+        assert isinstance(terms["analysis_method"], dict)
 
         # Check evidence enrichment
         if envelope.evidence:
@@ -322,6 +338,12 @@ class TestPatternEngineGlossaryIntegration:
             # Should have features_ui if any known features were found
             if any(key in engine._glossary.get("analysis_terms", {}) for key in features.keys()):
                 assert "features_ui" in features
+
+        # Cadence glossary should be attached to pattern match
+        patterns = envelope.primary.patterns
+        if patterns:
+            assert patterns[0].glossary
+            assert patterns[0].glossary.get("definition") == "Test cadence definition"
 
 
 # Integration test fixtures

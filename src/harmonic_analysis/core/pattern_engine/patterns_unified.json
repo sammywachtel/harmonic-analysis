@@ -31,7 +31,8 @@
       "metadata": {
         "tags": ["cadence", "functional", "closure"],
         "priority": 90,
-        "description": "V-I with soprano on tonic, strongest functional cadence"
+        "description": "V-I with soprano on tonic, strongest functional cadence",
+        "aliases": ["pac"]
       }
     },
     {
@@ -58,7 +59,8 @@
       "metadata": {
         "tags": ["cadence", "functional"],
         "priority": 85,
-        "description": "V-I with soprano on 3rd or 5th"
+        "description": "V-I with soprano on 3rd or 5th",
+        "aliases": ["iac"]
       }
     },
     {
@@ -107,7 +109,8 @@
       "metadata": {
         "tags": ["cadence", "functional", "open"],
         "priority": 65,
-        "description": "Movement to V, creates expectation"
+        "description": "Movement to V, creates expectation",
+        "aliases": ["half_cadence"]
       }
     },
     {
@@ -181,13 +184,37 @@
       }
     },
     {
+      "id": "modal.phrygian.i_iv_V",
+      "name": "Phrygian Cadence",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["i", "iv", "V"],
+        "mode": "minor",
+        "window": {
+          "len": 3
+        }
+      },
+      "evidence": {
+        "weight": 0.75,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["modal", "minor", "cadence"],
+        "priority": 75,
+        "description": "Minor i-iv-V cadential progression",
+        "aliases": ["phrygian"]
+      }
+    },
+    {
       "id": "modal.andalusian",
       "name": "Andalusian Cadence",
       "scope": ["harmonic"],
       "track": ["modal"],
       "matchers": {
-        "roman_seq": ["iv", "♭III", "♭II", "I"],
-        "mode": "phrygian",
+        "roman_seq": ["i", "♭VII", "VI", "V"],
+        "mode": "minor",
         "window": {
           "len": 4,
           "overlap_ok": false
@@ -199,9 +226,10 @@
         "confidence_fn": "logistic_default"
       },
       "metadata": {
-        "tags": ["modal", "phrygian", "andalusian", "flamenco"],
+        "tags": ["modal", "andalusian", "flamenco"],
         "priority": 85,
-        "description": "Classic Andalusian/Flamenco progression"
+        "description": "Classic Andalusian/Flamenco progression i-♭VII-♭VI-V",
+        "aliases": ["andalusian"]
       }
     },
     {
@@ -252,7 +280,7 @@
       "id": "chromatic.secondary_dominant",
       "name": "Secondary Dominant",
       "scope": ["harmonic"],
-      "track": ["functional"],
+      "track": ["chromatic"],
       "matchers": {
         "chord_seq": ["V/.*", ".*"],
         "constraints": {
@@ -270,7 +298,53 @@
       "metadata": {
         "tags": ["chromatic", "secondary_dominant", "tonicization"],
         "priority": 65,
-        "description": "Secondary dominant resolution"
+        "description": "Secondary dominant resolution (V/x notation)"
+      }
+    },
+    {
+      "id": "chromatic.V_of_vi",
+      "name": "V/vi (III7-vi)",
+      "scope": ["harmonic"],
+      "track": ["chromatic"],
+      "matchers": {
+        "roman_seq": ["III7", "vi"],
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.75,
+        "features": ["tonal_clarity"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["chromatic", "secondary_dominant", "tonicization"],
+        "priority": 70,
+        "description": "Secondary dominant of vi (E7→Am in C major)",
+        "aliases": ["V/vi"]
+      }
+    },
+    {
+      "id": "chromatic.V_of_V",
+      "name": "V/V (II7-V)",
+      "scope": ["harmonic"],
+      "track": ["chromatic"],
+      "matchers": {
+        "roman_seq": ["II7", "V.*"],
+        "window": {
+          "len": 2
+        }
+      },
+      "evidence": {
+        "weight": 0.75,
+        "features": ["tonal_clarity"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["chromatic", "secondary_dominant", "tonicization"],
+        "priority": 70,
+        "description": "Secondary dominant of V (D7→G7 in C major)",
+        "aliases": ["V/V"]
       }
     },
     {
@@ -488,6 +562,276 @@
         "tags": ["melodic", "chromatic", "passing_tone"],
         "priority": 65,
         "description": "Chromatic passing tone creating smooth voice leading"
+      }
+    },
+    {
+      "id": "functional.vi_IV_I_V",
+      "name": "vi-iv-i-v Pop Progression",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "roman_seq": ["vi", "IV", "I", "V"],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 4,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.85,
+        "features": ["tonal_clarity", "voice_leading_smoothness"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["functional", "pop", "axis"],
+        "priority": 85,
+        "description": "Common pop/rock axis progression",
+        "aliases": ["vi-iv-i-v", "vi–iv–i–v", "i–v–vi–iv", "i–vi–iv–v", "pop loop"]
+      }
+    },
+    {
+      "id": "functional.ii_V_I",
+      "name": "ii-V-I Jazz Progression",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "roman_seq": ["ii", "V", "I"],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 3,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.90,
+        "features": ["has_auth_cadence", "tonal_clarity"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["functional", "jazz", "cadence"],
+        "priority": 90,
+        "description": "Classic jazz ii-V-I progression",
+        "aliases": ["ii-v-i", "ii–v–i", "ii–v–i (macro)", "jazz ii–v–i"]
+      }
+    },
+    {
+      "id": "functional.pachelbel_canon",
+      "name": "Pachelbel Canon Progression",
+      "scope": ["harmonic"],
+      "track": ["functional"],
+      "matchers": {
+        "roman_seq": ["I", "V", "vi", "iii", "IV", "I", "IV", "V"],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 8,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.95,
+        "features": ["tonal_clarity", "harmonic_rhythm"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["functional", "classical", "canon"],
+        "priority": 85,
+        "description": "Pachelbel's Canon in D progression",
+        "aliases": ["pachelbel", "pachelbel canon core", "pachelbel canon core (root template)"]
+      }
+    },
+    {
+      "id": "chromatic.backdoor_cadence",
+      "name": "Backdoor Cadence",
+      "scope": ["harmonic"],
+      "track": ["chromatic"],
+      "matchers": {
+        "roman_seq": ["iv", "♭VII", "I"],
+        "constraints": {
+          "key_context": "chromatic"
+        },
+        "window": {
+          "len": 3,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.85,
+        "features": ["chromatic_density", "outside_key_ratio"],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": ["chromatic", "jazz", "cadence", "modal_interchange"],
+        "priority": 80,
+        "description": "Backdoor cadence (IVm-♭VII-I)",
+        "aliases": ["backdoor", "backdoor cadence", "ivm7–bVII7–I", "ivm–bVII–I"]
+      }
+    },
+    {
+      "id": "modal.dorian.subtonic_resolution",
+      "name": "Modal Subtonic Resolution",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["♭VII", "I"],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.85,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_dorian"
+      },
+      "metadata": {
+        "tags": ["modal", "dorian", "mixolydian", "subtonic"],
+        "priority": 80,
+        "description": "Modal characteristic: subtonic resolving up to tonic",
+        "aliases": ["♭VII-I", "subtonic resolution"]
+      }
+    },
+    {
+      "id": "modal.dorian.ii_sequence",
+      "name": "Dorian ii-iii-IV Sequence",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["ii", "iii", "IV"],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 3,
+          "overlap_ok": true
+        }
+      },
+      "evidence": {
+        "weight": 0.75,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_dorian"
+      },
+      "metadata": {
+        "tags": ["modal", "dorian", "sequence"],
+        "priority": 70,
+        "description": "Modal sequence characteristic of Dorian mode",
+        "aliases": ["ii-iii-IV", "dorian sequence"]
+      }
+    },
+    {
+      "id": "modal.general.characteristic_progression",
+      "name": "General Modal Characteristic Progression",
+      "scope": ["harmonic"],
+      "track": ["modal", "functional"],
+      "matchers": {
+        "roman_seq": ["vi", "♭VII", "I"],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 3,
+          "overlap_ok": true
+        }
+      },
+      "evidence": {
+        "weight": 0.70,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_dorian"
+      },
+      "metadata": {
+        "tags": ["modal", "aeolian", "mixolydian", "subtonic"],
+        "priority": 65,
+        "description": "General modal progression with subtonic emphasis",
+        "aliases": ["vi-♭VII-I", "modal characteristic"]
+      }
+    },
+    {
+      "id": "modal.mixolydian.v_iv_vamp",
+      "name": "Mixolydian V-IV Vamp",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["V", "IV"],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": true
+        }
+      },
+      "evidence": {
+        "weight": 0.70,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_dorian"
+      },
+      "metadata": {
+        "tags": ["modal", "mixolydian", "vamp"],
+        "priority": 65,
+        "description": "Mixolydian characteristic V-IV motion",
+        "aliases": ["V-IV", "mixolydian vamp"]
+      }
+    },
+    {
+      "id": "modal.phrygian.iii_iv_motion",
+      "name": "Phrygian iii-IV Motion",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["iii", "IV"],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": true
+        }
+      },
+      "evidence": {
+        "weight": 0.65,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_dorian"
+      },
+      "metadata": {
+        "tags": ["modal", "phrygian", "characteristic"],
+        "priority": 60,
+        "description": "Phrygian characteristic iii-IV (i-♭II in modal context)",
+        "aliases": ["iii-IV", "phrygian motion"]
+      }
+    },
+    {
+      "id": "modal.dorian.ii_v_motion",
+      "name": "Dorian ii-V Motion",
+      "scope": ["harmonic"],
+      "track": ["modal"],
+      "matchers": {
+        "roman_seq": ["ii", "V"],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": true
+        }
+      },
+      "evidence": {
+        "weight": 0.60,
+        "features": ["modal_char_score"],
+        "confidence_fn": "logistic_dorian"
+      },
+      "metadata": {
+        "tags": ["modal", "dorian", "characteristic"],
+        "priority": 55,
+        "description": "Dorian ii-V motion (i-IV in modal context)",
+        "aliases": ["ii-V", "dorian motion"]
       }
     }
   ]

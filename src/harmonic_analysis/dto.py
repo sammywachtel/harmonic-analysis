@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Literal, Optional
 class AnalysisType(str, Enum):
     FUNCTIONAL = "functional"
     MODAL = "modal"
+    CHROMATIC = "chromatic"
 
 
 class ProgressionType(str, Enum):
@@ -75,6 +76,7 @@ class PatternMatchDTO:
     family: str
     score: float
     evidence: List[Dict[str, Any]] = field(default_factory=list)
+    glossary: Optional[Dict[str, Any]] = None
     # Section-aware fields (as per music-alg-2h.md specification)
     section: Optional[str] = None  # Section ID: "A", "B", "Verse1", etc.
     cadence_role: Optional[Literal["final", "section-final", "internal"]] = (
@@ -174,9 +176,10 @@ class AnalysisSummary:
     # Confidence decomposition (optional)
     functional_confidence: Optional[float] = None
     modal_confidence: Optional[float] = None
+    chromatic_confidence: Optional[float] = None
 
     # Structured extras (optional)
-    terms: Dict[str, str] = field(default_factory=dict)
+    terms: Dict[str, Any] = field(default_factory=dict)
     patterns: List[PatternMatchDTO] = field(default_factory=list)
     chromatic_elements: List[ChromaticElementDTO] = field(default_factory=list)
     chromatic_summary: Optional[ChromaticSummaryDTO] = None
