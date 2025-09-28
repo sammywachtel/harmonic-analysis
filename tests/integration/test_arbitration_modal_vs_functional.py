@@ -48,8 +48,8 @@ class TestEvidenceBasedArbitration:
             (["C", "F", "G", "C"], "functional", ["authentic"]),
             # Short functional cadence - functional wins (no modal analysis)
             (["F", "G", "C"], "functional", ["major"]),
-            # Complex progression analyzed as modal due to close confidence
-            (["C", "Am", "F", "G", "C"], "modal", ["Dorian"]),
+            # Complex progression analyzed as functional (I-vi-IV-V-I is functional)
+            (["C", "Am", "F", "G", "C"], "functional", ["cadence"]),
         ],
     )
     async def test_arbitration_gate(

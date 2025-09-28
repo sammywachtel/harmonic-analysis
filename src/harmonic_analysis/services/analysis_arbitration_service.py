@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 class ArbitrationPolicy:
     """Configuration for arbitration decisions"""
 
-    # Minimum confidence thresholds
-    min_functional_confidence: float = 0.50
+    # Minimum confidence thresholds (iteration 9 - balanced for arbitration)
+    min_functional_confidence: float = 0.42  # Balanced: allows short functional cadences but doesn't override modal
     min_modal_confidence: float = 0.40
 
     # Confidence margins

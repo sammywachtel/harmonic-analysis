@@ -53,10 +53,11 @@ class TestChromaticPrecedence:
             a7_el = a7_elements[0]
             assert a7_el.type == "secondary_dominant"
             # Target could be "Dm", "ii", or similar representation
-            assert a7_el.target and (
-                a7_el.target == "Dm"
-                or "ii" in str(a7_el.target)
-                or "Dm" in str(a7_el.target)
+            target_repr = a7_el.target_roman or a7_el.target_chord
+            assert target_repr and (
+                target_repr == "Dm"
+                or "ii" in str(target_repr)
+                or "Dm" in str(target_repr)
             )
             assert a7_el.resolution and "A7" in a7_el.resolution
 
@@ -108,7 +109,8 @@ class TestSecondaryDominants:
         if sec_doms:
             sec_dom = sec_doms[0]
             assert sec_dom.type == expected["type"]
-            assert expected["target"] in str(sec_dom.target or "")
+            # Use target_chord field for chord symbol expectations (dual-surface support)
+            assert expected["target"] in str(sec_dom.target_chord or "")
 
 
 class TestMixtureChords:

@@ -71,6 +71,10 @@ class TokenConverter:
             roman_numerals=roman_numerals,
             key_center=key_center,
         )
+        roman_numerals = self._normalize_minor_flat_two(
+            roman_numerals=roman_numerals,
+            key_center=key_center,
+        )
         # 3b) Prefer Backdoor spelling in major (Bb7 -> bVII7)
         roman_numerals = self._prefer_backdoor_bVII(
             chord_symbols=chord_symbols,
@@ -281,6 +285,45 @@ class TokenConverter:
             # Rewrite to bVII with same seventh marker if present
             has7 = bool(re.match(r"^V7\/", rn, flags=re.IGNORECASE))
             fixed[i] = "bVII7" if has7 else "bVII"
+        return fixed
+
+    def _normalize_minor_flat_two(
+        self,
+        roman_numerals: List[str],
+        key_center: str,
+    ) -> List[str]:
+        """Rewrite applied dominants to ♭V as ♭II in minor contexts.
+
+        Functional analysis sometimes reports the flat second in minor as
+        ``V/♭V``. For modal detection (Phrygian), we prefer the simpler
+        spelling ``♭II`` so the modal patterns can fire.
+        """
+
+        if not roman_numerals:
+            return roman_numerals
+
+        try:
+            is_minor = self._extract_mode(key_center) == "minor"
+        except Exception:
+            is_minor = False
+
+        if not is_minor:
+            return roman_numerals
+
+        fixed: List[str] = []
+        pattern = re.compile(r"^(?P<prefix>V/)(?:♭|b)V(?P<suffix>.*)$", re.IGNORECASE)
+        for rn in roman_numerals:
+            if not rn:
+                fixed.append(rn)
+                continue
+
+            match = pattern.match(rn)
+            if match:
+                suffix = match.group("suffix") or ""
+                fixed.append(f"♭II{suffix}")
+            else:
+                fixed.append(rn)
+
         return fixed
 
     def _calculate_bass_motion(self, prev_chord: str, curr_chord: str) -> Optional[int]:

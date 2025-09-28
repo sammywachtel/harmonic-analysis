@@ -9,13 +9,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from harmonic_analysis.dto import (
     AnalysisEnvelope,
     AnalysisSummary,
+    AnalysisType,
     SectionDTO,
 )
+from .analysis_arbitration_service import AnalysisArbitrationService
 from .unified_pattern_service import UnifiedPatternService
 
 logger = logging.getLogger(__name__)
@@ -35,7 +38,7 @@ class PatternAnalysisService:
         matcher: Optional[Any] = None,  # Ignored - compatibility only
         modal_analyzer: Optional[Any] = None,  # Ignored - compatibility only
         chromatic_analyzer: Optional[Any] = None,  # Ignored - compatibility only
-        arbitration_policy: Optional[Any] = None,  # Ignored - compatibility only
+        arbitration_policy: Optional[Any] = None,  # Used for arbitration service
         calibration_service: Optional[Any] = None,  # Ignored - compatibility only
         auto_calibrate: bool = True,
     ) -> None:
@@ -51,6 +54,12 @@ class PatternAnalysisService:
         """
         # Opening move: delegate everything to the unified pattern service
         self._unified_service = UnifiedPatternService(auto_calibrate=auto_calibrate)
+
+        # Store arbitration policy for iteration 9 arbitration support
+        self._arbitration_service = None
+        if arbitration_policy is not None:
+            self._arbitration_service = AnalysisArbitrationService(policy=arbitration_policy)
+            logger.info("✅ AnalysisArbitrationService enabled with policy")
 
         # Victory lap: log the migration for observability
         logger.info("✅ PatternAnalysisService initialized as facade over UnifiedPatternService")
@@ -79,12 +88,76 @@ class PatternAnalysisService:
             AnalysisEnvelope with primary and alternative analyses
         """
         # Big play: delegate to unified service with parameter mapping
-        return await self._unified_service.analyze_with_patterns_async(
+        envelope = await self._unified_service.analyze_with_patterns_async(
             chords=chord_symbols,
             key_hint=key_hint,
             profile=profile,
             options={"best_cover": best_cover, "sections": sections}  # Pass through for compatibility
         )
+
+        # Iteration 9: Apply arbitration if arbitration service is configured
+        if self._arbitration_service and envelope.primary:
+            try:
+                # Create separate functional and modal summaries for arbitration
+                primary = envelope.primary
+
+                # Create functional summary (always available)
+                functional_summary = AnalysisSummary(
+                    type=AnalysisType.FUNCTIONAL,
+                    roman_numerals=getattr(primary, 'roman_numerals', []),
+                    confidence=getattr(primary, 'functional_confidence', 0.0),
+                    key_signature=getattr(primary, 'key_signature', None),
+                    mode=getattr(primary, 'mode', None),
+                    reasoning=getattr(primary, 'reasoning', ''),
+                    patterns=getattr(primary, 'patterns', [])
+                )
+
+                # Create modal summary if modal confidence exists
+                modal_summary = None
+                if getattr(primary, 'modal_confidence', 0.0) > 0.0:
+                    modal_summary = AnalysisSummary(
+                        type=AnalysisType.MODAL,
+                        roman_numerals=getattr(primary, 'roman_numerals', []),
+                        confidence=getattr(primary, 'modal_confidence', 0.0),
+                        key_signature=getattr(primary, 'key_signature', None),
+                        mode=getattr(primary, 'mode', None),
+                        reasoning=getattr(primary, 'reasoning', ''),
+                        patterns=getattr(primary, 'patterns', []),
+                        modal_characteristics=getattr(primary, 'modal_characteristics', []),
+                        modal_evidence=getattr(primary, 'modal_evidence', [])  # Iteration 9A: Pass modal evidence
+                    )
+
+                # Apply arbitration
+                arbitration_result = self._arbitration_service.arbitrate(
+                    functional_summary=functional_summary,
+                    modal_summary=modal_summary,
+                    chord_symbols=chord_symbols
+                )
+
+                # Iteration 9: Enhanced arbitration diagnostics
+                if "arbitration" in (os.getenv("HARMONIC_ANALYSIS_DEBUG", "").lower()):
+                    logger.debug(
+                        f"🎯 ARBITRATION DIAGNOSTIC:\n"
+                        f"  Input: {chord_symbols}\n"
+                        f"  Functional conf: {functional_summary.confidence:.3f}\n"
+                        f"  Modal conf: {modal_summary.confidence if modal_summary else 'N/A'}\n"
+                        f"  Result: {arbitration_result.primary.type}\n"
+                        f"  Confidence gap: {arbitration_result.confidence_gap:.3f}\n"
+                        f"  Rationale: {arbitration_result.rationale}\n"
+                        f"  Policy thresholds: func_min={self._arbitration_service.policy.min_functional_confidence}, "
+                        f"modal_min={self._arbitration_service.policy.min_modal_confidence}"
+                    )
+
+                # Update envelope with arbitration result
+                envelope.primary = arbitration_result.primary
+                envelope.alternatives = arbitration_result.alternatives
+
+                logger.debug(f"🎯 Arbitration applied: {arbitration_result.primary.type} (gap: {arbitration_result.confidence_gap:.3f})")
+
+            except Exception as e:
+                logger.warning(f"⚠️ Arbitration failed: {e} - using unified service result")
+
+        return envelope
 
     def analyze_with_patterns(
         self,
@@ -99,13 +172,44 @@ class PatternAnalysisService:
 
         This looks odd, but it saves us from async complexity in sync contexts.
         """
-        # Time to tackle the tricky bit: delegate to unified service sync method
-        return self._unified_service.analyze_with_patterns(
-            chords=chord_symbols,
-            key_hint=key_hint,
-            profile=profile,
-            options={"best_cover": best_cover, "sections": sections}
-        )
+        import asyncio
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            envelope = asyncio.run(
+                self.analyze_with_patterns_async(
+                    chord_symbols,
+                    key_hint=key_hint,
+                    profile=profile,
+                    best_cover=best_cover,
+                    sections=sections,
+                )
+            )
+        else:
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run,
+                    self.analyze_with_patterns_async(
+                        chord_symbols,
+                        key_hint=key_hint,
+                        profile=profile,
+                        best_cover=best_cover,
+                        sections=sections,
+                    ),
+                )
+                envelope = future.result()
+
+        primary = envelope.primary
+        if primary and getattr(primary, "chromatic_elements", None):
+            summary_str = ", ".join(str(el) for el in primary.chromatic_elements)
+            logger.info("Chromatic: %s", summary_str)
+        elif primary:
+            logger.debug("Chromatic: No chromatic elements detected")
+
+        return envelope
 
     def get_analysis_summary(self, envelope: AnalysisEnvelope) -> AnalysisSummary:
         """Generate analysis summary from envelope (compatibility method)."""

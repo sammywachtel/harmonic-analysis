@@ -102,13 +102,15 @@ class TestMandatoryChromaticFunctionality:
             # Check target and resolution
             sec_dom = sec_dom_elements[0]
             assert (
-                sec_dom.target is not None
+                sec_dom.target_chord is not None or sec_dom.target_roman is not None
             ), f"Secondary dominant {case['expected_dominant']} missing target"
 
             if case["expected_resolution"]:
                 # Should have some resolution info
                 assert (
-                    sec_dom.resolution is not None or sec_dom.target is not None
+                    sec_dom.resolution is not None
+                    or sec_dom.target_chord is not None
+                    or sec_dom.target_roman is not None
                 ), f"Secondary dominant {case['expected_dominant']} missing resolution info"
 
     def test_mixture_borrowed_chord_detection(self, service):
@@ -454,7 +456,10 @@ class TestChromaticIntegrationAcceptanceCriteria:
             assert (
                 len(sec_doms) >= 1
             ), f"Failed to detect {expected_dom} as secondary dominant"
-            assert sec_doms[0].target is not None, f"{expected_dom} missing target"
+            assert (
+                sec_doms[0].target_chord is not None
+                or sec_doms[0].target_roman is not None
+            ), f"{expected_dom} missing target"
 
     def test_acceptance_criteria_chromatic_elements_populated(self, service):
         """✅ chromatic_elements AND chromatic_summary populated in service."""

@@ -92,27 +92,34 @@ class ChromaticElementDTO:
     index: int  # chord index in progression
     symbol: str  # chord symbol (e.g., "A7")
     type: str  # e.g., "secondary_dominant", "mixture", "chromatic_mediant"
-    target: Optional[str] = None  # target chord (e.g., "Dm")
     resolution: Optional[str] = None  # resolution pattern (e.g., "A7→Dm")
     strength: Optional[float] = None  # confidence/strength score
     explanation: Optional[str] = None  # detailed explanation
+
+    # Modern dual-surface target fields
+    target_chord: Optional[str] = None  # chord symbol target (e.g., "Dm")
+    target_roman: Optional[str] = None  # roman numeral target (e.g., "ii")
 
     def __str__(self) -> str:
         """Human-readable string representation."""
         # Format: "A7 (V/ii) → Dm [0.82]" or "Ab (mixture) [0.75]"
         parts = [self.symbol]
 
+        # Get the target to display (prefer roman, fall back to chord, then legacy)
+        display_target = self.target_roman or self.target_chord
+
         # Add type/function info
-        if self.type == "secondary_dominant" and self.target:
-            parts.append(f"(V/{self.target})")
-        elif self.type == "applied_leading" and self.target:
-            parts.append(f"(vii°/{self.target})")
+        if self.type == "secondary_dominant" and display_target:
+            parts.append(f"(V/{display_target})")
+        elif self.type == "applied_leading" and display_target:
+            parts.append(f"(vii°/{display_target})")
         else:
             parts.append(f"({self.type})")
 
-        # Add resolution if present
+        # Add resolution if present (prefer chord symbol for resolution display)
         if self.resolution:
-            parts.append(f"→ {self.target or 'unresolved'}")
+            resolution_target = self.target_chord or display_target or 'unresolved'
+            parts.append(f"→ {resolution_target}")
 
         # Add strength if present
         if self.strength is not None:
@@ -124,8 +131,8 @@ class ChromaticElementDTO:
         """Developer-friendly representation."""
         return (
             f"ChromaticElementDTO(index={self.index}, symbol='{self.symbol}', "
-            f"type='{self.type}', target={self.target!r},"
-            f"strength={self.strength})"
+            f"type='{self.type}', target_chord={self.target_chord!r}, "
+            f"target_roman={self.target_roman!r}, strength={self.strength})"
         )
 
 
@@ -296,6 +303,8 @@ class AnalysisSummary:
                     "resolution",
                     "strength",
                     "explanation",
+                    "target_chord",
+                    "target_roman",
                 }
                 y = {k: v for k, v in y.items() if k in valid_fields}
 
@@ -329,6 +338,9 @@ class AnalysisSummary:
             chords=[_fc(x) for x in d.get("chords", [])],
             modal_characteristics=list(d.get("modal_characteristics", [])),
             modal_evidence=list(d.get("modal_evidence", [])),
+            sections=[SectionDTO(**x) if isinstance(x, dict) else x for x in d.get("sections", [])],
+            terminal_cadences=[_pm(x) for x in d.get("terminal_cadences", [])],
+            final_cadence=_pm(d["final_cadence"]) if d.get("final_cadence") else None,
         )
 
 

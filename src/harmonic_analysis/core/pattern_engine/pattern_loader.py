@@ -37,7 +37,7 @@ class PatternLoader:
                         },
                         "track": {
                             "type": "array",
-                            "items": {"type": "string", "enum": ["functional", "modal"]},
+                            "items": {"type": "string", "enum": ["functional", "modal", "chromatic"]},
                             "minItems": 1,
                         },
                         "matchers": {

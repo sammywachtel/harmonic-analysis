@@ -518,9 +518,16 @@ class ModeConstraint(ConstraintChecker):
 
         # Special case: "both" means pattern works in major OR minor
         if constraint_value == "both":
-            return any(m in ["major", "minor"] for m in modes)
+            return any(m.lower() in {"major", "minor"} for m in modes)
 
-        return any(m == constraint_value for m in modes)
+        if constraint_value is None:
+            return True
+
+        constraint_norm = str(constraint_value).lower()
+        return any(
+            constraint_norm == m.lower() or constraint_norm in m.lower()
+            for m in modes
+        )
 
 
 class SecondaryDominantConstraint(ConstraintChecker):

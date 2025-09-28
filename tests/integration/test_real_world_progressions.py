@@ -6,7 +6,6 @@ These tests validate common musical progressions that users actually input,
 catching issues that unit tests miss.
 """
 
-from types import SimpleNamespace
 
 import pytest
 
@@ -109,31 +108,16 @@ def _derive_modal_tonic_major(modal_mode_name: str) -> str | None:
 
 
 async def analyze_progression_new(chords, options: AnalysisOptions):
-    """Simplified test helper using the clean PatternAnalysisService API."""
+    """Run the modern PatternAnalysisService and return the envelope DTO."""
     svc = PatternAnalysisService()
     key_hint = getattr(options, "parent_key", None)
 
-    # Use the service directly - no complex workarounds needed
-    result = svc.analyze_with_patterns(
+    return svc.analyze_with_patterns(
         chords,
         profile="classical",
         best_cover=False,
         key_hint=key_hint,
     )
-
-    # Simple mapping for test compatibility
-    primary = SimpleNamespace(
-        type=SimpleNamespace(value=result.primary.type.value),
-        roman_numerals=result.primary.roman_numerals,
-        confidence=result.primary.confidence,
-        key_signature=result.primary.key_signature,
-        mode=result.primary.mode or "major",
-        reasoning=result.primary.reasoning or "analysis completed",
-        functional_confidence=result.primary.functional_confidence or 0.0,
-        modal_confidence=result.primary.modal_confidence or 0.0,
-    )
-
-    return SimpleNamespace(primary_analysis=primary)
 
 
 class TestRealWorldProgressions:
@@ -152,22 +136,19 @@ class TestRealWorldProgressions:
         )
 
         # Should have both functional and modal interpretations (new-pipeline compatible)
-        alts = (
-            getattr(result, "alternative_analyses", None)
-            or getattr(result, "alternatives", None)
-            or []
-        )
-        if alts:
-            assert len(alts) > 0, "Should provide alternative analyses"
+        alternatives = list(result.alternatives or [])
+        if alternatives:
+            assert len(alternatives) > 0, "Should provide alternative analyses"
         else:
             # Fallback: require both confidence signals on primary when alternatives are not provided
-            pa = result.primary_analysis
-            assert hasattr(pa, "functional_confidence") and hasattr(
-                pa, "modal_confidence"
+            pa = result.primary
+            assert (
+                pa.functional_confidence is not None
+                and pa.modal_confidence is not None
             ), "Primary analysis should expose functional_confidence and modal_confidence when alternatives are not present"
 
         # Check primary analysis
-        primary = result.primary_analysis
+        primary = result.primary
 
         # Should have roman numerals populated
         assert (
@@ -181,7 +162,7 @@ class TestRealWorldProgressions:
             # This suggests the functional analysis should have higher confidence
             # Check if functional analysis is available as alternative
             functional_analyses = [
-                a for a in result.alternative_analyses if a.type.value == "functional"
+                a for a in alternatives if a.type.value == "functional"
             ]
             assert (
                 len(functional_analyses) > 0
@@ -259,25 +240,20 @@ class TestRealWorldProgressions:
                 progression, AnalysisOptions(confidence_threshold=0.3)
             )
 
-            # These progressions should have alternatives (functional vs modal); be compatible with new pipeline
-            alts = (
-                getattr(result, "alternative_analyses", None)
-                or getattr(result, "alternatives", None)
-                or []
-            )
+            # These progressions should have alternatives (functional vs modal)
+            alts = list(result.alternatives or [])
             if alts:
-                assert (
-                    len(alts) > 0
-                ), f"{description} should have alternative interpretations"
+                assert len(alts) > 0, f"{description} should have alternative interpretations"
             else:
-                pa = result.primary_analysis
-                assert hasattr(pa, "functional_confidence") and hasattr(
-                    pa, "modal_confidence"
+                pa = result.primary
+                assert (
+                    pa.functional_confidence is not None
+                    and pa.modal_confidence is not None
                 ), f"{description}: primary should expose both confidences when alternatives not provided"
 
             # Should have roman numerals
             assert (
-                len(result.primary_analysis.roman_numerals) == 4
+                len(result.primary.roman_numerals) == 4
             ), f"{description} should have 4 roman numerals"
 
         # Clear functional progressions may not have alternatives (and that's OK)
@@ -293,12 +269,12 @@ class TestRealWorldProgressions:
 
             # Should still have roman numerals even if no alternatives
             assert (
-                len(result.primary_analysis.roman_numerals) == 4
+                len(result.primary.roman_numerals) == 4
             ), f"{description} should have 4 roman numerals"
 
             # Primary should be functional
             assert (
-                result.primary_analysis.type.value == "functional"
+                result.primary.type.value == "functional"
             ), f"{description} should be analyzed as functional"
 
     @pytest.mark.asyncio
@@ -315,7 +291,7 @@ class TestRealWorldProgressions:
         for progression, description in functional_progressions:
             result = await analyze_progression_new(progression, AnalysisOptions())
 
-            pa = result.primary_analysis
+            pa = result.primary
             f_conf = getattr(pa, "functional_confidence", None)
             m_conf = getattr(pa, "modal_confidence", None)
             assert (
@@ -370,7 +346,7 @@ class TestRealWorldProgressions:
         for progression, description in modal_progressions:
             result = await analyze_progression_new(progression, AnalysisOptions())
 
-            pa = result.primary_analysis
+            pa = result.primary
             f_conf = getattr(pa, "functional_confidence", None)
             m_conf = getattr(pa, "modal_confidence", None)
             assert (
@@ -445,15 +421,15 @@ class TestRealWorldProgressions:
         for progression, expected_mode, expected_parent in mode_tests:
             result = await analyze_progression_new(progression, AnalysisOptions())
 
-            if result.primary_analysis.type.value == "modal":
-                actual_mode = result.primary_analysis.mode
-                actual_parent = result.primary_analysis.key_signature
+            if result.primary.type.value == "modal":
+                actual_mode = result.primary.mode
+                actual_parent = result.primary.key_signature
 
                 # Special case for ambiguous Dm-G-Dm progression
                 if progression == ["Dm", "G", "Dm"]:
                     # This could be either D Dorian (C major parent) or D minor (functional)
                     # Both are theoretically valid - accept both modal and functional analysis
-                    if result.primary_analysis.type.value == "modal":
+                    if result.primary.type.value == "modal":
                         # If analyzed as modal, should be some form of D-centered mode
                         assert (
                             "D" in actual_mode or "d" in actual_mode.lower()
@@ -482,11 +458,11 @@ class TestRealWorldProgressions:
             else:
                 # If functional analysis is chosen instead, that's also valid
                 # Some progressions like Dm-G-Dm could be analyzed functionally in D minor
-                assert result.primary_analysis.type.value in [
+                assert result.primary.type.value in [
                     "functional",
                     "chromatic",
                 ], (
-                    f"Expected modal or functional analysis, got {result.primary_analysis.type.value} "
+                    f"Expected modal or functional analysis, got {result.primary.type.value} "
                     f"for progression {progression}"
                 )
 
@@ -503,7 +479,7 @@ class TestRealWorldProgressions:
         for progression, expected_keywords in test_cases:
             result = await analyze_progression_new(progression, AnalysisOptions())
 
-            reasoning = result.primary_analysis.reasoning.lower()
+            reasoning = result.primary.reasoning.lower()
 
             # Should contain relevant keywords
             found_keywords = [kw for kw in expected_keywords if kw.lower() in reasoning]
@@ -539,7 +515,7 @@ class TestRealWorldProgressions:
                 progression, AnalysisOptions(parent_key="C major")
             )
 
-            actual_romans = result.primary_analysis.roman_numerals
+            actual_romans = result.primary.roman_numerals
 
             assert (
                 actual_romans == expected_romans

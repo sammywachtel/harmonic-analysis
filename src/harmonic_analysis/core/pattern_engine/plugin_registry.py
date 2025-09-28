@@ -82,6 +82,44 @@ class PluginRegistry:
 
     # Built-in evaluators
 
+    def _build_track_weights(
+        self, pattern: Dict[str, Any], base_weight: float, *, modal_bias: bool = False
+    ) -> Dict[str, float]:
+        """Compute track weights using pattern configuration.
+
+        Args:
+            pattern: Pattern definition (expects optional "track" list)
+            base_weight: Nominal weight from pattern evidence
+            modal_bias: If True, down-weight functional track when modal is present
+
+        Returns:
+            Mapping of track name to weight (falls back to functional)
+        """
+
+        tracks = pattern.get("track") or ["functional"]
+        weights: Dict[str, float] = {}
+
+        modal_present = "modal" in tracks
+
+        for track in tracks:
+            if track == "modal":
+                weights[track] = base_weight
+            elif track == "functional":
+                if modal_present and modal_bias:
+                    weights[track] = base_weight * 0.3
+                else:
+                    weights[track] = base_weight
+            elif track == "chromatic":
+                weights[track] = base_weight
+            else:
+                # Unknown tracks fall back to base weight without modification
+                weights[track] = base_weight
+
+        if not weights:
+            weights["functional"] = base_weight
+
+        return weights
+
     def _logistic_default(self, pattern: Dict[str, Any], context: Dict[str, Any]) -> Evidence:
         """
         Default logistic confidence function for functional patterns.
@@ -93,14 +131,14 @@ class PluginRegistry:
         span = context.get("span", (0, 1))
         pattern_id = pattern.get("id", "unknown")
 
-        # Simple scoring based on pattern weight
-        # In future iterations, this will use actual features
+        # Simple scoring based on pattern weight (placeholder for feature-driven scoring)
         raw_score = pattern_weight
 
-        # Build evidence
+        track_weights = self._build_track_weights(pattern, pattern_weight, modal_bias=False)
+
         return Evidence(
             pattern_id=pattern_id,
-            track_weights={"functional": pattern_weight},
+            track_weights=track_weights,
             features={"pattern_weight": pattern_weight},
             raw_score=raw_score,
             uncertainty=None,
@@ -117,10 +155,14 @@ class PluginRegistry:
         span = context.get("span", (0, 1))
         pattern_id = pattern.get("id", "unknown")
 
-        # Modal patterns get higher modal weight, lower functional weight
+        track_weights = self._build_track_weights(pattern, pattern_weight, modal_bias=True)
+
+        # Ensure there's at least modal contribution even if schema missing track entry
+        track_weights.setdefault("modal", pattern_weight)
+
         return Evidence(
             pattern_id=pattern_id,
-            track_weights={"modal": pattern_weight, "functional": pattern_weight * 0.3},
+            track_weights=track_weights,
             features={"modal_char_score": pattern_weight, "pattern_weight": pattern_weight},
             raw_score=pattern_weight,
             uncertainty=None,
