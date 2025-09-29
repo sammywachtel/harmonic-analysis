@@ -554,3 +554,296 @@ def romanize_chord(
     romans = tc._generate_roman_numerals([chord_symbol], key_center)
     romans = tc._normalize_minor_subtonic([chord_symbol], romans, key_center)
     return romans[0] if romans else ""
+
+
+def roman_to_chord(roman_numeral: str, key_center: str) -> str:
+    """Convert a Roman numeral to a chord symbol in the given key.
+
+    Args:
+        roman_numeral: Roman numeral (e.g., "vi", "V7", "bVII", "V/V")
+        key_center: Key context (e.g., "C major", "A minor")
+
+    Returns:
+        Chord symbol (e.g., "Am", "G7", "Bb", "D7")
+
+    Examples:
+        >>> roman_to_chord("vi", "C major")
+        "Am"
+        >>> roman_to_chord("V7", "C major")
+        "G7"
+        >>> roman_to_chord("bVII", "C major")
+        "Bb"
+        >>> roman_to_chord("V/V", "C major")
+        "D7"
+    """
+    # Main play: parse the key context to get tonic and mode
+    key_parts = key_center.split()
+    key_root = key_parts[0] if key_parts else "C"
+    is_minor = len(key_parts) > 1 and "minor" in key_parts[1].lower()
+
+    # Get tonic pitch class
+    from ..utils.scales import NOTE_TO_PITCH_CLASS, PITCH_CLASS_NAMES
+    key_pc = NOTE_TO_PITCH_CLASS.get(key_root, 0)
+
+    # Handle secondary dominants first (V/V, vii°/V, etc.)
+    if "/" in roman_numeral:
+        return _handle_secondary_roman(roman_numeral, key_center, key_pc, is_minor)
+
+    # Parse the roman numeral components
+    roman_info = _parse_roman_components(roman_numeral)
+
+    # Calculate the chord root pitch class and spelling
+    chord_pc, use_flat = _calculate_chord_pitch_class(roman_info, key_pc, is_minor)
+
+    # Big play: also check key context for better enharmonic spelling
+    key_context_flat = _should_use_flat_in_key_context(chord_pc, key_center)
+    final_use_flat = use_flat or key_context_flat
+
+    chord_root = _get_note_name(chord_pc, final_use_flat)
+
+    # Build the chord symbol
+    chord_symbol = _build_chord_symbol(chord_root, roman_info, is_minor)
+
+    return chord_symbol
+
+
+def _handle_secondary_roman(roman_numeral: str, key_center: str, key_pc: int, is_minor: bool) -> str:
+    """Handle secondary dominants and applied chords (V/V, vii°/ii, etc.)."""
+    parts = roman_numeral.split("/")
+    if len(parts) != 2:
+        # Fallback: treat as regular roman if parsing fails
+        return roman_to_chord(parts[0], key_center)
+
+    function_part, target_part = parts
+
+    # Big play: calculate the target chord's root first
+    target_info = _parse_roman_components(target_part)
+    target_pc, _ = _calculate_chord_pitch_class(target_info, key_pc, is_minor)
+
+    # Then calculate the secondary function relative to that target
+    function_info = _parse_roman_components(function_part)
+
+    # Special case: V/x becomes dominant 7th of target
+    if function_info["base_numeral"].upper() == "V":
+        # V/V in C major: target is V (G), so we want the dominant of G (D7)
+        secondary_pc = (target_pc + 7) % 12  # Perfect fifth above target
+        chord_root = _get_note_name(secondary_pc, False)  # Default to sharp for dominants
+        return chord_root + "7"  # Secondary dominants are typically 7th chords
+
+    # For other secondary functions, calculate relative to target
+    # This is a simplified implementation - could be expanded
+    secondary_pc, use_flat = _calculate_chord_pitch_class(function_info, target_pc, False)  # Treat target as major context
+    chord_root = _get_note_name(secondary_pc, use_flat)
+
+    return _build_chord_symbol(chord_root, function_info, False)
+
+
+def _parse_roman_components(roman: str) -> dict:
+    """Parse roman numeral into components for conversion."""
+    # Victory lap: extract all the pieces we need for chord building
+
+    # Handle accidentals (b, #, ♭, ♯)
+    accidental_match = re.match(r"^([b♭#♯]*)", roman)
+    accidentals = accidental_match.group(1) if accidental_match else ""
+
+    # Clean accidentals and extract the core roman
+    clean_roman = re.sub(r"^[b♭#♯]*", "", roman)
+
+    # Extract base roman numeral (I, ii, V, etc.)
+    base_match = re.search(r"([ivxIVX]+)", clean_roman)
+    base_numeral = base_match.group(1) if base_match else "I"
+
+    # Determine if it's major or minor based on case
+    is_major_quality = base_numeral.isupper()
+
+    # Extract figured bass and extensions (6, 7, maj7, etc.)
+    extensions = re.sub(r"[ivxIVX]+", "", clean_roman)
+
+    # Check for diminished/half-diminished
+    is_diminished = "°" in extensions
+    is_half_diminished = "ø" in extensions
+
+    # Check for seventh chords
+    has_seventh = "7" in extensions
+    is_major_seventh = "maj7" in extensions.lower() or "∆" in extensions or "M7" in extensions
+
+    # Check for inversions
+    inversion = None
+    if "64" in extensions:
+        inversion = "64"
+    elif "6" in extensions and "64" not in extensions:
+        inversion = "6"
+    elif "43" in extensions:
+        inversion = "43"
+    elif "42" in extensions:
+        inversion = "42"
+    elif "65" in extensions:
+        inversion = "65"
+
+    return {
+        "accidentals": accidentals,
+        "base_numeral": base_numeral,
+        "is_major_quality": is_major_quality,
+        "extensions": extensions,
+        "is_diminished": is_diminished,
+        "is_half_diminished": is_half_diminished,
+        "has_seventh": has_seventh,
+        "is_major_seventh": is_major_seventh,
+        "inversion": inversion,
+    }
+
+
+def _calculate_chord_pitch_class(roman_info: dict, key_pc: int, is_minor_key: bool) -> tuple:
+    """Calculate the pitch class and enharmonic spelling of the chord root."""
+    # Time to tackle the tricky bit: roman numerals to scale degrees
+
+    base_numeral = roman_info["base_numeral"].upper()
+
+    # Map roman numerals to scale degrees (0-based semitones from tonic)
+    scale_degrees = {
+        "I": 0,   # Tonic
+        "II": 2,  # Supertonic
+        "III": 4, # Mediant
+        "IV": 5,  # Subdominant
+        "V": 7,   # Dominant
+        "VI": 9,  # Submediant
+        "VII": 11 # Leading tone
+    }
+
+    # Get base interval
+    base_interval = scale_degrees.get(base_numeral, 0)
+
+    # Apply accidentals
+    accidentals = roman_info["accidentals"]
+    accidental_offset = 0
+    for acc in accidentals:
+        if acc in ["b", "♭"]:
+            accidental_offset -= 1
+        elif acc in ["#", "♯"]:
+            accidental_offset += 1
+
+    # Special minor key adjustments
+    if is_minor_key:
+        # In minor, naturally flatten III, VI, VII relative to parallel major
+        if base_numeral == "III":
+            base_interval = 3  # ♭III in minor
+        elif base_numeral == "VI":
+            base_interval = 8  # ♭VI in minor
+        elif base_numeral == "VII":
+            base_interval = 10  # ♭VII in minor (natural VII)
+
+    # Calculate final pitch class
+    final_pc = (key_pc + base_interval + accidental_offset) % 12
+
+    # Determine preferred enharmonic spelling
+    use_flat = _should_use_flat_spelling(base_numeral, accidentals, is_minor_key)
+
+    return final_pc, use_flat
+
+
+def _should_use_flat_spelling(base_numeral: str, accidentals: str, is_minor_key: bool) -> bool:
+    """Determine if we should use flat spelling instead of sharp."""
+    # Opening move: check if we have a flat accidental in the roman
+    if "b" in accidentals or "♭" in accidentals:
+        return True
+
+    # For certain scale degrees, prefer flat spelling contextually
+    # bVII is almost always Bb in C major, not A#
+    if base_numeral == "VII" and accidentals:
+        return True
+
+    # bII, bIII, bVI are typically flats
+    if base_numeral in ["II", "III", "VI"] and accidentals:
+        return True
+
+    return False
+
+
+def _should_use_flat_in_key_context(pitch_class: int, key_center: str) -> bool:
+    """Determine if a note should use flat spelling based on key context."""
+    # Victory lap: use key signature to determine if flats are more natural
+    from ..utils.scales import KEY_SIGNATURES
+
+    # Get the key signature accidentals
+    key_sig = KEY_SIGNATURES.get(key_center, [])
+
+    # Map pitch classes to potential flat/sharp names
+    flat_names = {1: "Db", 3: "Eb", 6: "Gb", 8: "Ab", 10: "Bb"}
+    sharp_names = {1: "C#", 3: "D#", 6: "F#", 8: "G#", 10: "A#"}
+
+    if pitch_class not in flat_names:
+        return False  # Natural note, no choice needed
+
+    flat_name = flat_names[pitch_class]
+    sharp_name = sharp_names[pitch_class]
+
+    # Check if the flat version appears in the key signature
+    if flat_name in key_sig:
+        return True
+
+    # Check if the sharp version appears in the key signature
+    if sharp_name in key_sig:
+        return False
+
+    # Default preference based on key: flat keys prefer flats, sharp keys prefer sharps
+    flat_keys = ["F major", "Bb major", "Eb major", "Ab major", "Db major", "Gb major", "Cb major",
+                 "D minor", "G minor", "C minor", "F minor", "Bb minor", "Eb minor", "Ab minor"]
+
+    return key_center in flat_keys
+
+
+def _get_note_name(pitch_class: int, use_flat: bool) -> str:
+    """Get the appropriate note name for a pitch class."""
+    from ..utils.scales import PITCH_CLASS_NAMES
+
+    # Standard sharp-based names
+    if not use_flat:
+        return PITCH_CLASS_NAMES[pitch_class]
+
+    # Flat-based enharmonic equivalents
+    flat_names = {
+        1: "Db",   # C#/Db
+        3: "Eb",   # D#/Eb
+        6: "Gb",   # F#/Gb
+        8: "Ab",   # G#/Ab
+        10: "Bb",  # A#/Bb
+    }
+
+    return flat_names.get(pitch_class, PITCH_CLASS_NAMES[pitch_class])
+
+
+def _build_chord_symbol(chord_root: str, roman_info: dict, is_minor_key: bool) -> str:
+    """Build the final chord symbol from root and roman numeral info."""
+    # Final whistle: piece together the chord symbol
+
+    chord_symbol = chord_root
+
+    # Determine chord quality from roman case and context
+    if roman_info["is_diminished"]:
+        chord_symbol += "dim"
+        if roman_info["has_seventh"]:
+            chord_symbol += "7"
+    elif roman_info["is_half_diminished"]:
+        chord_symbol += "m7b5"  # Standard notation for half-diminished
+    elif not roman_info["is_major_quality"]:
+        # Lowercase roman = minor chord
+        chord_symbol += "m"
+        if roman_info["has_seventh"]:
+            if roman_info["is_major_seventh"]:
+                chord_symbol += "maj7"
+            else:
+                chord_symbol += "7"
+    else:
+        # Uppercase roman = major chord
+        if roman_info["has_seventh"]:
+            if roman_info["is_major_seventh"]:
+                chord_symbol += "maj7"
+            else:
+                chord_symbol += "7"  # Dominant 7th
+
+    # Add inversion notation if present
+    # Note: This is simplified - full implementation might use slash notation
+    if roman_info["inversion"]:
+        pass  # Could add slash chord notation here
+
+    return chord_symbol

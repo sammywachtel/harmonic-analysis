@@ -71,11 +71,12 @@ class PatternAnalysisService:
 
     async def analyze_with_patterns_async(
         self,
-        chord_symbols: List[str],
+        chord_symbols: Optional[List[str]] = None,
         profile: str = "classical",
         best_cover: bool = True,  # Ignored - compatibility only
         key_hint: Optional[str] = None,
         sections: Optional[List[SectionDTO]] = None,  # Ignored - compatibility only
+        romans: Optional[List[str]] = None,  # NEW: Roman numeral input support
     ) -> AnalysisEnvelope:
         """
         Analyze chord progression using unified pattern engine.
@@ -84,15 +85,32 @@ class PatternAnalysisService:
             chord_symbols: List of chord symbols (e.g., ['C', 'F', 'G', 'C'])
             profile: Analysis profile (passed through to unified service)
             best_cover: Legacy parameter (ignored)
-            key_hint: Optional key context for analysis
+            key_hint: Optional key context for analysis (required for roman inputs)
             sections: Legacy parameter (ignored)
+            romans: List of roman numerals (e.g., ['I', 'vi', 'IV', 'V'])
+                   Mutually exclusive with chord_symbols; requires key_hint
 
         Returns:
             AnalysisEnvelope with primary and alternative analyses
+
+        Raises:
+            ValueError: If both chord_symbols and romans are provided, or if
+                       romans are provided without key_hint
         """
+        # Opening move: validate input exclusivity and requirements
+        if chord_symbols and romans:
+            raise ValueError("Cannot provide both chord_symbols and romans - choose one input type")
+
+        if not chord_symbols and not romans:
+            raise ValueError("Must provide either chord_symbols or romans")
+
+        if romans and not key_hint:
+            raise ValueError("Roman numeral analysis requires key_hint parameter")
+
         # Big play: delegate to unified service with parameter mapping
         envelope = await self._unified_service.analyze_with_patterns_async(
             chords=chord_symbols,
+            romans=romans,
             key_hint=key_hint,
             profile=profile,
             options={
@@ -175,11 +193,12 @@ class PatternAnalysisService:
 
     def analyze_with_patterns(
         self,
-        chord_symbols: List[str],
+        chord_symbols: Optional[List[str]] = None,
         profile: str = "classical",
         best_cover: bool = True,  # Ignored - compatibility only
         key_hint: Optional[str] = None,
         sections: Optional[List[SectionDTO]] = None,  # Ignored - compatibility only
+        romans: Optional[List[str]] = None,  # NEW: Roman numeral input support
     ) -> AnalysisEnvelope:
         """
         Synchronous wrapper for analyze_with_patterns_async.
@@ -193,7 +212,8 @@ class PatternAnalysisService:
         except RuntimeError:
             envelope = asyncio.run(
                 self.analyze_with_patterns_async(
-                    chord_symbols,
+                    chord_symbols=chord_symbols,
+                    romans=romans,
                     key_hint=key_hint,
                     profile=profile,
                     best_cover=best_cover,
@@ -207,7 +227,8 @@ class PatternAnalysisService:
                 future = executor.submit(
                     asyncio.run,
                     self.analyze_with_patterns_async(
-                        chord_symbols,
+                        chord_symbols=chord_symbols,
+                        romans=romans,
                         key_hint=key_hint,
                         profile=profile,
                         best_cover=best_cover,
