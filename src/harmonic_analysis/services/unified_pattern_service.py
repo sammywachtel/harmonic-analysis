@@ -219,14 +219,20 @@ class UnifiedPatternService:
                         envelope.primary.metadata['modal_parent_key'] = modal_parent_key
                     logger.debug(f"📝 Stored modal parent key {modal_parent_key} in metadata (key hint: {key_hint})")
 
-            # Only apply modal parent key conversion when functional analysis is explicitly requested via key hint
-            # and conflicts with detected modal characteristics
-            if key_hint:
+            # Selective modal parent key conversion: Only when strong modal evidence AND no key hint
+            # Avoid conversion for ambiguous cases that could be analyzed functionally
+            if not key_hint:
                 modal_conf = getattr(envelope.primary, 'modal_confidence', 0.0) or 0.0
                 func_conf = getattr(envelope.primary, 'functional_confidence', 0.0) or 0.0
 
-                # Apply modal parent key conversion if functional confidence is high but modal patterns detected
-                if func_conf > modal_conf and modal_conf > 0.1:  # Convert when functional dominates but modal evidence present
+                # Only convert for specific modal patterns that clearly benefit from parent key context
+                # Avoid conversion for ambiguous patterns that could be analyzed functionally
+                should_convert = (
+                    modal_conf > 0.6 and func_conf < 0.1 and  # Strong modal evidence, weak functional
+                    any(pattern in str(envelope.primary.patterns) for pattern in ['phrygian', 'dorian']) and  # Specific modal patterns
+                    len(chords) <= 3  # Short progressions that clearly establish mode
+                )
+                if should_convert:
                     modal_parent_key = self._convert_to_modal_parent_key(mode_label, context.key)
                     if modal_parent_key != context.key:
                         logger.debug(f"🎭 Applying conditional modal parent key conversion: {context.key} → {modal_parent_key} (modal_conf={modal_conf:.2f} > func_conf={func_conf:.2f})")

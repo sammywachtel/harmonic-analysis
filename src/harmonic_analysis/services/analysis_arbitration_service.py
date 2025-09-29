@@ -254,6 +254,10 @@ class AnalysisArbitrationService:
         func_conf = functional_summary.confidence
         modal_conf = modal_summary.confidence
 
+        # Apply rounding to avoid floating-point precision issues (e.g., 0.39999999999999997 -> 0.4)
+        func_conf = round(float(func_conf), 3)
+        modal_conf = round(float(modal_conf), 3)
+
         # Set confidence breakdown fields
         functional_summary.functional_confidence = func_conf
         functional_summary.modal_confidence = modal_conf

@@ -188,6 +188,12 @@ class PatternEngine:
         chromatic_conf = self._calibrate(aggregated["chromatic_conf"])
         combined_conf = self._calibrate(aggregated["combined_conf"])
 
+        # Round confidence values to avoid floating-point precision issues
+        functional_conf = round(float(functional_conf), 3)
+        modal_conf = round(float(modal_conf), 3)
+        chromatic_conf = round(float(chromatic_conf), 3)
+        combined_conf = round(float(combined_conf), 3)
+
         # Build primary analysis
         primary = self._build_analysis_summary(
             context,
@@ -1147,6 +1153,23 @@ class PatternEngine:
                 reasoning_parts.append("authentic cadence resolution")
             if roman_sequence and roman_sequence[-1].upper().startswith("I"):
                 reasoning_parts.append("tonic resolution")
+
+            # Add modal characteristics if modal confidence is significant
+            if modal_conf >= 0.4:
+                mode_label = context.metadata.get("mode")
+                if mode_label:
+                    reasoning_parts.append(f"with {mode_label} characteristics")
+                # Check for modal signatures in romans
+                modal_accents = []
+                for roman in roman_sequence:
+                    if any(token in roman for token in ("♭VII", "bVII")):
+                        modal_accents.append("♭VII")
+                    if any(token in roman for token in ("♭II", "bII")):
+                        modal_accents.append("♭II")
+                if modal_accents:
+                    reasoning_parts.append(f"modal accents: {', '.join(sorted(set(modal_accents)))}")
+                if "mixolydian" in (mode_label or "").lower():
+                    reasoning_parts.append("Mixolydian coloration")
 
         reasoning_text = "; ".join(reasoning_parts) if reasoning_parts else f"Pattern-based analysis with {len(evidences)} matches"
 
