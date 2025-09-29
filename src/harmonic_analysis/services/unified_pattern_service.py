@@ -17,10 +17,10 @@ from harmonic_analysis.dto import (
     AnalysisType,
 )
 
-from ..core.pattern_engine.pattern_engine import PatternEngine, AnalysisContext
-from ..core.pattern_engine.pattern_loader import PatternLoader
 from ..core.pattern_engine.aggregator import Aggregator
 from ..core.pattern_engine.calibration import Calibrator
+from ..core.pattern_engine.pattern_engine import AnalysisContext, PatternEngine
+from ..core.pattern_engine.pattern_loader import PatternLoader
 from ..core.pattern_engine.plugin_registry import PluginRegistry
 from ..core.pattern_engine.token_converter import romanize_chord
 from ..core.utils.music_theory_constants import canonicalize_key_signature
@@ -176,17 +176,22 @@ class UnifiedPatternService:
 
             # Main play: convert romans to chords using our converter
             from ..core.pattern_engine.token_converter import roman_to_chord
+
             chords = []
             for roman in romans:
                 try:
                     chord = roman_to_chord(roman, key_hint)
                     chords.append(chord)
                 except Exception as e:
-                    logger.warning(f"⚠️ Failed to convert roman '{roman}' in key '{key_hint}': {e}")
+                    logger.warning(
+                        f"⚠️ Failed to convert roman '{roman}' in key '{key_hint}': {e}"
+                    )
                     # Fallback: use roman as-is (will likely fail pattern matching but won't crash)
                     chords.append(roman)
 
-            logger.debug(f"🎵 Converted romans to chords: {romans} → {chords} (key: {key_hint})")
+            logger.debug(
+                f"🎵 Converted romans to chords: {romans} → {chords} (key: {key_hint})"
+            )
 
         elif chords is None:
             raise ValueError("Must provide either chords or romans parameter")

@@ -17,6 +17,7 @@ from harmonic_analysis.dto import (
     AnalysisType,
     SectionDTO,
 )
+
 from .analysis_arbitration_service import AnalysisArbitrationService
 from .unified_pattern_service import UnifiedPatternService
 
@@ -99,7 +100,9 @@ class PatternAnalysisService:
         """
         # Opening move: validate input exclusivity and requirements
         if chord_symbols and romans:
-            raise ValueError("Cannot provide both chord_symbols and romans - choose one input type")
+            raise ValueError(
+                "Cannot provide both chord_symbols and romans - choose one input type"
+            )
 
         # Special case: empty chord_symbols list is allowed for backward compatibility
         if chord_symbols is None and not romans:

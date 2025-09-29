@@ -6,8 +6,9 @@ helpful error messages for common validation failures.
 """
 
 import json
-import pytest
 from pathlib import Path
+
+import pytest
 
 from harmonic_analysis.core.pattern_engine.pattern_loader import PatternLoader
 

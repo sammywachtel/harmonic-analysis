@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 
 from harmonic_analysis.core.pattern_engine.calibration import (
-    Calibrator,
     CalibrationReport,
+    Calibrator,
 )
 
 

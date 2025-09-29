@@ -8,8 +8,8 @@ This is integrated with the corpus mining pipeline and provides a drop-in
 replacement for the legacy TargetBuilder.
 """
 
-from typing import Any, Dict, Iterable, List, Optional, Tuple
 from dataclasses import dataclass
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -30,12 +30,12 @@ class TargetAnnotation:
 # Import the production corpus miner
 try:
     from ...corpus_miner import (
-        UnifiedTargetBuilder as CorpusTargetBuilder,
+        DifficultyStratum,
         LabeledSample,
         LabelSource,
-        DifficultyStratum,
         PatternMatch,
     )
+    from ...corpus_miner import UnifiedTargetBuilder as CorpusTargetBuilder
 
     CORPUS_MINER_AVAILABLE = True
 except ImportError:

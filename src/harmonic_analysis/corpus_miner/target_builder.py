@@ -3,9 +3,10 @@ Unified Target Builder for corpus-based ground truth.
 """
 
 import logging
-import numpy as np
 from collections import defaultdict
 from typing import Dict, List, Tuple
+
+import numpy as np
 
 from .types import (
     CalibrationBucket,

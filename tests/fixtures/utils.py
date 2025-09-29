@@ -7,7 +7,7 @@ and validating pattern matching results across transpositions.
 
 import json
 from pathlib import Path
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from harmonic_analysis.core.pattern_engine.pattern_engine import AnalysisContext
 

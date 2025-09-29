@@ -6,22 +6,22 @@ combines functional and modal analysis through a single, configurable pipeline
 with corpus-based calibration and quality gates.
 """
 
-# Legacy components (to be migrated)
-from .glossary_service import GlossaryService
-from .matcher import Matcher, Pattern, PatternLibrary, Token, load_library
-from .token_converter import TokenConverter
-
 # New unified engine components
 from .aggregator import Aggregator
 from .calibration import CalibrationMapping, CalibrationMetrics, Calibrator
 from .evidence import Evidence
+
+# Legacy components (to be migrated)
+from .glossary_service import GlossaryService
+from .matcher import Matcher, Pattern, PatternLibrary, Token, load_library
 from .pattern_engine import AnalysisContext, PatternEngine
 from .pattern_loader import PatternLoader
 from .plugin_registry import PatternEvaluator, PluginRegistry
 from .target_builder_unified import (
-    UnifiedTargetBuilder as TargetBuilder,
     TargetAnnotation,
 )
+from .target_builder_unified import UnifiedTargetBuilder as TargetBuilder
+from .token_converter import TokenConverter
 
 __all__ = [
     # Legacy (for backwards compatibility during migration)

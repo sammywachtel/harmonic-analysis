@@ -582,7 +582,8 @@ def roman_to_chord(roman_numeral: str, key_center: str) -> str:
     is_minor = len(key_parts) > 1 and "minor" in key_parts[1].lower()
 
     # Get tonic pitch class
-    from ..utils.scales import NOTE_TO_PITCH_CLASS, PITCH_CLASS_NAMES
+    from ..utils.scales import NOTE_TO_PITCH_CLASS
+
     key_pc = NOTE_TO_PITCH_CLASS.get(key_root, 0)
 
     # Handle secondary dominants first (V/V, vii°/V, etc.)
@@ -607,7 +608,9 @@ def roman_to_chord(roman_numeral: str, key_center: str) -> str:
     return chord_symbol
 
 
-def _handle_secondary_roman(roman_numeral: str, key_center: str, key_pc: int, is_minor: bool) -> str:
+def _handle_secondary_roman(
+    roman_numeral: str, key_center: str, key_pc: int, is_minor: bool
+) -> str:
     """Handle secondary dominants and applied chords (V/V, vii°/ii, etc.)."""
     parts = roman_numeral.split("/")
     if len(parts) != 2:
@@ -627,12 +630,16 @@ def _handle_secondary_roman(roman_numeral: str, key_center: str, key_pc: int, is
     if function_info["base_numeral"].upper() == "V":
         # V/V in C major: target is V (G), so we want the dominant of G (D7)
         secondary_pc = (target_pc + 7) % 12  # Perfect fifth above target
-        chord_root = _get_note_name(secondary_pc, False)  # Default to sharp for dominants
+        chord_root = _get_note_name(
+            secondary_pc, False
+        )  # Default to sharp for dominants
         return chord_root + "7"  # Secondary dominants are typically 7th chords
 
     # For other secondary functions, calculate relative to target
     # This is a simplified implementation - could be expanded
-    secondary_pc, use_flat = _calculate_chord_pitch_class(function_info, target_pc, False)  # Treat target as major context
+    secondary_pc, use_flat = _calculate_chord_pitch_class(
+        function_info, target_pc, False
+    )  # Treat target as major context
     chord_root = _get_note_name(secondary_pc, use_flat)
 
     return _build_chord_symbol(chord_root, function_info, False)
@@ -665,7 +672,9 @@ def _parse_roman_components(roman: str) -> dict:
 
     # Check for seventh chords
     has_seventh = "7" in extensions
-    is_major_seventh = "maj7" in extensions.lower() or "∆" in extensions or "M7" in extensions
+    is_major_seventh = (
+        "maj7" in extensions.lower() or "∆" in extensions or "M7" in extensions
+    )
 
     # Check for inversions
     inversion = None
@@ -693,7 +702,9 @@ def _parse_roman_components(roman: str) -> dict:
     }
 
 
-def _calculate_chord_pitch_class(roman_info: dict, key_pc: int, is_minor_key: bool) -> tuple:
+def _calculate_chord_pitch_class(
+    roman_info: dict, key_pc: int, is_minor_key: bool
+) -> tuple:
     """Calculate the pitch class and enharmonic spelling of the chord root."""
     # Time to tackle the tricky bit: roman numerals to scale degrees
 
@@ -701,13 +712,13 @@ def _calculate_chord_pitch_class(roman_info: dict, key_pc: int, is_minor_key: bo
 
     # Map roman numerals to scale degrees (0-based semitones from tonic)
     scale_degrees = {
-        "I": 0,   # Tonic
+        "I": 0,  # Tonic
         "II": 2,  # Supertonic
-        "III": 4, # Mediant
+        "III": 4,  # Mediant
         "IV": 5,  # Subdominant
-        "V": 7,   # Dominant
+        "V": 7,  # Dominant
         "VI": 9,  # Submediant
-        "VII": 11 # Leading tone
+        "VII": 11,  # Leading tone
     }
 
     # Get base interval
@@ -741,7 +752,9 @@ def _calculate_chord_pitch_class(roman_info: dict, key_pc: int, is_minor_key: bo
     return final_pc, use_flat
 
 
-def _should_use_flat_spelling(base_numeral: str, accidentals: str, is_minor_key: bool) -> bool:
+def _should_use_flat_spelling(
+    base_numeral: str, accidentals: str, is_minor_key: bool
+) -> bool:
     """Determine if we should use flat spelling instead of sharp."""
     # Opening move: check if we have a flat accidental in the roman
     if "b" in accidentals or "♭" in accidentals:
@@ -786,8 +799,22 @@ def _should_use_flat_in_key_context(pitch_class: int, key_center: str) -> bool:
         return False
 
     # Default preference based on key: flat keys prefer flats, sharp keys prefer sharps
-    flat_keys = ["F major", "Bb major", "Eb major", "Ab major", "Db major", "Gb major", "Cb major",
-                 "D minor", "G minor", "C minor", "F minor", "Bb minor", "Eb minor", "Ab minor"]
+    flat_keys = [
+        "F major",
+        "Bb major",
+        "Eb major",
+        "Ab major",
+        "Db major",
+        "Gb major",
+        "Cb major",
+        "D minor",
+        "G minor",
+        "C minor",
+        "F minor",
+        "Bb minor",
+        "Eb minor",
+        "Ab minor",
+    ]
 
     return key_center in flat_keys
 
@@ -802,10 +829,10 @@ def _get_note_name(pitch_class: int, use_flat: bool) -> str:
 
     # Flat-based enharmonic equivalents
     flat_names = {
-        1: "Db",   # C#/Db
-        3: "Eb",   # D#/Eb
-        6: "Gb",   # F#/Gb
-        8: "Ab",   # G#/Ab
+        1: "Db",  # C#/Db
+        3: "Eb",  # D#/Eb
+        6: "Gb",  # F#/Gb
+        8: "Ab",  # G#/Ab
         10: "Bb",  # A#/Bb
     }
 

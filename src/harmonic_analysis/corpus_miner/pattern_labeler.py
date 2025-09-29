@@ -4,6 +4,7 @@ Pattern Labeler - Unified target construction with adjudication heuristics.
 
 import logging
 from typing import Dict, List, Optional, Tuple
+
 from .types import (
     AdjudicationRules,
     DifficultyStratum,

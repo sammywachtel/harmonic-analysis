@@ -5,20 +5,21 @@ Tests the glossary helper functions and their integration with the pattern engin
 to ensure feature enrichment works correctly.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from harmonic_analysis.core.pattern_engine import (
-    PatternEngine,
     AnalysisContext,
     Evidence,
+    PatternEngine,
 )
 from harmonic_analysis.core.pattern_engine.glossary import (
-    explain_feature,
     enrich_features,
+    explain_feature,
     get_summary_terms,
-    load_glossary,
     load_default_glossary,
+    load_glossary,
 )
 
 
