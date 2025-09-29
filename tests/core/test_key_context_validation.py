@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 from harmonic_analysis.core.validation_errors import (
     MissingKeyError,
-    ModalSymbolError,
     validate_key_for_romans,
     validate_key_for_analysis,
     MISSING_KEY_FOR_ROMANS_MSG,
@@ -63,7 +62,7 @@ class TestKeyContextValidation:
             roman_numerals=[],
             melody=[],
             scales=[],
-            metadata={}
+            metadata={},
         )
 
         # Valid: romans with key
@@ -73,7 +72,7 @@ class TestKeyContextValidation:
             roman_numerals=["I", "IV", "V"],
             melody=[],
             scales=[],
-            metadata={}
+            metadata={},
         )
 
         # Invalid: romans without key should raise error
@@ -84,7 +83,7 @@ class TestKeyContextValidation:
                 roman_numerals=["I", "IV", "V"],
                 melody=[],
                 scales=[],
-                metadata={}
+                metadata={},
             )
 
     async def test_analyze_scale_requires_key(self):
@@ -92,7 +91,9 @@ class TestKeyContextValidation:
         notes = ["C", "D", "E", "F", "G", "A", "B"]
 
         # Should work with key
-        with patch('harmonic_analysis.api.analysis._analyze_scale_melody') as mock_analyze:
+        with patch(
+            "harmonic_analysis.api.analysis._analyze_scale_melody"
+        ) as mock_analyze:
             mock_analyze.return_value = "mock_result"
             result = await analyze_scale(notes, key="C major")
             assert result == "mock_result"
@@ -110,7 +111,9 @@ class TestKeyContextValidation:
         notes = ["G", "A", "B", "C", "D"]
 
         # Should work with key
-        with patch('harmonic_analysis.api.analysis._analyze_scale_melody') as mock_analyze:
+        with patch(
+            "harmonic_analysis.api.analysis._analyze_scale_melody"
+        ) as mock_analyze:
             mock_analyze.return_value = "mock_result"
             result = await analyze_melody(notes, key="G major")
             assert result == "mock_result"
@@ -162,8 +165,8 @@ class TestKeyContextValidation:
         # Modal symbols should not be accepted without key
         modal_progressions = [
             ["i", "♭VII", "♭VI", "V"],  # Andalusian
-            ["i", "♭II", "i"],          # Phrygian
-            ["I", "♭VII", "I"],         # Mixolydian
+            ["i", "♭II", "i"],  # Phrygian
+            ["I", "♭VII", "I"],  # Mixolydian
         ]
 
         for romans in modal_progressions:

@@ -36,7 +36,7 @@ class CorpusExtractor:
                 chords=["C", "F", "G", "C"],
                 roman_numerals=["I", "IV", "V", "I"],
                 melody=["C5", "F5", "G5", "C5"],
-                metadata={"source": "mock", "difficulty": "simple"}
+                metadata={"source": "mock", "difficulty": "simple"},
             ),
             # Modal complex - Dorian progression
             MusicalContext(
@@ -44,7 +44,7 @@ class CorpusExtractor:
                 chords=["Dm", "C", "Dm", "Gm"],
                 roman_numerals=["i", "♭VII", "i", "iv"],
                 melody=["D5", "C5", "D5", "G5"],
-                metadata={"source": "mock", "difficulty": "modal"}
+                metadata={"source": "mock", "difficulty": "modal"},
             ),
             # Chromatic moderate - secondary dominant
             MusicalContext(
@@ -52,7 +52,7 @@ class CorpusExtractor:
                 chords=["G", "E7", "Am", "D7"],
                 roman_numerals=["I", "V/vi", "vi", "V"],
                 melody=["G5", "E5", "A5", "D5"],
-                metadata={"source": "mock", "difficulty": "chromatic"}
+                metadata={"source": "mock", "difficulty": "chromatic"},
             ),
             # Jazz progression
             MusicalContext(
@@ -60,7 +60,7 @@ class CorpusExtractor:
                 chords=["Fmaj7", "Dm7", "Gm7", "C7"],
                 roman_numerals=["Imaj7", "vi7", "ii7", "V7"],
                 melody=["F5", "D5", "G5", "C5"],
-                metadata={"source": "mock", "difficulty": "jazz"}
+                metadata={"source": "mock", "difficulty": "jazz"},
             ),
         ]
 
@@ -75,7 +75,9 @@ class CorpusExtractor:
         self.logger.info(f"Extracted {len(samples)} corpus samples (mock)")
         return samples
 
-    def _transpose_mock(self, sample: MusicalContext, target_key: str) -> MusicalContext:
+    def _transpose_mock(
+        self, sample: MusicalContext, target_key: str
+    ) -> MusicalContext:
         """Create a transposed version of a sample."""
         # Simplified transposition for mock data
         return MusicalContext(
@@ -83,5 +85,5 @@ class CorpusExtractor:
             chords=sample.chords,  # Would transpose in real implementation
             roman_numerals=sample.roman_numerals,  # These stay the same
             melody=sample.melody,  # Would transpose in real implementation
-            metadata={**sample.metadata, "transposed_from": sample.key}
+            metadata={**sample.metadata, "transposed_from": sample.key},
         )

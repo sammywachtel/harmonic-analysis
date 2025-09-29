@@ -19,11 +19,13 @@ from .evidence import Evidence
 @dataclass
 class TargetAnnotation:
     """Annotation for target construction - migrated from legacy target builder."""
+
     span: Tuple[int, int]
     analysis_type: str
     confidence: float
     source: str
     metadata: Dict[str, Any]
+
 
 # Import the production corpus miner
 try:
@@ -32,14 +34,24 @@ try:
         LabeledSample,
         LabelSource,
         DifficultyStratum,
-        PatternMatch
+        PatternMatch,
     )
+
     CORPUS_MINER_AVAILABLE = True
 except ImportError:
     CORPUS_MINER_AVAILABLE = False
+
     # Mock classes for when corpus miner is not available
     class LabeledSample:
-        def __init__(self, context, matches, label, label_source, difficulty_stratum, confidence_breakdown):
+        def __init__(
+            self,
+            context,
+            matches,
+            label,
+            label_source,
+            difficulty_stratum,
+            confidence_breakdown,
+        ):
             self.context = context
             self.matches = matches
             self.label = label
@@ -76,7 +88,7 @@ class UnifiedTargetBuilder:
         self,
         agreement_threshold: float = 0.8,
         ambiguous_range: Tuple[float, float] = (0.3, 0.7),
-        use_corpus_pipeline: bool = True
+        use_corpus_pipeline: bool = True,
     ):
         """
         Initialize unified target builder.
@@ -99,7 +111,9 @@ class UnifiedTargetBuilder:
     def build_targets(
         self,
         evidences: Iterable[Evidence],
-        annotations: Optional[List[Any]] = None,  # Legacy parameter for backward compatibility
+        annotations: Optional[
+            List[Any]
+        ] = None,  # Legacy parameter for backward compatibility
     ) -> List[float]:
         """
         Build unified reliability targets from evidence.
@@ -129,7 +143,9 @@ class UnifiedTargetBuilder:
         if self.corpus_builder and len(labeled_samples) > 0:
             try:
                 # Use corpus mining unified target construction
-                raw_scores, reliability_targets, _ = self.corpus_builder.build_unified_targets(labeled_samples)
+                raw_scores, reliability_targets, _ = (
+                    self.corpus_builder.build_unified_targets(labeled_samples)
+                )
                 return reliability_targets.tolist()
             except Exception:
                 # Fallback to heuristic approach
@@ -138,7 +154,9 @@ class UnifiedTargetBuilder:
         # Fallback: use heuristic unified target construction
         return self._build_heuristic_unified_targets(evidences)
 
-    def _convert_evidence_to_labeled_samples(self, evidences: List[Evidence]) -> List[LabeledSample]:
+    def _convert_evidence_to_labeled_samples(
+        self, evidences: List[Evidence]
+    ) -> List[LabeledSample]:
         """Convert legacy Evidence objects to unified LabeledSample format."""
         if not CORPUS_MINER_AVAILABLE:
             return []
@@ -152,7 +170,7 @@ class UnifiedTargetBuilder:
                     pattern_id=evidence.pattern_id,
                     span=evidence.span,
                     raw_score=evidence.raw_score,
-                    evidence_features=evidence.features
+                    evidence_features=evidence.features,
                 )
 
                 # Apply unified adjudication heuristics
@@ -166,13 +184,13 @@ class UnifiedTargetBuilder:
                     context={
                         "evidence_span": evidence.span,
                         "track_weights": evidence.track_weights,
-                        "pattern_id": evidence.pattern_id
+                        "pattern_id": evidence.pattern_id,
                     },
                     matches=[pattern_match],
                     label=reliability_score,
                     label_source=label_source,
                     difficulty_stratum=difficulty,
-                    confidence_breakdown={"legacy_conversion": True}
+                    confidence_breakdown={"legacy_conversion": True},
                 )
 
                 labeled_samples.append(labeled_sample)
@@ -190,7 +208,10 @@ class UnifiedTargetBuilder:
         if len(evidence.track_weights) == 1:
             track_weight = list(evidence.track_weights.values())[0]
             if track_weight > 0.8 and evidence.raw_score > 0.8:
-                return min(0.95, evidence.raw_score + 0.1), LabelSource.ADJUDICATION_HEURISTIC
+                return (
+                    min(0.95, evidence.raw_score + 0.1),
+                    LabelSource.ADJUDICATION_HEURISTIC,
+                )
 
         # Rule 2: Multi-track consensus
         if len(evidence.track_weights) > 1:
@@ -199,14 +220,20 @@ class UnifiedTargetBuilder:
 
             if max_weight / total_weight > 0.7:
                 # Strong agreement on primary track
-                return min(0.9, evidence.raw_score + 0.05), LabelSource.ADJUDICATION_HEURISTIC
+                return (
+                    min(0.9, evidence.raw_score + 0.05),
+                    LabelSource.ADJUDICATION_HEURISTIC,
+                )
             else:
                 # Disagreement - soft label
                 return 0.4 + (evidence.raw_score * 0.3), LabelSource.WEAK_SUPERVISION
 
         # Rule 3: High-confidence patterns
         if "cadence" in evidence.pattern_id and evidence.raw_score >= 0.8:
-            return min(0.92, evidence.raw_score + 0.07), LabelSource.ADJUDICATION_HEURISTIC
+            return (
+                min(0.92, evidence.raw_score + 0.07),
+                LabelSource.ADJUDICATION_HEURISTIC,
+            )
 
         # Rule 4: Default reliability based on raw score
         reliability = np.clip(evidence.raw_score, 0.2, 0.85)
@@ -228,7 +255,9 @@ class UnifiedTargetBuilder:
         else:
             return DifficultyStratum.CHROMATIC_MODERATE
 
-    def _build_heuristic_unified_targets(self, evidences: List[Evidence]) -> List[float]:
+    def _build_heuristic_unified_targets(
+        self, evidences: List[Evidence]
+    ) -> List[float]:
         """
         Fallback heuristic target construction when corpus pipeline unavailable.
 
@@ -242,7 +271,9 @@ class UnifiedTargetBuilder:
 
         return targets
 
-    def _build_annotation_targets(self, evidences: List[Evidence], annotations: List[Any]) -> List[float]:
+    def _build_annotation_targets(
+        self, evidences: List[Evidence], annotations: List[Any]
+    ) -> List[float]:
         """
         Build targets using legacy annotations for backward compatibility.
 
@@ -258,7 +289,11 @@ class UnifiedTargetBuilder:
             if len(annotations) == len(evidences):
                 # Find corresponding annotation by index
                 evidence_idx = evidences.index(evidence)
-                annotation = annotations[evidence_idx] if evidence_idx < len(annotations) else None
+                annotation = (
+                    annotations[evidence_idx]
+                    if evidence_idx < len(annotations)
+                    else None
+                )
 
                 if annotation is not None:
                     target = self._compute_target_from_annotation(evidence, annotation)
@@ -270,18 +305,25 @@ class UnifiedTargetBuilder:
             # Case 2: Find all overlapping annotations for this evidence
             else:
                 overlapping_annotations = [
-                    ann for ann in annotations
-                    if ann is not None and hasattr(ann, 'span') and self._spans_overlap(evidence.span, ann.span)
+                    ann
+                    for ann in annotations
+                    if ann is not None
+                    and hasattr(ann, "span")
+                    and self._spans_overlap(evidence.span, ann.span)
                 ]
 
                 if overlapping_annotations:
                     if len(overlapping_annotations) == 1:
                         # Single overlapping annotation
-                        target = self._compute_target_from_annotation(evidence, overlapping_annotations[0])
+                        target = self._compute_target_from_annotation(
+                            evidence, overlapping_annotations[0]
+                        )
                         targets.append(target)
                     else:
                         # Multiple overlapping annotations - compute weighted average
-                        target = self._compute_weighted_annotation_target(evidence, overlapping_annotations)
+                        target = self._compute_weighted_annotation_target(
+                            evidence, overlapping_annotations
+                        )
                         targets.append(target)
                 else:
                     # No overlapping annotations - use heuristic
@@ -290,9 +332,11 @@ class UnifiedTargetBuilder:
 
         return targets
 
-    def _compute_target_from_annotation(self, evidence: Evidence, annotation: Any) -> float:
+    def _compute_target_from_annotation(
+        self, evidence: Evidence, annotation: Any
+    ) -> float:
         """Extract confidence from annotation and apply type-based adjustments."""
-        if not hasattr(annotation, 'confidence'):
+        if not hasattr(annotation, "confidence"):
             reliability_score, _ = self._adjudicate_evidence(evidence)
             return reliability_score
 
@@ -300,7 +344,7 @@ class UnifiedTargetBuilder:
 
         # Apply type matching logic from legacy implementation
         evidence_types = set(evidence.track_weights.keys())
-        if hasattr(annotation, 'analysis_type'):
+        if hasattr(annotation, "analysis_type"):
             if annotation.analysis_type in evidence_types:
                 # Type matches - use full confidence
                 return base_confidence
@@ -314,7 +358,9 @@ class UnifiedTargetBuilder:
             # No analysis_type - use full confidence
             return base_confidence
 
-    def _compute_weighted_annotation_target(self, evidence: Evidence, annotations: List[Any]) -> float:
+    def _compute_weighted_annotation_target(
+        self, evidence: Evidence, annotations: List[Any]
+    ) -> float:
         """Compute weighted average target from multiple overlapping annotations."""
         weighted_sum = 0.0
         total_weight = 0.0
@@ -336,7 +382,9 @@ class UnifiedTargetBuilder:
         """Check if two spans overlap."""
         return span1[0] < span2[1] and span2[0] < span1[1]
 
-    def _compute_overlap_ratio(self, span1: Tuple[int, int], span2: Tuple[int, int]) -> float:
+    def _compute_overlap_ratio(
+        self, span1: Tuple[int, int], span2: Tuple[int, int]
+    ) -> float:
         """Compute overlap ratio between two spans."""
         if not self._spans_overlap(span1, span2):
             return 0.0
@@ -356,7 +404,9 @@ class UnifiedTargetBuilder:
         # This method is kept for compatibility but returns empty list
         return []
 
-    def _compute_target_for_evidence(self, evidence: Evidence, annotations: List[Any]) -> float:
+    def _compute_target_for_evidence(
+        self, evidence: Evidence, annotations: List[Any]
+    ) -> float:
         """Legacy method for compatibility."""
         reliability_score, _ = self._adjudicate_evidence(evidence)
         return reliability_score

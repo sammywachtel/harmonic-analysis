@@ -20,7 +20,6 @@ from harmonic_analysis.core.pattern_engine.glossary import (
     load_glossary,
     load_default_glossary,
 )
-from harmonic_analysis.dto import AnalysisType
 
 
 class TestGlossaryHelpers:
@@ -31,13 +30,13 @@ class TestGlossaryHelpers:
         glossary = {
             "analysis_terms": {
                 "functional_harmony": "System of chord functions guiding progression",
-                "chromaticism": "Use of notes outside the diatonic scale"
+                "chromaticism": "Use of notes outside the diatonic scale",
             },
             "cadences": {
                 "PAC": {
                     "definition": "Perfect Authentic Cadence. V–I with soprano on tonic."
                 }
-            }
+            },
         }
 
         # Test feature mapping
@@ -60,11 +59,7 @@ class TestGlossaryHelpers:
 
     def test_explain_feature_with_legacy_features(self):
         """Test explaining legacy features like lt_suppression."""
-        glossary = {
-            "scale_degrees": {
-                "7": "Leading tone — B in C major."
-            }
-        }
+        glossary = {"scale_degrees": {"7": "Leading tone — B in C major."}}
 
         label, tooltip = explain_feature(glossary, "lt_suppression")
         assert label == "Leading Tone Suppression"
@@ -72,16 +67,12 @@ class TestGlossaryHelpers:
 
     def test_enrich_features_with_known_features(self):
         """Test enriching features dictionary."""
-        glossary = {
-            "analysis_terms": {
-                "modal_char_score": "Modal character strength"
-            }
-        }
+        glossary = {"analysis_terms": {"modal_char_score": "Modal character strength"}}
 
         features = {
             "modal_char_score": 0.8,
             "pattern_weight": 0.7,
-            "unknown_feature": 0.5
+            "unknown_feature": 0.5,
         }
 
         enriched = enrich_features(glossary, features)
@@ -131,7 +122,10 @@ class TestGlossaryHelpers:
         # Known features should be included
         assert "tonal_clarity" in terms
         assert terms["tonal_clarity"]["label"] == "Tonal Clarity"
-        assert terms["tonal_clarity"]["tooltip"] == "Strength of functional harmonic progression"
+        assert (
+            terms["tonal_clarity"]["tooltip"]
+            == "Strength of functional harmonic progression"
+        )
 
         assert "has_auth_cadence" in terms
         assert terms["has_auth_cadence"]["label"] == "Authentic Cadence"
@@ -141,7 +135,9 @@ class TestGlossaryHelpers:
 
     def test_load_glossary_uses_glossary_service(self):
         """Test that load_glossary uses the existing GlossaryService."""
-        with patch('harmonic_analysis.core.pattern_engine.glossary.GlossaryService') as mock_service:
+        with patch(
+            "harmonic_analysis.core.pattern_engine.glossary.GlossaryService"
+        ) as mock_service:
             mock_instance = MagicMock()
             mock_instance.glossary = {"test": "data"}
             mock_service.return_value = mock_instance
@@ -153,7 +149,9 @@ class TestGlossaryHelpers:
 
     def test_load_default_glossary(self):
         """Test loading default glossary."""
-        with patch('harmonic_analysis.core.pattern_engine.glossary.load_glossary') as mock_load:
+        with patch(
+            "harmonic_analysis.core.pattern_engine.glossary.load_glossary"
+        ) as mock_load:
             mock_load.return_value = {"default": "glossary"}
 
             result = load_default_glossary()
@@ -167,7 +165,9 @@ class TestPatternEngineGlossaryIntegration:
 
     def test_pattern_engine_loads_glossary_on_init(self):
         """Test that pattern engine loads glossary on initialization."""
-        with patch('harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryService') as mock_service:
+        with patch(
+            "harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryService"
+        ) as mock_service:
             instance = mock_service.return_value
             instance.glossary = {"test": "glossary"}
             engine = PatternEngine()
@@ -176,8 +176,12 @@ class TestPatternEngineGlossaryIntegration:
 
     def test_pattern_engine_handles_missing_glossary(self):
         """Test that pattern engine handles missing glossary gracefully."""
-        with patch('harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryService') as mock_service:
-            with patch('harmonic_analysis.core.pattern_engine.pattern_engine.load_default_glossary') as mock_load:
+        with patch(
+            "harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryService"
+        ) as mock_service:
+            with patch(
+                "harmonic_analysis.core.pattern_engine.pattern_engine.load_default_glossary"
+            ) as mock_load:
                 mock_service.side_effect = Exception("service unavailable")
                 mock_load.side_effect = FileNotFoundError("Glossary not found")
 
@@ -203,7 +207,7 @@ class TestPatternEngineGlossaryIntegration:
                 features={"tonal_clarity": 0.9, "unknown_feature": 0.5},
                 raw_score=0.8,
                 uncertainty=None,
-                span=(0, 2)
+                span=(0, 2),
             )
         ]
 
@@ -223,7 +227,10 @@ class TestPatternEngineGlossaryIntegration:
         ui_features = features["features_ui"]
         assert "tonal_clarity" in ui_features
         assert ui_features["tonal_clarity"]["label"] == "Tonal Clarity"
-        assert ui_features["tonal_clarity"]["tooltip"] == "Strength of functional harmonic progression"
+        assert (
+            ui_features["tonal_clarity"]["tooltip"]
+            == "Strength of functional harmonic progression"
+        )
 
     def test_analysis_summary_includes_terms(self, tmp_path):
         """Test that analysis summary includes terms from glossary."""
@@ -234,9 +241,7 @@ class TestPatternEngineGlossaryIntegration:
         # Create engine with mock glossary
         engine = PatternEngine()
         engine._glossary = {
-            "analysis_terms": {
-                "pattern_weight": "Base confidence weight for patterns"
-            }
+            "analysis_terms": {"pattern_weight": "Base confidence weight for patterns"}
         }
         engine.load_patterns(pattern_file)
 
@@ -248,7 +253,7 @@ class TestPatternEngineGlossaryIntegration:
                 features={"pattern_weight": 0.7},
                 raw_score=0.8,
                 uncertainty=None,
-                span=(0, 2)
+                span=(0, 2),
             )
         ]
 
@@ -257,12 +262,12 @@ class TestPatternEngineGlossaryIntegration:
             key="C major",
             chords=["C", "F"],
             roman_numerals=["I", "IV"],
-            melody=[], scales=[], metadata={}
+            melody=[],
+            scales=[],
+            metadata={},
         )
 
-        summary = engine._build_analysis_summary(
-            context, evidences, 0.8, 0.2, 0.8, {}
-        )
+        summary = engine._build_analysis_summary(context, evidences, 0.8, 0.2, 0.8, {})
 
         # Check that terms were populated
         assert "terms" in summary.__dict__
@@ -289,11 +294,12 @@ class TestPatternEngineGlossaryIntegration:
                     "scope": ["harmonic"],
                     "track": ["functional"],
                     "matchers": {"roman_seq": ["V", "I"]},
-                    "evidence": {"weight": 0.9, "confidence_fn": "identity"}
+                    "evidence": {"weight": 0.9, "confidence_fn": "identity"},
                 }
-            ]
+            ],
         }
         import json
+
         pattern_file.write_text(json.dumps(patterns))
 
         # Create engine with mock glossary
@@ -301,7 +307,7 @@ class TestPatternEngineGlossaryIntegration:
         engine._glossary = {
             "analysis_terms": {
                 "identity": "Identity function",
-                "pattern_weight": "Base pattern weight"
+                "pattern_weight": "Base pattern weight",
             }
         }
         engine._glossary_service = type(
@@ -321,7 +327,9 @@ class TestPatternEngineGlossaryIntegration:
             key="C major",
             chords=["G", "C"],
             roman_numerals=["V", "I"],
-            melody=[], scales=[], metadata={}
+            melody=[],
+            scales=[],
+            metadata={},
         )
 
         envelope = engine.analyze(context)
@@ -336,7 +344,10 @@ class TestPatternEngineGlossaryIntegration:
             evidence = envelope.evidence[0]
             features = evidence.details["features"]
             # Should have features_ui if any known features were found
-            if any(key in engine._glossary.get("analysis_terms", {}) for key in features.keys()):
+            if any(
+                key in engine._glossary.get("analysis_terms", {})
+                for key in features.keys()
+            ):
                 assert "features_ui" in features
 
         # Cadence glossary should be attached to pattern match
@@ -359,11 +370,9 @@ def mock_glossary():
         "analysis_terms": {
             "functional_harmony": "System of chord functions guiding progression",
             "modal_char_score": "Modal character strength",
-            "tonal_clarity": "Strength of functional harmonic progression"
+            "tonal_clarity": "Strength of functional harmonic progression",
         },
-        "terms": {
-            "scale_degree": "Position of a note within the scale, numbered 1-7"
-        }
+        "terms": {"scale_degree": "Position of a note within the scale, numbered 1-7"},
     }
 
 
@@ -372,7 +381,9 @@ class TestGlossaryServiceCompatibility:
 
     def test_explain_feature_uses_existing_service_logic(self, mock_glossary):
         """Test that explain_feature properly leverages GlossaryService."""
-        with patch('harmonic_analysis.core.pattern_engine.glossary.GlossaryService') as mock_service_class:
+        with patch(
+            "harmonic_analysis.core.pattern_engine.glossary.GlossaryService"
+        ) as mock_service_class:
             # Mock the service instance
             mock_service = MagicMock()
             mock_service.get_term_definition.return_value = "System of chord functions"
@@ -381,13 +392,17 @@ class TestGlossaryServiceCompatibility:
             label, tooltip = explain_feature(mock_glossary, "functional_harmony")
 
             # Should have called the service method
-            mock_service.get_term_definition.assert_called_once_with("functional_harmony")
+            mock_service.get_term_definition.assert_called_once_with(
+                "functional_harmony"
+            )
             assert label == "Functional Harmony"
             assert tooltip == "System of chord functions"
 
     def test_fallback_when_service_returns_none(self, mock_glossary):
         """Test fallback behavior when GlossaryService returns None."""
-        with patch('harmonic_analysis.core.pattern_engine.glossary.GlossaryService') as mock_service_class:
+        with patch(
+            "harmonic_analysis.core.pattern_engine.glossary.GlossaryService"
+        ) as mock_service_class:
             mock_service = MagicMock()
             mock_service.get_term_definition.return_value = None
             mock_service_class.return_value = mock_service

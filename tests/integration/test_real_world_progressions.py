@@ -143,8 +143,7 @@ class TestRealWorldProgressions:
             # Fallback: require both confidence signals on primary when alternatives are not provided
             pa = result.primary
             assert (
-                pa.functional_confidence is not None
-                and pa.modal_confidence is not None
+                pa.functional_confidence is not None and pa.modal_confidence is not None
             ), "Primary analysis should expose functional_confidence and modal_confidence when alternatives are not present"
 
         # Check primary analysis
@@ -243,7 +242,9 @@ class TestRealWorldProgressions:
             # These progressions should have alternatives (functional vs modal)
             alts = list(result.alternatives or [])
             if alts:
-                assert len(alts) > 0, f"{description} should have alternative interpretations"
+                assert (
+                    len(alts) > 0
+                ), f"{description} should have alternative interpretations"
             else:
                 pa = result.primary
                 assert (

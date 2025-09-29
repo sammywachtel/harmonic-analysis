@@ -1,0 +1,6 @@
+gradio
+jsonschema
+scipy
+scikit-learn
+fastapi
+uvicorn

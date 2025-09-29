@@ -27,18 +27,12 @@ class TestPatternLoaderValidation:
                     "track": ["functional"],
                     "matchers": {
                         "roman_seq": ["V", "I"],
-                        "transposition_invariant": True
+                        "transposition_invariant": True,
                     },
-                    "evidence": {
-                        "weight": 0.9,
-                        "confidence_fn": "identity"
-                    },
-                    "metadata": {
-                        "tags": ["cadence", "functional"],
-                        "priority": 80
-                    }
+                    "evidence": {"weight": 0.9, "confidence_fn": "identity"},
+                    "metadata": {"tags": ["cadence", "functional"], "priority": 80},
                 }
-            ]
+            ],
         }
 
         pattern_file = tmp_path / "valid_patterns.json"
@@ -60,7 +54,7 @@ class TestPatternLoaderValidation:
                     "id": "incomplete.pattern",
                     # Missing: name, scope, track, matchers, evidence
                 }
-            ]
+            ],
         }
 
         pattern_file = tmp_path / "invalid_patterns.json"
@@ -82,9 +76,9 @@ class TestPatternLoaderValidation:
                     "scope": ["harmonic"],
                     "track": ["functional"],
                     "matchers": {"roman_seq": ["I"]},
-                    "evidence": {"weight": 0.5}
+                    "evidence": {"weight": 0.5},
                 }
-            ]
+            ],
         }
 
         pattern_file = tmp_path / "invalid_id.json"
@@ -106,9 +100,9 @@ class TestPatternLoaderValidation:
                     "scope": ["invalid_scope"],  # Not in enum
                     "track": ["functional"],
                     "matchers": {"roman_seq": ["I"]},
-                    "evidence": {"weight": 0.5}
+                    "evidence": {"weight": 0.5},
                 }
-            ]
+            ],
         }
 
         pattern_file = tmp_path / "invalid_scope.json"
@@ -130,9 +124,9 @@ class TestPatternLoaderValidation:
                     "scope": ["harmonic"],
                     "track": ["invalid_track"],  # Not in enum
                     "matchers": {"roman_seq": ["I"]},
-                    "evidence": {"weight": 0.5}
+                    "evidence": {"weight": 0.5},
                 }
-            ]
+            ],
         }
 
         pattern_file = tmp_path / "invalid_track.json"
@@ -154,9 +148,9 @@ class TestPatternLoaderValidation:
                     "scope": ["harmonic"],
                     "track": ["functional"],
                     "matchers": {"roman_seq": ["I"]},
-                    "evidence": {"weight": 1.5}  # > 1.0
+                    "evidence": {"weight": 1.5},  # > 1.0
                 }
-            ]
+            ],
         }
 
         pattern_file = tmp_path / "invalid_weight.json"
@@ -178,7 +172,7 @@ class TestPatternLoaderValidation:
                     "scope": ["harmonic"],
                     "track": ["functional"],
                     "matchers": {"roman_seq": ["V", "I"]},
-                    "evidence": {"weight": 0.9}
+                    "evidence": {"weight": 0.9},
                 },
                 {
                     "id": "modal.dorian.i_bVII",
@@ -186,9 +180,9 @@ class TestPatternLoaderValidation:
                     "scope": ["harmonic"],
                     "track": ["modal"],
                     "matchers": {"roman_seq": ["i", "♭VII"]},
-                    "evidence": {"weight": 0.7}
-                }
-            ]
+                    "evidence": {"weight": 0.7},
+                },
+            ],
         }
 
         pattern_file = tmp_path / "multi_patterns.json"
@@ -203,10 +197,7 @@ class TestPatternLoaderValidation:
 
     def test_empty_patterns_array_is_valid(self, tmp_path):
         """Test that empty patterns array is valid."""
-        empty_pattern = {
-            "version": 1,
-            "patterns": []
-        }
+        empty_pattern = {"version": 1, "patterns": []}
 
         pattern_file = tmp_path / "empty_patterns.json"
         pattern_file.write_text(json.dumps(empty_pattern))
@@ -221,7 +212,7 @@ class TestPatternLoaderValidation:
         """Test that validation errors include helpful context."""
         invalid_pattern = {
             "version": "not_a_number",  # Should be integer
-            "patterns": []
+            "patterns": [],
         }
 
         pattern_file = tmp_path / "bad_version.json"
@@ -240,10 +231,7 @@ class TestPatternLoaderValidation:
         """Test loading a complex pattern with all optional fields."""
         complex_pattern = {
             "version": 1,
-            "metadata": {
-                "description": "Test patterns",
-                "author": "Test Suite"
-            },
+            "metadata": {"description": "Test patterns", "author": "Test Suite"},
             "patterns": [
                 {
                     "id": "cadence.complex.test",
@@ -261,19 +249,19 @@ class TestPatternLoaderValidation:
                             "soprano_degree": [1, 3, 5],
                             "bass_motion": "ascending",
                             "key_context": "diatonic",
-                            "position": "end"
+                            "position": "end",
                         },
-                        "window": {
-                            "len": 3,
-                            "overlap_ok": False,
-                            "min_gap": 1
-                        }
+                        "window": {"len": 3, "overlap_ok": False, "min_gap": 1},
                     },
                     "evidence": {
                         "weight": 0.85,
-                        "features": ["outside_key_ratio", "has_auth_cadence", "voice_leading_smoothness"],
+                        "features": [
+                            "outside_key_ratio",
+                            "has_auth_cadence",
+                            "voice_leading_smoothness",
+                        ],
                         "confidence_fn": "logistic_default",
-                        "uncertainty": 0.1
+                        "uncertainty": 0.1,
                     },
                     "metadata": {
                         "tags": ["cadence", "complex", "test"],
@@ -283,14 +271,14 @@ class TestPatternLoaderValidation:
                             {
                                 "chords": ["Dm", "G", "C"],
                                 "key": "C major",
-                                "description": "Basic ii-V-I in C major"
+                                "description": "Basic ii-V-I in C major",
                             }
                         ],
                         "false_positives": ["Modal interchange cases"],
-                        "references": ["Test Reference 2024"]
-                    }
+                        "references": ["Test Reference 2024"],
+                    },
                 }
-            ]
+            ],
         }
 
         pattern_file = tmp_path / "complex_pattern.json"

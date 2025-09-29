@@ -13,7 +13,7 @@ from tests.fixtures.utils import (
     FixtureLoader,
     create_context_from_progression,
     validate_matches,
-    generate_transposed_tests
+    generate_transposed_tests,
 )
 
 
@@ -24,7 +24,14 @@ class TestGoldenPatterns:
     def pattern_engine(self):
         """Create a pattern engine with loaded patterns."""
         engine = PatternEngine()
-        patterns_file = Path(__file__).parent.parent.parent / "src" / "harmonic_analysis" / "core" / "pattern_engine" / "patterns_unified.json"
+        patterns_file = (
+            Path(__file__).parent.parent.parent
+            / "src"
+            / "harmonic_analysis"
+            / "core"
+            / "pattern_engine"
+            / "patterns_unified.json"
+        )
         engine.load_patterns(patterns_file)
         return engine
 
@@ -145,11 +152,13 @@ class TestGoldenPatterns:
 
                 # Test pattern matching
                 matches = pattern_engine._find_pattern_matches(pattern, context)
-                assert expected_span in matches, (
-                    f"Transposition invariance failed: {pattern_id} not found in {context.key}"
-                )
+                assert (
+                    expected_span in matches
+                ), f"Transposition invariance failed: {pattern_id} not found in {context.key}"
 
-    def test_complex_progressions_multiple_matches(self, pattern_engine, fixture_loader):
+    def test_complex_progressions_multiple_matches(
+        self, pattern_engine, fixture_loader
+    ):
         """Test progressions that should trigger multiple pattern matches."""
         functional_progressions = fixture_loader.load("functional")["progressions"]
 
@@ -194,18 +203,20 @@ class TestGoldenPatterns:
     def test_no_false_positives(self, pattern_engine, fixture_loader):
         """Test that patterns don't match where they shouldn't."""
         # Create a context that should NOT match modal patterns
-        non_modal_context = create_context_from_progression({
-            "key": "C major",
-            "chords": ["C", "Am", "F", "G"],
-            "roman_numerals": ["I", "vi", "IV", "V"]
-        })
+        non_modal_context = create_context_from_progression(
+            {
+                "key": "C major",
+                "chords": ["C", "Am", "F", "G"],
+                "roman_numerals": ["I", "vi", "IV", "V"],
+            }
+        )
 
         # Test that modal patterns don't match this functional progression
         modal_patterns = [
             "modal.dorian.i_bVII",
             "modal.phrygian.i_bII",
             "modal.andalusian",
-            "modal.mixolydian.I_bVII"
+            "modal.mixolydian.I_bVII",
         ]
 
         for pattern_id in modal_patterns:
@@ -216,10 +227,12 @@ class TestGoldenPatterns:
                     break
 
             if pattern:
-                matches = pattern_engine._find_pattern_matches(pattern, non_modal_context)
-                assert len(matches) == 0, (
-                    f"Modal pattern {pattern_id} incorrectly matched functional progression"
+                matches = pattern_engine._find_pattern_matches(
+                    pattern, non_modal_context
                 )
+                assert (
+                    len(matches) == 0
+                ), f"Modal pattern {pattern_id} incorrectly matched functional progression"
 
     def test_pattern_priority_ordering(self, pattern_engine):
         """Test that patterns are ordered by priority correctly."""
@@ -251,17 +264,25 @@ class TestGoldenPatterns:
         for fixture_name in fixture_names:
             fixture = fixture_loader.load(fixture_name)
             assert "progressions" in fixture, f"No progressions in {fixture_name}"
-            assert len(fixture["progressions"]) > 0, f"Empty progressions in {fixture_name}"
+            assert (
+                len(fixture["progressions"]) > 0
+            ), f"Empty progressions in {fixture_name}"
 
             # Validate each progression has required fields
             for progression in fixture["progressions"]:
                 assert "name" in progression, "Progression missing name"
                 assert "chords" in progression, "Progression missing chords"
-                assert "roman_numerals" in progression, "Progression missing roman_numerals"
-                assert "expected_matches" in progression, "Progression missing expected_matches"
+                assert (
+                    "roman_numerals" in progression
+                ), "Progression missing roman_numerals"
+                assert (
+                    "expected_matches" in progression
+                ), "Progression missing expected_matches"
 
                 # Validate expected matches
                 for match in progression["expected_matches"]:
                     assert "pattern_id" in match, "Expected match missing pattern_id"
                     assert "span" in match, "Expected match missing span"
-                    assert len(match["span"]) == 2, "Expected match span must have 2 elements"
+                    assert (
+                        len(match["span"]) == 2
+                    ), "Expected match span must have 2 elements"

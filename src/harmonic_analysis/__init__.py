@@ -105,6 +105,7 @@ from .dto import (
 
 # Import Pattern Analysis Services
 from .services.pattern_analysis_service import PatternAnalysisService
+
 # 🆕 Import Unified Pattern Service (Next Generation)
 from .services.unified_pattern_service import UnifiedPatternService
 

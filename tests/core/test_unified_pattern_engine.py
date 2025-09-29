@@ -7,7 +7,6 @@ evidence, aggregation, calibration, and the main engine.
 
 import json
 from pathlib import Path
-from typing import Dict, List
 
 import numpy as np
 import pytest
@@ -15,8 +14,6 @@ import pytest
 from harmonic_analysis.core.pattern_engine import (
     Aggregator,
     AnalysisContext,
-    CalibrationMapping,
-    CalibrationMetrics,
     Calibrator,
     Evidence,
     PatternEngine,
@@ -472,10 +469,18 @@ class TestTargetBuilder:
 
         annotations = [
             TargetAnnotation(
-                span=(0, 3), analysis_type="functional", confidence=0.8, source="corpus", metadata={}
+                span=(0, 3),
+                analysis_type="functional",
+                confidence=0.8,
+                source="corpus",
+                metadata={},
             ),
             TargetAnnotation(
-                span=(2, 5), analysis_type="functional", confidence=0.7, source="corpus", metadata={}
+                span=(2, 5),
+                analysis_type="functional",
+                confidence=0.7,
+                source="corpus",
+                metadata={},
             ),
         ]
 
@@ -669,7 +674,13 @@ class TestPatternEngine:
 
         envelope = engine.analyze(context)
         # When confidences are close, should have alternatives
-        if abs(envelope.primary.functional_confidence - envelope.primary.modal_confidence) < 0.15:
+        if (
+            abs(
+                envelope.primary.functional_confidence
+                - envelope.primary.modal_confidence
+            )
+            < 0.15
+        ):
             assert len(envelope.alternatives) > 0
 
     def test_pattern_matching_with_window(self, tmp_path):
@@ -683,7 +694,10 @@ class TestPatternEngine:
                     "name": "Window Test",
                     "scope": ["harmonic"],
                     "track": ["functional"],
-                    "matchers": {"chord_seq": ["C", "F"], "window": {"len": 2, "overlap_ok": False}},
+                    "matchers": {
+                        "chord_seq": ["C", "F"],
+                        "window": {"len": 2, "overlap_ok": False},
+                    },
                     "evidence": {"weight": 0.7, "confidence_fn": "identity"},
                 }
             ],
@@ -716,7 +730,14 @@ class TestPatternEngineIntegration:
     def test_end_to_end_analysis_flow(self, tmp_path):
         """Test complete analysis flow from patterns to envelope."""
         # Use the actual unified patterns
-        pattern_path = Path(__file__).parent.parent.parent / "src" / "harmonic_analysis" / "core" / "pattern_engine" / "patterns_unified.json"
+        pattern_path = (
+            Path(__file__).parent.parent.parent
+            / "src"
+            / "harmonic_analysis"
+            / "core"
+            / "pattern_engine"
+            / "patterns_unified.json"
+        )
 
         if not pattern_path.exists():
             # Create a minimal test pattern file if the actual one doesn't exist
@@ -730,7 +751,10 @@ class TestPatternEngineIntegration:
                         "scope": ["harmonic"],
                         "track": ["functional"],
                         "matchers": {"roman_seq": ["V", "I"]},
-                        "evidence": {"weight": 0.9, "confidence_fn": "logistic_default"},
+                        "evidence": {
+                            "weight": 0.9,
+                            "confidence_fn": "logistic_default",
+                        },
                     }
                 ],
             }
@@ -773,7 +797,12 @@ class TestPatternEngineIntegration:
 
         # Analyze and check calibration was applied
         context = AnalysisContext(
-            key="G major", chords=["G", "D"], roman_numerals=["I", "V"], melody=[], scales=[], metadata={}
+            key="G major",
+            chords=["G", "D"],
+            roman_numerals=["I", "V"],
+            melody=[],
+            scales=[],
+            metadata={},
         )
 
         envelope = engine.analyze(context)

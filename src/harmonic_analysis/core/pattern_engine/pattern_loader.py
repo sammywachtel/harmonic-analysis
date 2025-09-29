@@ -26,26 +26,48 @@ class PatternLoader:
                 "type": "array",
                 "items": {
                     "type": "object",
-                    "required": ["id", "name", "scope", "track", "matchers", "evidence"],
+                    "required": [
+                        "id",
+                        "name",
+                        "scope",
+                        "track",
+                        "matchers",
+                        "evidence",
+                    ],
                     "properties": {
                         "id": {"type": "string", "pattern": "^[a-zA-Z0-9._-]+$"},
                         "name": {"type": "string"},
                         "scope": {
                             "type": "array",
-                            "items": {"type": "string", "enum": ["harmonic", "melodic", "scale"]},
+                            "items": {
+                                "type": "string",
+                                "enum": ["harmonic", "melodic", "scale"],
+                            },
                             "minItems": 1,
                         },
                         "track": {
                             "type": "array",
-                            "items": {"type": "string", "enum": ["functional", "modal", "chromatic"]},
+                            "items": {
+                                "type": "string",
+                                "enum": ["functional", "modal", "chromatic"],
+                            },
                             "minItems": 1,
                         },
                         "matchers": {
                             "type": "object",
                             "properties": {
-                                "chord_seq": {"type": "array", "items": {"type": "string"}},
-                                "roman_seq": {"type": "array", "items": {"type": "string"}},
-                                "interval_seq": {"type": "array", "items": {"type": "integer"}},
+                                "chord_seq": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "roman_seq": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "interval_seq": {
+                                    "type": "array",
+                                    "items": {"type": "integer"},
+                                },
                                 "mode": {"type": "string"},
                                 "transposition_invariant": {"type": "boolean"},
                                 "constraints": {"type": "object"},
@@ -56,8 +78,15 @@ class PatternLoader:
                             "type": "object",
                             "required": ["weight"],
                             "properties": {
-                                "weight": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-                                "features": {"type": "array", "items": {"type": "string"}},
+                                "weight": {
+                                    "type": "number",
+                                    "minimum": 0.0,
+                                    "maximum": 1.0,
+                                },
+                                "features": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
                                 "confidence_fn": {"type": "string"},
                             },
                         },
@@ -65,7 +94,11 @@ class PatternLoader:
                             "type": "object",
                             "properties": {
                                 "tags": {"type": "array", "items": {"type": "string"}},
-                                "priority": {"type": "integer", "minimum": 0, "maximum": 100},
+                                "priority": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 100,
+                                },
                                 "description": {"type": "string"},
                             },
                         },
@@ -135,7 +168,11 @@ class PatternLoader:
             jsonschema.validate(data, self.schema)
         except jsonschema.ValidationError as e:
             # Create helpful error message with context
-            path_str = " -> ".join(str(p) for p in e.absolute_path) if e.absolute_path else "root"
+            path_str = (
+                " -> ".join(str(p) for p in e.absolute_path)
+                if e.absolute_path
+                else "root"
+            )
             error_msg = f"Schema validation failed at '{path_str}': {e.message}"
 
             # Add suggestions for common errors
@@ -144,7 +181,9 @@ class PatternLoader:
             elif "is not one of" in e.message:
                 error_msg += f"\nAllowed values: {e.schema.get('enum', [])}"
             elif "is a required property" in e.message:
-                missing_prop = e.message.split("'")[1] if "'" in e.message else "unknown"
+                missing_prop = (
+                    e.message.split("'")[1] if "'" in e.message else "unknown"
+                )
                 error_msg += f"\nMissing required field: {missing_prop}"
 
             raise ValueError(error_msg) from e

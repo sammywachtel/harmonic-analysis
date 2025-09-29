@@ -19,7 +19,7 @@ def sample_context():
         roman_numerals=["I", "IV", "V", "I"],
         melody=[],
         scales=[],
-        metadata={}
+        metadata={},
     )
 
 
@@ -32,7 +32,7 @@ def dorian_context():
         roman_numerals=["i", "♭VII", "i"],
         melody=[],
         scales=["D dorian"],
-        metadata={"mode": "dorian"}
+        metadata={"mode": "dorian"},
     )
 
 
@@ -42,7 +42,7 @@ def build_context(
     roman_numerals: Optional[List[str]] = None,
     melody: Optional[List[Any]] = None,
     scales: Optional[List[str]] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> AnalysisContext:
     """
     Build a normalized analysis context for testing.
@@ -64,7 +64,7 @@ def build_context(
         roman_numerals=roman_numerals or [],
         melody=melody or [],
         scales=scales or [],
-        metadata=metadata or {}
+        metadata=metadata or {},
     )
 
 
@@ -109,7 +109,7 @@ def transpose_context(context: AnalysisContext, semitones: int) -> AnalysisConte
         roman_numerals=context.roman_numerals,  # Roman numerals are transposition-invariant
         melody=context.melody,
         scales=context.scales,  # Would transpose in real implementation
-        metadata=context.metadata
+        metadata=context.metadata,
     )
 
 
@@ -123,5 +123,5 @@ def transposition_test_keys():
         ("F# major", 6),
         ("A minor", 0),
         ("B minor", 2),
-        ("F minor", -4)
+        ("F minor", -4),
     ]

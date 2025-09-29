@@ -6,7 +6,7 @@ be expressed declaratively in the pattern JSON. Plugins are pure functions that
 evaluate patterns and produce evidence scores.
 """
 
-from typing import Any, Callable, Dict, Protocol
+from typing import Any, Dict, Protocol
 
 from .evidence import Evidence
 
@@ -120,7 +120,9 @@ class PluginRegistry:
 
         return weights
 
-    def _logistic_default(self, pattern: Dict[str, Any], context: Dict[str, Any]) -> Evidence:
+    def _logistic_default(
+        self, pattern: Dict[str, Any], context: Dict[str, Any]
+    ) -> Evidence:
         """
         Default logistic confidence function for functional patterns.
 
@@ -134,7 +136,9 @@ class PluginRegistry:
         # Simple scoring based on pattern weight (placeholder for feature-driven scoring)
         raw_score = pattern_weight
 
-        track_weights = self._build_track_weights(pattern, pattern_weight, modal_bias=False)
+        track_weights = self._build_track_weights(
+            pattern, pattern_weight, modal_bias=False
+        )
 
         return Evidence(
             pattern_id=pattern_id,
@@ -145,7 +149,9 @@ class PluginRegistry:
             span=tuple(span),
         )
 
-    def _logistic_dorian(self, pattern: Dict[str, Any], context: Dict[str, Any]) -> Evidence:
+    def _logistic_dorian(
+        self, pattern: Dict[str, Any], context: Dict[str, Any]
+    ) -> Evidence:
         """
         Dorian-specific confidence function for modal patterns.
 
@@ -155,7 +161,9 @@ class PluginRegistry:
         span = context.get("span", (0, 1))
         pattern_id = pattern.get("id", "unknown")
 
-        track_weights = self._build_track_weights(pattern, pattern_weight, modal_bias=True)
+        track_weights = self._build_track_weights(
+            pattern, pattern_weight, modal_bias=True
+        )
 
         # Ensure there's at least modal contribution even if schema missing track entry
         track_weights.setdefault("modal", pattern_weight)
@@ -163,13 +171,18 @@ class PluginRegistry:
         return Evidence(
             pattern_id=pattern_id,
             track_weights=track_weights,
-            features={"modal_char_score": pattern_weight, "pattern_weight": pattern_weight},
+            features={
+                "modal_char_score": pattern_weight,
+                "pattern_weight": pattern_weight,
+            },
             raw_score=pattern_weight,
             uncertainty=None,
             span=tuple(span),
         )
 
-    def _identity_evaluator(self, pattern: Dict[str, Any], context: Dict[str, Any]) -> Evidence:
+    def _identity_evaluator(
+        self, pattern: Dict[str, Any], context: Dict[str, Any]
+    ) -> Evidence:
         """
         Identity evaluator that passes through raw scores unchanged.
 

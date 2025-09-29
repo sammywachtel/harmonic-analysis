@@ -10,10 +10,14 @@ from harmonic_analysis.services.analysis_arbitration_service import (
     ArbitrationPolicy,
 )
 
+
 def _sum(kind: str, conf: float) -> AnalysisSummary:
     return AnalysisSummary(type=AnalysisType(kind), roman_numerals=[], confidence=conf)
 
-@pytest.mark.skip(reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite")
+
+@pytest.mark.skip(
+    reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite"
+)
 def test_min_functional_gate_bracket():
     arb = AnalysisArbitrationService(policy=ArbitrationPolicy())
     # functional below gate => modal must win (if present)
@@ -27,7 +31,10 @@ def test_min_functional_gate_bracket():
     env_at = arb.arbitrate(functional_at, modal_high)
     assert env_at.primary.type in (AnalysisType.FUNCTIONAL, AnalysisType.MODAL)
 
-@pytest.mark.skip(reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite")
+
+@pytest.mark.skip(
+    reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite"
+)
 def test_min_modal_gate_bracket():
     arb = AnalysisArbitrationService(policy=ArbitrationPolicy())
     # modal below gate => functional must win
@@ -41,7 +48,10 @@ def test_min_modal_gate_bracket():
     env_at = arb.arbitrate(functional_high, modal_at)
     assert env_at.primary.type in (AnalysisType.FUNCTIONAL, AnalysisType.MODAL)
 
-@pytest.mark.skip(reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite")
+
+@pytest.mark.skip(
+    reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite"
+)
 def test_functional_dominance_margin():
     arb = AnalysisArbitrationService(policy=ArbitrationPolicy())
     f = _sum("functional", 0.60)
@@ -56,7 +66,10 @@ def test_functional_dominance_margin():
     env_margin = arb.arbitrate(f, m_margin)
     assert env_margin.primary.type == AnalysisType.FUNCTIONAL
 
-@pytest.mark.skip(reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite")
+
+@pytest.mark.skip(
+    reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite"
+)
 def test_modal_dominance_margin():
     arb = AnalysisArbitrationService(policy=ArbitrationPolicy())
     m = _sum("modal", 0.60)
@@ -71,7 +84,10 @@ def test_modal_dominance_margin():
     env_margin = arb.arbitrate(f_margin, m)
     assert env_margin.primary.type == AnalysisType.MODAL
 
-@pytest.mark.skip(reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite")
+
+@pytest.mark.skip(
+    reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite"
+)
 def test_override_flag_default_off():
     # default policy should not apply evidence-weighted override
     arb = AnalysisArbitrationService(policy=ArbitrationPolicy())
@@ -80,7 +96,10 @@ def test_override_flag_default_off():
     env = arb.arbitrate(f, m)
     assert env.primary.type in (AnalysisType.FUNCTIONAL, AnalysisType.MODAL)
 
-@pytest.mark.skip(reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite")
+
+@pytest.mark.skip(
+    reason="TODO-DELETE: Incompatible with unified pattern engine - needs rewrite"
+)
 def test_override_flag_on_changes_behavior():
     # Adjust the expectation below if your policy logic differs
     policy = ArbitrationPolicy(enable_evidence_based_modal_arbitration=True)

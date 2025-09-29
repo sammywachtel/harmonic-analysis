@@ -7,10 +7,9 @@ while delegating all analysis work to the new unified pattern engine.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from harmonic_analysis.dto import (
     AnalysisEnvelope,
@@ -58,11 +57,15 @@ class PatternAnalysisService:
         # Store arbitration policy for iteration 9 arbitration support
         self._arbitration_service = None
         if arbitration_policy is not None:
-            self._arbitration_service = AnalysisArbitrationService(policy=arbitration_policy)
+            self._arbitration_service = AnalysisArbitrationService(
+                policy=arbitration_policy
+            )
             logger.info("✅ AnalysisArbitrationService enabled with policy")
 
         # Victory lap: log the migration for observability
-        logger.info("✅ PatternAnalysisService initialized as facade over UnifiedPatternService")
+        logger.info(
+            "✅ PatternAnalysisService initialized as facade over UnifiedPatternService"
+        )
         if not auto_calibrate:
             logger.debug("🔧 Auto-calibration disabled in unified service")
 
@@ -92,7 +95,10 @@ class PatternAnalysisService:
             chords=chord_symbols,
             key_hint=key_hint,
             profile=profile,
-            options={"best_cover": best_cover, "sections": sections}  # Pass through for compatibility
+            options={
+                "best_cover": best_cover,
+                "sections": sections,
+            },  # Pass through for compatibility
         )
 
         # Iteration 9: Apply arbitration if arbitration service is configured
@@ -104,34 +110,38 @@ class PatternAnalysisService:
                 # Create functional summary (always available)
                 functional_summary = AnalysisSummary(
                     type=AnalysisType.FUNCTIONAL,
-                    roman_numerals=getattr(primary, 'roman_numerals', []),
-                    confidence=getattr(primary, 'functional_confidence', 0.0),
-                    key_signature=getattr(primary, 'key_signature', None),
-                    mode=getattr(primary, 'mode', None),
-                    reasoning=getattr(primary, 'reasoning', ''),
-                    patterns=getattr(primary, 'patterns', [])
+                    roman_numerals=getattr(primary, "roman_numerals", []),
+                    confidence=getattr(primary, "functional_confidence", 0.0),
+                    key_signature=getattr(primary, "key_signature", None),
+                    mode=getattr(primary, "mode", None),
+                    reasoning=getattr(primary, "reasoning", ""),
+                    patterns=getattr(primary, "patterns", []),
                 )
 
                 # Create modal summary if modal confidence exists
                 modal_summary = None
-                if getattr(primary, 'modal_confidence', 0.0) > 0.0:
+                if getattr(primary, "modal_confidence", 0.0) > 0.0:
                     modal_summary = AnalysisSummary(
                         type=AnalysisType.MODAL,
-                        roman_numerals=getattr(primary, 'roman_numerals', []),
-                        confidence=getattr(primary, 'modal_confidence', 0.0),
-                        key_signature=getattr(primary, 'key_signature', None),
-                        mode=getattr(primary, 'mode', None),
-                        reasoning=getattr(primary, 'reasoning', ''),
-                        patterns=getattr(primary, 'patterns', []),
-                        modal_characteristics=getattr(primary, 'modal_characteristics', []),
-                        modal_evidence=getattr(primary, 'modal_evidence', [])  # Iteration 9A: Pass modal evidence
+                        roman_numerals=getattr(primary, "roman_numerals", []),
+                        confidence=getattr(primary, "modal_confidence", 0.0),
+                        key_signature=getattr(primary, "key_signature", None),
+                        mode=getattr(primary, "mode", None),
+                        reasoning=getattr(primary, "reasoning", ""),
+                        patterns=getattr(primary, "patterns", []),
+                        modal_characteristics=getattr(
+                            primary, "modal_characteristics", []
+                        ),
+                        modal_evidence=getattr(
+                            primary, "modal_evidence", []
+                        ),  # Iteration 9A: Pass modal evidence
                     )
 
                 # Apply arbitration
                 arbitration_result = self._arbitration_service.arbitrate(
                     functional_summary=functional_summary,
                     modal_summary=modal_summary,
-                    chord_symbols=chord_symbols
+                    chord_symbols=chord_symbols,
                 )
 
                 # Iteration 9: Enhanced arbitration diagnostics
@@ -152,10 +162,14 @@ class PatternAnalysisService:
                 envelope.primary = arbitration_result.primary
                 envelope.alternatives = arbitration_result.alternatives
 
-                logger.debug(f"🎯 Arbitration applied: {arbitration_result.primary.type} (gap: {arbitration_result.confidence_gap:.3f})")
+                logger.debug(
+                    f"🎯 Arbitration applied: {arbitration_result.primary.type} (gap: {arbitration_result.confidence_gap:.3f})"
+                )
 
             except Exception as e:
-                logger.warning(f"⚠️ Arbitration failed: {e} - using unified service result")
+                logger.warning(
+                    f"⚠️ Arbitration failed: {e} - using unified service result"
+                )
 
         return envelope
 
@@ -232,6 +246,7 @@ class PatternAnalysisService:
         """Access to glossary service for backward compatibility."""
         # Import here to avoid circular dependencies
         from ..core.pattern_engine.glossary_service import GlossaryService
-        if not hasattr(self, '_glossary_service'):
+
+        if not hasattr(self, "_glossary_service"):
             self._glossary_service = GlossaryService()
         return self._glossary_service

@@ -46,21 +46,25 @@ INCONSISTENT_ROMANS_KEY_MSG = (
 
 class KeyContextError(ValueError):
     """Base exception for key context validation errors."""
+
     pass
 
 
 class MissingKeyError(KeyContextError):
     """Raised when key context is required but not provided."""
+
     pass
 
 
 class ModalSymbolError(KeyContextError):
     """Raised when modal symbols are used without proper key context."""
+
     pass
 
 
 class RomanNumeralValidationError(KeyContextError):
     """Raised when roman numerals don't match the provided key context."""
+
     pass
 
 
@@ -83,7 +87,18 @@ def validate_key_for_romans(romans: list, key: str = None) -> None:
         raise MissingKeyError(MISSING_KEY_FOR_ROMANS_MSG)
 
     # Check for modal symbols that require key context
-    modal_symbols = ['♭VII', '♭VI', '♭III', '♭II', '♯IV', '♯I', 'bVII', 'bVI', 'bIII', 'bII']
+    modal_symbols = [
+        "♭VII",
+        "♭VI",
+        "♭III",
+        "♭II",
+        "♯IV",
+        "♯I",
+        "bVII",
+        "bVI",
+        "bIII",
+        "bII",
+    ]
 
     for roman in romans:
         if any(symbol in str(roman) for symbol in modal_symbols):

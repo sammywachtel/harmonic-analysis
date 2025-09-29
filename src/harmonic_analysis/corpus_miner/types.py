@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 class LabelSource(Enum):
     """Source of reliability label."""
+
     ADJUDICATION_HEURISTIC = "adjudication_heuristic"
     TRUSTED_ANNOTATION = "trusted_annotation"
     EXPERT_CONSENSUS = "expert_consensus"
@@ -17,6 +18,7 @@ class LabelSource(Enum):
 
 class DifficultyStratum(Enum):
     """Difficulty stratification for calibration."""
+
     DIATONIC_SIMPLE = "diatonic_simple"
     CHROMATIC_MODERATE = "chromatic_moderate"
     MODAL_COMPLEX = "modal_complex"
@@ -26,6 +28,7 @@ class DifficultyStratum(Enum):
 @dataclass
 class MusicalContext:
     """Normalized musical context for pattern analysis."""
+
     key: str
     chords: List[str]
     roman_numerals: List[str]
@@ -36,6 +39,7 @@ class MusicalContext:
 @dataclass
 class PatternMatch:
     """Pattern match with evidence features."""
+
     pattern_id: str
     span: Tuple[int, int]
     raw_score: float
@@ -45,6 +49,7 @@ class PatternMatch:
 @dataclass
 class LabeledSample:
     """Corpus sample with unified reliability target."""
+
     context: Dict[str, Any]
     matches: List[PatternMatch]
     label: float  # p(correct | evidence)
@@ -56,6 +61,7 @@ class LabeledSample:
 @dataclass
 class ExtractionConfig:
     """Configuration for corpus extraction."""
+
     corpus_sources: List[str] = None
     max_samples_per_source: int = 100
     transposition_keys: List[str] = None
@@ -72,6 +78,7 @@ class ExtractionConfig:
 @dataclass
 class AdjudicationRules:
     """Configuration for adjudication heuristics."""
+
     strong_evidence_threshold: float = 0.9
     weak_evidence_threshold: float = 0.3
     consensus_patterns: List[str] = None
@@ -82,18 +89,19 @@ class AdjudicationRules:
             self.consensus_patterns = [
                 "cadence.authentic.perfect",
                 "cadence.plagal",
-                "modal.dorian.i_bVII"
+                "modal.dorian.i_bVII",
             ]
         if self.contradiction_patterns is None:
             self.contradiction_patterns = [
                 "atonal.twelve_tone",
-                "chromatic.extreme_dissonance"
+                "chromatic.extreme_dissonance",
             ]
 
 
 @dataclass
 class CalibrationBucket:
     """Calibration bucket for stratified reliability estimation."""
+
     stratum: DifficultyStratum
     pattern_family: str
     min_score: float
@@ -107,6 +115,7 @@ class CalibrationBucket:
 @dataclass
 class TargetStatistics:
     """Statistics for target quality assessment."""
+
     total_samples: int
     label_distribution: Dict[str, int]
     difficulty_distribution: Dict[str, int]

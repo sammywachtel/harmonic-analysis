@@ -6,10 +6,9 @@ to prevent degradation when signal is insufficient.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional
 
 import numpy as np
-from scipy import stats
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
@@ -364,7 +363,7 @@ class Calibrator:
         if len(raw_scores) > 1:
             # Sort by raw scores
             sorted_indices = np.argsort(raw_scores)
-            sorted_raw = raw_scores[sorted_indices]
+            # sorted_raw = raw_scores[sorted_indices]  # Not used
             sorted_calibrated = calibrated[sorted_indices]
 
             # Check if calibrated scores are also sorted (allowing small violations)
@@ -413,20 +412,32 @@ class Calibrator:
         improvement_summary = {
             "ece_improvement": baseline_metrics.ece - calibrated_metrics.ece,
             "brier_improvement": baseline_metrics.brier - calibrated_metrics.brier,
-            "correlation_improvement": calibrated_metrics.correlation - baseline_metrics.correlation,
+            "correlation_improvement": calibrated_metrics.correlation
+            - baseline_metrics.correlation,
         }
 
         # Generate reliability curve data
-        reliability_bins = self._generate_reliability_curve(raw_scores, targets, n_bins=10)
+        reliability_bins = self._generate_reliability_curve(
+            raw_scores, targets, n_bins=10
+        )
 
         # Generate quality warnings
         warnings = []
         if baseline_metrics.sample_count < self.min_samples:
-            warnings.append(f"Sample count ({baseline_metrics.sample_count}) below minimum ({self.min_samples})")
+            warnings.append(
+                f"Sample count ({baseline_metrics.sample_count}) below "
+                f"minimum ({self.min_samples})"
+            )
         if baseline_metrics.variance < self.min_variance:
-            warnings.append(f"Target variance ({baseline_metrics.variance:.4f}) below minimum ({self.min_variance})")
+            warnings.append(
+                f"Target variance ({baseline_metrics.variance:.4f}) below "
+                f"minimum ({self.min_variance})"
+            )
         if abs(baseline_metrics.correlation) < self.min_correlation:
-            warnings.append(f"Correlation ({baseline_metrics.correlation:.4f}) below minimum ({self.min_correlation})")
+            warnings.append(
+                f"Correlation ({baseline_metrics.correlation:.4f}) below "
+                f"minimum ({self.min_correlation})"
+            )
         if improvement_summary["ece_improvement"] < 0:
             warnings.append("Calibration increased ECE (degraded calibration)")
 
@@ -445,7 +456,12 @@ class Calibrator:
     ) -> Dict[str, List[float]]:
         """Generate reliability curve data for plotting."""
         if len(predictions) == 0:
-            return {"bin_centers": [], "reliability": [], "confidence": [], "counts": []}
+            return {
+                "bin_centers": [],
+                "reliability": [],
+                "confidence": [],
+                "counts": [],
+            }
 
         bin_boundaries = np.linspace(0, 1, n_bins + 1)
         bin_centers = []

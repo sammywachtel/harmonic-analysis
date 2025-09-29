@@ -7,7 +7,7 @@ functional, modal, and combined confidence scores.
 
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -32,7 +32,8 @@ class Aggregator:
         Initialize aggregator with configuration.
 
         Args:
-            conflict_strategy: How to handle overlapping evidence ("soft_nms", "max_pool")
+            conflict_strategy: How to handle overlapping evidence
+                ("soft_nms", "max_pool")
             overlap_decay: Decay factor for overlapping evidence (0.0-1.0)
             diversity_bonus: Bonus for diverse evidence sources (0.0-0.2)
         """
@@ -62,7 +63,10 @@ class Aggregator:
                 "modal_conf": 0.0,
                 "chromatic_conf": 0.0,
                 "combined_conf": 0.0,
-                "debug_breakdown": {"evidence_count": 0, "message": "No evidence provided"},
+                "debug_breakdown": {
+                    "evidence_count": 0,
+                    "message": "No evidence provided",
+                },
             }
 
         # Apply conflict resolution
@@ -75,7 +79,9 @@ class Aggregator:
         diversity_score = self._calculate_diversity(resolved_evidences)
 
         # Combine tracks into final scores
-        functional_conf = min(1.0, track_scores.get("functional", 0.0) + diversity_score)
+        functional_conf = min(
+            1.0, track_scores.get("functional", 0.0) + diversity_score
+        )
         modal_conf = min(1.0, track_scores.get("modal", 0.0) + diversity_score)
         chromatic_conf = min(1.0, track_scores.get("chromatic", 0.0) + diversity_score)
 
@@ -245,7 +251,11 @@ class Aggregator:
         pattern_families = set()
         for evidence in evidences:
             # Extract family from pattern_id (e.g., "cadence.authentic" -> "cadence")
-            family = evidence.pattern_id.split(".")[0] if "." in evidence.pattern_id else "general"
+            family = (
+                evidence.pattern_id.split(".")[0]
+                if "." in evidence.pattern_id
+                else "general"
+            )
             pattern_families.add(family)
 
         # Diversity increases with more families, up to the configured bonus

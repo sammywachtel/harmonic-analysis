@@ -11,9 +11,7 @@ import pytest
 
 from harmonic_analysis.core.pattern_engine.calibration import (
     Calibrator,
-    CalibrationMapping,
-    CalibrationMetrics,
-    CalibrationReport
+    CalibrationReport,
 )
 
 
@@ -25,21 +23,32 @@ class TestCalibratorQualityGates:
         # Opening move: create strong synthetic data that should pass all gates
         np.random.seed(42)  # Fixed seed for reproducible test
         raw = np.linspace(0.1, 0.9, 200)
-        targets = raw * 0.8 + 0.1 + np.random.normal(0, 0.02, 200)  # Less noise for better ECE
+        targets = (
+            raw * 0.8 + 0.1 + np.random.normal(0, 0.02, 200)
+        )  # Less noise for better ECE
         targets = np.clip(targets, 0.0, 1.0)
 
         # Use more lenient quality gates for this test
         calibrator = Calibrator(max_ece_increase=0.1)  # Allow more ECE increase
-        mapping = calibrator.fit(raw, targets, method="auto")  # Use auto to get best method
+        mapping = calibrator.fit(
+            raw, targets, method="auto"
+        )  # Use auto to get best method
 
         # Big play: verify quality gates passed and mapping is valid
-        assert mapping.passed_gates, f"Quality gates should pass with strong correlation data. Got {mapping.mapping_type} with correlation {mapping.metrics.correlation:.3f}"
-        assert mapping.mapping_type in ["platt", "isotonic"], f"Expected platt or isotonic, got {mapping.mapping_type}"
+        assert (
+            mapping.passed_gates
+        ), f"Quality gates should pass with strong correlation data. Got {mapping.mapping_type} with correlation {mapping.metrics.correlation:.3f}"
+        assert mapping.mapping_type in [
+            "platt",
+            "isotonic",
+        ], f"Expected platt or isotonic, got {mapping.mapping_type}"
 
         # Victory lap: verify mapping actually works
         test_value = 0.75
         calibrated = mapping.apply(test_value)
-        assert 0.0 <= calibrated <= 1.0, f"Calibrated value {calibrated} outside [0,1] range"
+        assert (
+            0.0 <= calibrated <= 1.0
+        ), f"Calibrated value {calibrated} outside [0,1] range"
 
     def test_calibrator_isotonic_passes_quality_gates(self):
         """Test that Isotonic regression passes quality gates with nonlinear data."""
@@ -53,8 +62,12 @@ class TestCalibratorQualityGates:
         mapping = calibrator.fit(raw, targets, method="isotonic")
 
         # This looks odd, but it saves us from isotonic regression failures
-        assert mapping.passed_gates, "Quality gates should pass with nonlinear monotonic data"
-        assert mapping.mapping_type == "isotonic", f"Expected isotonic, got {mapping.mapping_type}"
+        assert (
+            mapping.passed_gates
+        ), "Quality gates should pass with nonlinear monotonic data"
+        assert (
+            mapping.mapping_type == "isotonic"
+        ), f"Expected isotonic, got {mapping.mapping_type}"
 
     def test_quality_gates_fail_with_low_correlation(self):
         """Test that quality gates fail when correlation is too low."""
@@ -73,11 +86,17 @@ class TestCalibratorQualityGates:
         # Note: This test might occasionally pass due to random chance, but very unlikely with seed
         correlation = abs(mapping.metrics.correlation)
         if correlation < 0.2:
-            assert not mapping.passed_gates, f"Quality gates should fail with correlation {correlation:.3f}"
-            assert mapping.mapping_type == "identity", f"Expected identity fallback, got {mapping.mapping_type}"
+            assert (
+                not mapping.passed_gates
+            ), f"Quality gates should fail with correlation {correlation:.3f}"
+            assert (
+                mapping.mapping_type == "identity"
+            ), f"Expected identity fallback, got {mapping.mapping_type}"
         else:
             # If we get unlucky with random correlation, just check the system works
-            print(f"Note: Random data had correlation {correlation:.3f}, test passed by chance")
+            print(
+                f"Note: Random data had correlation {correlation:.3f}, test passed by chance"
+            )
 
     def test_quality_gates_fail_with_insufficient_samples(self):
         """Test that quality gates fail with too few samples."""
@@ -88,7 +107,9 @@ class TestCalibratorQualityGates:
         calibrator = Calibrator(min_samples=50)  # Require 50+ samples
         mapping = calibrator.fit(raw, targets)
 
-        assert not mapping.passed_gates, "Quality gates should fail with insufficient samples"
+        assert (
+            not mapping.passed_gates
+        ), "Quality gates should fail with insufficient samples"
         assert mapping.mapping_type == "identity"
 
     def test_quality_gates_fail_with_low_variance(self):
@@ -99,7 +120,9 @@ class TestCalibratorQualityGates:
         calibrator = Calibrator(min_variance=0.01)
         mapping = calibrator.fit(raw, targets)
 
-        assert not mapping.passed_gates, "Quality gates should fail with constant targets"
+        assert (
+            not mapping.passed_gates
+        ), "Quality gates should fail with constant targets"
         assert mapping.mapping_type == "identity"
 
     def test_ece_degradation_gate_prevents_harmful_calibration(self):
@@ -139,7 +162,10 @@ class TestCalibratorMethods:
 
         # Main play: auto should select platt or isotonic, not identity
         assert mapping.passed_gates, "Auto method should pass gates with good data"
-        assert mapping.mapping_type in ["platt", "isotonic"], f"Auto selected {mapping.mapping_type}"
+        assert mapping.mapping_type in [
+            "platt",
+            "isotonic",
+        ], f"Auto selected {mapping.mapping_type}"
 
     def test_identity_method_always_returns_identity(self, good_training_data):
         """Test that identity method always returns identity mapping."""
@@ -177,7 +203,9 @@ class TestCalibratorMethods:
             # Calibrated values should be monotonic (roughly)
             differences = np.diff(calibrated_values)
             positive_diffs = np.sum(differences > -0.1)  # Allow small violations
-            assert positive_diffs >= len(differences) * 0.8, "Platt calibration should be roughly monotonic"
+            assert (
+                positive_diffs >= len(differences) * 0.8
+            ), "Platt calibration should be roughly monotonic"
 
     def test_isotonic_method_specific_behavior(self, good_training_data):
         """Test Isotonic regression specific behavior and parameters."""
@@ -198,7 +226,9 @@ class TestCalibratorMethods:
 
             # Should be perfectly monotonic
             differences = np.diff(calibrated_values)
-            assert np.all(differences >= -1e-10), "Isotonic calibration must be monotonic"
+            assert np.all(
+                differences >= -1e-10
+            ), "Isotonic calibration must be monotonic"
 
 
 class TestCalibratorEvaluation:
@@ -216,13 +246,13 @@ class TestCalibratorEvaluation:
 
         # Opening move: verify report structure
         assert isinstance(report, CalibrationReport)
-        assert hasattr(report, 'baseline_metrics')
-        assert hasattr(report, 'calibrated_metrics')
-        assert hasattr(report, 'mapping_type')
-        assert hasattr(report, 'passed_quality_gates')
-        assert hasattr(report, 'improvement_summary')
-        assert hasattr(report, 'reliability_bins')
-        assert hasattr(report, 'warnings')
+        assert hasattr(report, "baseline_metrics")
+        assert hasattr(report, "calibrated_metrics")
+        assert hasattr(report, "mapping_type")
+        assert hasattr(report, "passed_quality_gates")
+        assert hasattr(report, "improvement_summary")
+        assert hasattr(report, "reliability_bins")
+        assert hasattr(report, "warnings")
 
     def test_evaluation_metrics_calculation(self):
         """Test that evaluation metrics are calculated correctly."""
@@ -259,13 +289,15 @@ class TestCalibratorEvaluation:
 
         # Time to tackle the tricky bit: verify improvement metrics exist
         improvements = report.improvement_summary
-        assert 'ece_improvement' in improvements
-        assert 'brier_improvement' in improvements
-        assert 'correlation_improvement' in improvements
+        assert "ece_improvement" in improvements
+        assert "brier_improvement" in improvements
+        assert "correlation_improvement" in improvements
 
         # All improvement values should be numeric
         for key, value in improvements.items():
-            assert isinstance(value, (int, float)), f"Improvement {key} should be numeric, got {type(value)}"
+            assert isinstance(
+                value, (int, float)
+            ), f"Improvement {key} should be numeric, got {type(value)}"
 
     def test_evaluation_reliability_curve_data(self):
         """Test that reliability curve data is properly generated."""
@@ -278,10 +310,10 @@ class TestCalibratorEvaluation:
 
         # Victory lap: verify reliability curve structure
         curve = report.reliability_bins
-        assert 'bin_centers' in curve
-        assert 'reliability' in curve
-        assert 'confidence' in curve
-        assert 'counts' in curve
+        assert "bin_centers" in curve
+        assert "reliability" in curve
+        assert "confidence" in curve
+        assert "counts" in curve
 
         # All should be lists
         for key, value in curve.items():
@@ -301,9 +333,10 @@ class TestCalibratorEvaluation:
         assert len(report.warnings) > 0, "Should generate warnings for problematic data"
 
         # Check for specific warning types
-        warning_text = ' '.join(report.warnings).lower()
-        assert any(keyword in warning_text for keyword in ['sample', 'variance', 'correlation']), \
-            f"Should warn about data issues, got: {report.warnings}"
+        warning_text = " ".join(report.warnings).lower()
+        assert any(
+            keyword in warning_text for keyword in ["sample", "variance", "correlation"]
+        ), f"Should warn about data issues, got: {report.warnings}"
 
 
 class TestCalibratorEdgeCases:
@@ -350,8 +383,8 @@ class TestCalibratorEdgeCases:
         mapping = calibrator.fit(raw, targets)
 
         # These should not crash the system
-        result = mapping.apply(float('nan'))
+        result = mapping.apply(float("nan"))
         assert isinstance(result, (int, float)), "Should handle NaN gracefully"
 
-        result = mapping.apply(float('inf'))
+        result = mapping.apply(float("inf"))
         assert isinstance(result, (int, float)), "Should handle infinity gracefully"

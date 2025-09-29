@@ -8,7 +8,10 @@ scale degree patterns, and modal characteristic detection.
 import pytest
 from typing import List
 
-from harmonic_analysis.core.pattern_engine.pattern_engine import PatternEngine, AnalysisContext
+from harmonic_analysis.core.pattern_engine.pattern_engine import (
+    PatternEngine,
+    AnalysisContext,
+)
 
 
 class TestMelodicPatterns:
@@ -26,9 +29,9 @@ class TestMelodicPatterns:
             "track": ["functional"],
             "matchers": {
                 "interval_seq": [1],  # Semitone ascending
-                "scale_degrees": [7, 1]
+                "scale_degrees": [7, 1],
             },
-            "evidence": {"weight": 0.9}
+            "evidence": {"weight": 0.9},
         }
 
         # Test with melody that has leading tone resolution
@@ -38,7 +41,7 @@ class TestMelodicPatterns:
             roman_numerals=["V", "I"],
             melody=["B", "C"],  # 7-8 resolution
             scales=[],
-            metadata={}
+            metadata={},
         )
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -56,9 +59,9 @@ class TestMelodicPatterns:
             "track": ["modal"],
             "matchers": {
                 "interval_seq": [-2],  # Whole step down
-                "scale_degrees": [7, 6]
+                "scale_degrees": [7, 6],
             },
-            "evidence": {"weight": 0.8}
+            "evidence": {"weight": 0.8},
         }
 
         # Test with Dorian-style melody avoiding leading tone
@@ -68,7 +71,7 @@ class TestMelodicPatterns:
             roman_numerals=["i", "♭VII"],
             melody=["C", "Bb"],  # ♭7-6 descent
             scales=[],
-            metadata={}
+            metadata={},
         )
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -86,7 +89,7 @@ class TestMelodicPatterns:
             "matchers": {
                 "interval_seq": [1, 1],  # Two semitones up
             },
-            "evidence": {"weight": 0.7}
+            "evidence": {"weight": 0.7},
         }
 
         # Test with chromatic passing motion C-C#-D
@@ -96,7 +99,7 @@ class TestMelodicPatterns:
             roman_numerals=["I", "I", "ii"],
             melody=["C", "C#", "D"],  # Chromatic passing
             scales=[],
-            metadata={}
+            metadata={},
         )
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -111,7 +114,7 @@ class TestMelodicPatterns:
             "scope": ["melodic"],
             "track": ["functional"],
             "matchers": {"interval_seq": [1]},
-            "evidence": {"weight": 0.5}
+            "evidence": {"weight": 0.5},
         }
 
         # Context without melody should not apply
@@ -121,7 +124,7 @@ class TestMelodicPatterns:
             roman_numerals=["I", "IV"],
             melody=[],  # No melody
             scales=[],
-            metadata={}
+            metadata={},
         )
 
         assert not engine._pattern_applies(pattern, context_no_melody)
@@ -133,7 +136,7 @@ class TestMelodicPatterns:
             roman_numerals=["I", "IV"],
             melody=["C", "C#"],
             scales=[],
-            metadata={}
+            metadata={},
         )
 
         assert engine._pattern_applies(pattern, context_with_melody)
@@ -151,11 +154,8 @@ class TestScalePatterns:
             "name": "Dorian Scale Pattern",
             "scope": ["scale"],
             "track": ["modal"],
-            "matchers": {
-                "scale_degrees": [1, 2, 3, 4, 5, 6, 7],
-                "mode": "dorian"
-            },
-            "evidence": {"weight": 0.85}
+            "matchers": {"scale_degrees": [1, 2, 3, 4, 5, 6, 7], "mode": "dorian"},
+            "evidence": {"weight": 0.85},
         }
 
         # Context with Dorian characteristics
@@ -165,7 +165,7 @@ class TestScalePatterns:
             roman_numerals=["i", "ii", "♭III", "IV", "v", "♭VI", "♭VII"],
             melody=[],
             scales=["D", "E", "F", "G", "A", "Bb", "C"],  # D Dorian scale
-            metadata={}
+            metadata={},
         )
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -180,11 +180,8 @@ class TestScalePatterns:
             "name": "Phrygian Scale Pattern",
             "scope": ["scale"],
             "track": ["modal"],
-            "matchers": {
-                "scale_degrees": [1, 2, 3, 4, 5, 6, 7],
-                "mode": "phrygian"
-            },
-            "evidence": {"weight": 0.85}
+            "matchers": {"scale_degrees": [1, 2, 3, 4, 5, 6, 7], "mode": "phrygian"},
+            "evidence": {"weight": 0.85},
         }
 
         # Context with Phrygian characteristics
@@ -194,7 +191,7 @@ class TestScalePatterns:
             roman_numerals=["i", "♭II", "♭III", "iv", "v", "♭VI", "♭vii"],
             melody=[],
             scales=["E", "F", "G", "A", "B", "C", "D"],  # E Phrygian scale
-            metadata={}
+            metadata={},
         )
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -209,7 +206,7 @@ class TestScalePatterns:
             "scope": ["scale"],
             "track": ["modal"],
             "matchers": {"scale_degrees": [1, 2, 3, 4, 5, 6, 7]},
-            "evidence": {"weight": 0.8}
+            "evidence": {"weight": 0.8},
         }
 
         # Context without scale info should not apply
@@ -219,7 +216,7 @@ class TestScalePatterns:
             roman_numerals=["I", "IV"],
             melody=[],
             scales=[],  # No scale info
-            metadata={}
+            metadata={},
         )
 
         assert not engine._pattern_applies(pattern, context_no_scales)
@@ -231,7 +228,7 @@ class TestScalePatterns:
             roman_numerals=["I", "IV"],
             melody=[],
             scales=["C", "D", "E", "F", "G", "A", "B"],
-            metadata={}
+            metadata={},
         )
 
         assert engine._pattern_applies(pattern, context_with_scales)
@@ -293,7 +290,7 @@ class TestFullPatternIntegration:
                 "scope": ["harmonic"],
                 "track": ["functional"],
                 "matchers": {"roman_seq": ["V", "I"]},
-                "evidence": {"weight": 0.9}
+                "evidence": {"weight": 0.9},
             },
             {
                 "id": "melody.leading_tone",
@@ -301,8 +298,8 @@ class TestFullPatternIntegration:
                 "scope": ["melodic"],
                 "track": ["functional"],
                 "matchers": {"interval_seq": [1]},
-                "evidence": {"weight": 0.8}
-            }
+                "evidence": {"weight": 0.8},
+            },
         ]
 
         # Context with both harmonic and melodic content
@@ -312,7 +309,7 @@ class TestFullPatternIntegration:
             roman_numerals=["V", "I"],
             melody=["B", "C"],  # Leading tone resolution
             scales=[],
-            metadata={}
+            metadata={},
         )
 
         # Both patterns should be applicable
@@ -335,7 +332,7 @@ class TestFullPatternIntegration:
             "scope": ["melodic"],
             "track": ["functional"],
             "matchers": {"interval_seq": [1]},
-            "evidence": {"weight": 0.8, "confidence_fn": "identity"}
+            "evidence": {"weight": 0.8, "confidence_fn": "identity"},
         }
 
         context = AnalysisContext(
@@ -344,7 +341,7 @@ class TestFullPatternIntegration:
             roman_numerals=["V", "I"],
             melody=["B", "C"],
             scales=[],
-            metadata={}
+            metadata={},
         )
 
         # This looks odd, but it saves us from crashes - direct call to _evaluate_pattern

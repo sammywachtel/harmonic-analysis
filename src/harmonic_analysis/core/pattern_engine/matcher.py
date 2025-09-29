@@ -332,15 +332,24 @@ class SequenceMatchStrategy(MatchStrategy):
                 return s
 
             # First check for regex patterns (before stripping secondaries)
-            token_cmp_full = norm(token_cmp_raw).lower()  # Keep full token for regex matching
+            token_cmp_full = norm(
+                token_cmp_raw
+            ).lower()  # Keep full token for regex matching
 
             # Check if any allowed pattern is a regex (contains *, +, ?, etc.)
             regex_match_found = False
             for pattern_str in allowed:
-                if any(char in pattern_str for char in ['*', '+', '?', '[', ']', '(', ')', '|', '^', '$']):
+                if any(
+                    char in pattern_str
+                    for char in ["*", "+", "?", "[", "]", "(", ")", "|", "^", "$"]
+                ):
                     # This looks like a regex pattern
                     try:
-                        if re.match(pattern_str.replace('.*', '.*'), token_cmp_full, re.IGNORECASE):
+                        if re.match(
+                            pattern_str.replace(".*", ".*"),
+                            token_cmp_full,
+                            re.IGNORECASE,
+                        ):
                             regex_match_found = True
                             break
                     except re.error:
@@ -525,8 +534,7 @@ class ModeConstraint(ConstraintChecker):
 
         constraint_norm = str(constraint_value).lower()
         return any(
-            constraint_norm == m.lower() or constraint_norm in m.lower()
-            for m in modes
+            constraint_norm == m.lower() or constraint_norm in m.lower() for m in modes
         )
 
 

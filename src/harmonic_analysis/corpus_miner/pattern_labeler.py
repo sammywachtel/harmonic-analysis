@@ -3,10 +3,7 @@ Pattern Labeler - Unified target construction with adjudication heuristics.
 """
 
 import logging
-from dataclasses import asdict
 from typing import Dict, List, Optional, Tuple
-
-from ..core.pattern_engine import AnalysisContext, PatternEngine
 from .types import (
     AdjudicationRules,
     DifficultyStratum,
@@ -24,7 +21,9 @@ class PatternLabeler:
         self.logger = logging.getLogger(__name__)
         self.pattern_engine = None  # Lazy initialization
 
-    def label_corpus_samples(self, samples: List[Dict[str, any]]) -> List[LabeledSample]:
+    def label_corpus_samples(
+        self, samples: List[Dict[str, any]]
+    ) -> List[LabeledSample]:
         """
         Generate unified reliability labels for corpus samples.
 
@@ -67,7 +66,7 @@ class PatternLabeler:
                         pattern_id="cadence.authentic.perfect",
                         span=(len(chords) - 2, len(chords)),
                         raw_score=0.85,
-                        evidence_features={"cadence_type": "authentic"}
+                        evidence_features={"cadence_type": "authentic"},
                     )
                 )
 
@@ -85,55 +84,58 @@ class PatternLabeler:
             label=reliability,
             label_source=label_source,
             difficulty_stratum=difficulty,
-            confidence_breakdown=breakdown
+            confidence_breakdown=breakdown,
         )
 
     def _adjudicate_reliability(
-        self,
-        pattern_matches: List[PatternMatch],
-        sample: Dict[str, any]
+        self, pattern_matches: List[PatternMatch], sample: Dict[str, any]
     ) -> Tuple[float, LabelSource, Dict[str, float]]:
         """Apply adjudication heuristics to determine reliability."""
 
         # Strong evidence patterns
         strong_patterns = [
-            m for m in pattern_matches
+            m
+            for m in pattern_matches
             if m.pattern_id in self.rules.consensus_patterns
             and m.raw_score >= self.rules.strong_evidence_threshold
         ]
 
         if strong_patterns:
             reliability = 0.9
-            return reliability, LabelSource.ADJUDICATION_HEURISTIC, {
-                "strong_patterns": len(strong_patterns),
-                "rule": "strong_evidence"
-            }
+            return (
+                reliability,
+                LabelSource.ADJUDICATION_HEURISTIC,
+                {"strong_patterns": len(strong_patterns), "rule": "strong_evidence"},
+            )
 
         # Pattern consensus
         if len(pattern_matches) >= 2:
             avg_score = sum(m.raw_score for m in pattern_matches) / len(pattern_matches)
             if avg_score >= 0.7:
                 reliability = 0.85
-                return reliability, LabelSource.ADJUDICATION_HEURISTIC, {
-                    "pattern_count": len(pattern_matches),
-                    "avg_score": avg_score,
-                    "rule": "pattern_consensus"
-                }
+                return (
+                    reliability,
+                    LabelSource.ADJUDICATION_HEURISTIC,
+                    {
+                        "pattern_count": len(pattern_matches),
+                        "avg_score": avg_score,
+                        "rule": "pattern_consensus",
+                    },
+                )
 
         # Default soft label
         base_confidence = 0.5
         if pattern_matches:
             base_confidence = max(m.raw_score for m in pattern_matches) * 0.8
 
-        return base_confidence, LabelSource.WEAK_SUPERVISION, {
-            "base_confidence": base_confidence,
-            "rule": "default_heuristic"
-        }
+        return (
+            base_confidence,
+            LabelSource.WEAK_SUPERVISION,
+            {"base_confidence": base_confidence, "rule": "default_heuristic"},
+        )
 
     def _classify_difficulty(
-        self,
-        sample: Dict[str, any],
-        pattern_matches: List[PatternMatch]
+        self, sample: Dict[str, any], pattern_matches: List[PatternMatch]
     ) -> DifficultyStratum:
         """Classify sample difficulty."""
 
@@ -147,8 +149,7 @@ class PatternLabeler:
                 "jazz": DifficultyStratum.CHROMATIC_MODERATE,
             }
             return difficulty_map.get(
-                metadata["difficulty"],
-                DifficultyStratum.DIATONIC_SIMPLE
+                metadata["difficulty"], DifficultyStratum.DIATONIC_SIMPLE
             )
 
         # Default based on patterns

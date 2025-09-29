@@ -1,8 +1,8 @@
 # API Usage Guide
 
-## ⚠️ Key Context Requirements
+## 🎯 Unified Pattern Engine API
 
-**All harmonic analysis requires key context for accurate results**. Without proper key context, the library cannot perform modal analysis or validate roman numerals containing modal symbols.
+**Production Ready**: The library now uses a unified pattern engine that provides comprehensive harmonic analysis through a single, robust architecture. The engine automatically handles key inference, modal parent key conversion, and provides quality-gated confidence scoring.
 
 ```python
 # ✅ REQUIRED: Always provide key_hint for harmonic analysis
@@ -24,11 +24,11 @@ result = await analyze_melody(['G', 'A', 'B', 'C'], key='G major')
 result = await analyze_scale(['C', 'D', 'E'])  # Error!
 ```
 
-**Why Key Context is Required**:
-- **Modal Analysis**: Distinguishes Dorian from natural minor, Mixolydian from major
-- **Roman Numeral Validation**: Modal symbols (♭VII, ♯IV) require key context
-- **Pattern Recognition**: Many harmonic patterns depend on tonal context
-- **Theoretical Accuracy**: Prevents ambiguous or impossible harmonic interpretations
+**Unified Engine Benefits**:
+- **Automatic Key Inference**: Advanced algorithms detect appropriate key context from progressions
+- **Modal Parent Key Conversion**: Intelligent conversion between local and modal parent keys
+- **Quality-Gated Calibration**: Conservative confidence scoring with identity fallback
+- **Evidence-Based Analysis**: Detailed pattern matching with theoretical justification
 
 ## Core API Usage Examples
 

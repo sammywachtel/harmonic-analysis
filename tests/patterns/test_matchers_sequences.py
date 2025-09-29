@@ -8,7 +8,10 @@ and melodic intervals with windowing and constraint handling.
 import pytest
 from typing import List, Tuple
 
-from harmonic_analysis.core.pattern_engine.pattern_engine import PatternEngine, AnalysisContext
+from harmonic_analysis.core.pattern_engine.pattern_engine import (
+    PatternEngine,
+    AnalysisContext,
+)
 
 
 class TestSequenceMatchers:
@@ -25,7 +28,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["V", "I"]},
-            "evidence": {"weight": 0.9}
+            "evidence": {"weight": 0.9},
         }
 
         # Should find match at positions 2-4 (G-C = V-I)
@@ -43,7 +46,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"chord_seq": ["C", "F"]},
-            "evidence": {"weight": 0.8}
+            "evidence": {"weight": 0.8},
         }
 
         # Should find match at positions 0-2 (C-F)
@@ -58,7 +61,9 @@ class TestSequenceMatchers:
             key="C major",
             chords=["C", "F", "C", "F", "C"],
             roman_numerals=["I", "IV", "I", "IV", "I"],
-            melody=[], scales=[], metadata={}
+            melody=[],
+            scales=[],
+            metadata={},
         )
 
         pattern = {
@@ -67,7 +72,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["I", "IV"]},
-            "evidence": {"weight": 0.7}
+            "evidence": {"weight": 0.7},
         }
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -85,7 +90,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["vi", "ii"]},  # Not in sample context
-            "evidence": {"weight": 0.5}
+            "evidence": {"weight": 0.5},
         }
 
         matches = engine._find_pattern_matches(pattern, sample_context)
@@ -101,7 +106,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["V", "I", "vi"]},  # Third element not present
-            "evidence": {"weight": 0.6}
+            "evidence": {"weight": 0.6},
         }
 
         matches = engine._find_pattern_matches(pattern, sample_context)
@@ -114,7 +119,9 @@ class TestSequenceMatchers:
             key="A minor",
             chords=["Am", "F", "G", "Am"],
             roman_numerals=["i", "VI", "VII", "i"],
-            melody=[], scales=[], metadata={}
+            melody=[],
+            scales=[],
+            metadata={},
         )
 
         # Lowercase 'i' should not match uppercase 'I'
@@ -124,7 +131,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["modal"],
             "matchers": {"roman_seq": ["I", "VI"]},
-            "evidence": {"weight": 0.5}
+            "evidence": {"weight": 0.5},
         }
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -142,7 +149,9 @@ class TestSequenceMatchers:
             key="C major",
             chords=["C", "Am", "F", "G"],
             roman_numerals=["I", "vi", "IV", "V"],
-            melody=[], scales=[], metadata={}
+            melody=[],
+            scales=[],
+            metadata={},
         )
 
         # Match any secondary dominant (V/x pattern)
@@ -151,8 +160,10 @@ class TestSequenceMatchers:
             "name": "Test Regex",
             "scope": ["harmonic"],
             "track": ["chromatic"],
-            "matchers": {"roman_seq": ["V/.*", ".*"]},  # V/anything followed by anything
-            "evidence": {"weight": 0.8}
+            "matchers": {
+                "roman_seq": ["V/.*", ".*"]
+            },  # V/anything followed by anything
+            "evidence": {"weight": 0.8},
         }
 
         # No V/x in this progression, should return no matches
@@ -172,8 +183,11 @@ class TestSequenceMatchers:
         engine = PatternEngine()
         context = AnalysisContext(
             key="C major",
-            chords=[], roman_numerals=[],
-            melody=[], scales=[], metadata={}
+            chords=[],
+            roman_numerals=[],
+            melody=[],
+            scales=[],
+            metadata={},
         )
 
         pattern = {
@@ -182,7 +196,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["I", "V"]},
-            "evidence": {"weight": 0.5}
+            "evidence": {"weight": 0.5},
         }
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -198,7 +212,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["I"]},
-            "evidence": {"weight": 0.3}
+            "evidence": {"weight": 0.3},
         }
 
         matches = engine._find_pattern_matches(pattern, sample_context)
@@ -213,7 +227,9 @@ class TestSequenceMatchers:
             key="C major",
             chords=["C", "F", "G", "C"],
             roman_numerals=["I", "IV", "V", "I"],
-            melody=[], scales=[], metadata={}
+            melody=[],
+            scales=[],
+            metadata={},
         )
 
         pattern = {
@@ -222,7 +238,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["IV", "V"]},
-            "evidence": {"weight": 0.7}
+            "evidence": {"weight": 0.7},
         }
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -236,7 +252,9 @@ class TestSequenceMatchers:
             key="C major",
             chords=["C", "F"],
             roman_numerals=["I", "IV"],
-            melody=[], scales=[], metadata={}
+            melody=[],
+            scales=[],
+            metadata={},
         )
 
         pattern = {
@@ -245,7 +263,7 @@ class TestSequenceMatchers:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["I", "IV", "V", "I"]},  # Longer than context
-            "evidence": {"weight": 0.8}
+            "evidence": {"weight": 0.8},
         }
 
         matches = engine._find_pattern_matches(pattern, context)
@@ -265,11 +283,8 @@ class TestMatcherConstraints:
             "name": "Test Window",
             "scope": ["harmonic"],
             "track": ["functional"],
-            "matchers": {
-                "roman_seq": ["V", "I"],
-                "window": {"len": 2}
-            },
-            "evidence": {"weight": 0.9}
+            "matchers": {"roman_seq": ["V", "I"], "window": {"len": 2}},
+            "evidence": {"weight": 0.9},
         }
 
         matches = engine._find_pattern_matches(pattern, sample_context)
@@ -285,7 +300,7 @@ class TestMatcherConstraints:
             "scope": ["harmonic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["I"]},
-            "evidence": {"weight": 0.5}
+            "evidence": {"weight": 0.5},
         }
         assert engine._pattern_applies(harmonic_pattern, sample_context) is True
 
@@ -294,7 +309,7 @@ class TestMatcherConstraints:
             "scope": ["melodic"],
             "track": ["functional"],
             "matchers": {"interval_seq": [2, -2]},
-            "evidence": {"weight": 0.5}
+            "evidence": {"weight": 0.5},
         }
         assert engine._pattern_applies(melodic_pattern, sample_context) is False
 
@@ -303,7 +318,7 @@ class TestMatcherConstraints:
             "scope": ["scale"],
             "track": ["modal"],
             "matchers": {"mode": "dorian"},
-            "evidence": {"weight": 0.5}
+            "evidence": {"weight": 0.5},
         }
         assert engine._pattern_applies(scale_pattern, sample_context) is False
 
@@ -317,7 +332,8 @@ class TestMatcherConstraints:
             chords=["C", "F"],
             roman_numerals=["I", "IV"],
             melody=["C4", "F4"],
-            scales=[], metadata={}
+            scales=[],
+            metadata={},
         )
 
         # Pattern requiring both harmonic and melodic scope
@@ -325,7 +341,7 @@ class TestMatcherConstraints:
             "scope": ["harmonic", "melodic"],
             "track": ["functional"],
             "matchers": {"roman_seq": ["I", "IV"]},
-            "evidence": {"weight": 0.7}
+            "evidence": {"weight": 0.7},
         }
         assert engine._pattern_applies(multi_scope_pattern, context) is True
 

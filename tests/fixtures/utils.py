@@ -25,7 +25,9 @@ def load_fixture(fixture_name: str) -> Dict[str, Any]:
     Raises:
         FileNotFoundError: If fixture file doesn't exist
     """
-    fixture_path = Path(__file__).parent / "progressions" / f"{fixture_name}.golden.json"
+    fixture_path = (
+        Path(__file__).parent / "progressions" / f"{fixture_name}.golden.json"
+    )
     if not fixture_path.exists():
         raise FileNotFoundError(f"Fixture not found: {fixture_path}")
 
@@ -49,14 +51,12 @@ def create_context_from_progression(progression: Dict[str, Any]) -> AnalysisCont
         roman_numerals=progression.get("roman_numerals", []),
         melody=progression.get("melody", []),
         scales=progression.get("scales", []),
-        metadata=progression.get("metadata", {})
+        metadata=progression.get("metadata", {}),
     )
 
 
 def transpose_progression(
-    progression: Dict[str, Any],
-    target_key: str,
-    semitones: int
+    progression: Dict[str, Any], target_key: str, semitones: int
 ) -> Dict[str, Any]:
     """
     Transpose a progression to a different key.
@@ -84,8 +84,7 @@ def transpose_progression(
 
 
 def validate_matches(
-    actual_matches: List[Tuple[int, int]],
-    expected_matches: List[Dict[str, Any]]
+    actual_matches: List[Tuple[int, int]], expected_matches: List[Dict[str, Any]]
 ) -> List[str]:
     """
     Validate actual pattern matches against expected matches.
@@ -148,8 +147,7 @@ def get_transposition_keys(fixture_name: str) -> List[Dict[str, Any]]:
 
 
 def generate_transposed_tests(
-    progression: Dict[str, Any],
-    transpositions: List[Dict[str, Any]]
+    progression: Dict[str, Any], transpositions: List[Dict[str, Any]]
 ) -> List[Tuple[AnalysisContext, List[Dict[str, Any]]]]:
     """
     Generate test cases for all transpositions of a progression.
@@ -197,9 +195,13 @@ class FixtureLoader:
 
     def list_fixtures(self) -> List[str]:
         """List all available fixture files."""
-        return [f.stem.replace(".golden", "") for f in self.base_path.glob("*.golden.json")]
+        return [
+            f.stem.replace(".golden", "") for f in self.base_path.glob("*.golden.json")
+        ]
 
-    def get_progression_by_name(self, fixture_name: str, progression_name: str) -> Optional[Dict[str, Any]]:
+    def get_progression_by_name(
+        self, fixture_name: str, progression_name: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Get a specific progression from a fixture by name.
 

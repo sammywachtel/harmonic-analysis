@@ -163,7 +163,6 @@ class PatternEngine:
             passed_gates=True,
         )
 
-
     def analyze(self, context: AnalysisContext) -> AnalysisEnvelope:
         """
         Analyze musical content using pattern matching.
@@ -256,7 +255,9 @@ class PatternEngine:
 
         return evidences
 
-    def _pattern_applies(self, pattern: Dict[str, Any], context: AnalysisContext) -> bool:
+    def _pattern_applies(
+        self, pattern: Dict[str, Any], context: AnalysisContext
+    ) -> bool:
         """
         Check if pattern is applicable to the context.
 
@@ -331,7 +332,8 @@ class PatternEngine:
             )
 
         if "interval_seq" in matchers:
-            # Big play: restore melodic interval matching for Iteration 2 multi-scope support
+            # Big play: restore melodic interval matching for
+            # Iteration 2 multi-scope support
             interval_seq = matchers["interval_seq"]
             window = matchers.get("window", {})
             constraints = matchers.get("constraints", {})
@@ -478,7 +480,7 @@ class PatternEngine:
         base_note = raw_note[0].upper()
 
         # Basic note mapping
-        note_map = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
+        note_map = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 
         if base_note not in note_map:
             raise ValueError(f"Invalid note: {note}")
@@ -487,9 +489,9 @@ class PatternEngine:
 
         # Handle accidentals (preserve original case for 'b')
         for char in raw_note[1:]:
-            if char in ['#', '♯']:
+            if char in ["#", "♯"]:
                 semitone += 1
-            elif char in ['b', '♭']:
+            elif char in ["b", "♭"]:
                 semitone -= 1
 
         return semitone % 12
@@ -507,9 +509,9 @@ class PatternEngine:
             return 0
 
         # Remove accidentals and case variations
-        clean_roman = roman.upper().replace('♭', '').replace('#', '').replace('b', '')
+        clean_roman = roman.upper().replace("♭", "").replace("#", "").replace("b", "")
 
-        roman_map = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7}
+        roman_map = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7}
 
         for key, degree in roman_map.items():
             if clean_roman.startswith(key):
@@ -517,24 +519,29 @@ class PatternEngine:
 
         return 0
 
-    def _verify_diatonic_context(self, context: AnalysisContext, start: int, end: int) -> bool:
+    def _verify_diatonic_context(
+        self, context: AnalysisContext, start: int, end: int
+    ) -> bool:
         """Verify all chords in span are diatonic to the key."""
         if not context.key or not context.chords:
             return True  # Can't verify, assume valid
 
         # Opening move: extract key info
         try:
-            key_parts = context.key.split()
-            tonic = key_parts[0]
-            mode = key_parts[1].lower() if len(key_parts) > 1 else "major"
+            # key_parts = context.key.split()  # Not used in current implementation
+            # tonic = key_parts[0]  # Not used in current implementation
+            # mode = key_parts[1].lower() if len(key_parts) > 1 else "major"  # Not used
 
-            # For now, use simple heuristic - all chords should contain key signature notes
+            # For now, use simple heuristic - all chords should contain
+            # key signature notes
             # This is a placeholder for more sophisticated diatonic checking
             return True
         except (IndexError, ValueError):
             return True
 
-    def _check_soprano_degree(self, context: AnalysisContext, chord_index: int, expected_degrees: List[int]) -> bool:
+    def _check_soprano_degree(
+        self, context: AnalysisContext, chord_index: int, expected_degrees: List[int]
+    ) -> bool:
         """Check if soprano note at chord_index matches expected scale degrees."""
         if not context.melody or chord_index >= len(context.melody):
             return True  # Can't verify, assume valid
@@ -557,14 +564,18 @@ class PatternEngine:
 
         return True  # If we can't determine, assume valid
 
-    def _check_bass_motion(self, context: AnalysisContext, start: int, end: int, expected_motion: str) -> bool:
+    def _check_bass_motion(
+        self, context: AnalysisContext, start: int, end: int, expected_motion: str
+    ) -> bool:
         """Check bass line motion pattern."""
         # Placeholder for bass motion checking
         # This would analyze bass notes in context.chords[start:end]
         # and verify patterns like "ascending", "descending", "leap_down", etc.
         return True
 
-    def _check_voice_leading(self, context: AnalysisContext, start: int, end: int, expected_quality: str) -> bool:
+    def _check_voice_leading(
+        self, context: AnalysisContext, start: int, end: int, expected_quality: str
+    ) -> bool:
         """Check voice leading quality."""
         # Placeholder for voice leading analysis
         # This would analyze voice motion between chords
@@ -620,7 +631,10 @@ class PatternEngine:
                     continue  # Wildcard matches anything
 
                 # Check if pattern_item is a regex pattern
-                is_regex = any(char in pattern_item for char in ['*', '+', '?', '[', ']', '(', ')', '|', '^', '$'])
+                is_regex = any(
+                    char in pattern_item
+                    for char in ["*", "+", "?", "[", "]", "(", ")", "|", "^", "$"]
+                )
 
                 if is_regex:
                     try:
@@ -634,10 +648,15 @@ class PatternEngine:
                         # Invalid regex, fall back to exact matching
                         pass
 
-                # Normalize for comparison (handle unicode flat symbols and strip extensions)
+                # Normalize for comparison (handle unicode flat symbols
+                # and strip extensions)
                 if is_roman:
-                    pattern_normalized = self._normalize_roman_for_matching(pattern_item)
-                    context_normalized = self._normalize_roman_for_matching(context_item)
+                    pattern_normalized = self._normalize_roman_for_matching(
+                        pattern_item
+                    )
+                    context_normalized = self._normalize_roman_for_matching(
+                        context_item
+                    )
                 else:
                     pattern_normalized = pattern_item
                     context_normalized = context_item
@@ -659,27 +678,36 @@ class PatternEngine:
                 if "key_context" in constraints:
                     key_context = constraints["key_context"]
                     if key_context == "diatonic" and context.key:
-                        # Time to tackle the tricky bit: verify all chords are diatonic to key
-                        if not self._verify_diatonic_context(context, i, i + pattern_len):
+                        # Time to tackle the tricky bit: verify all chords
+                        # are diatonic to key
+                        if not self._verify_diatonic_context(
+                            context, i, i + pattern_len
+                        ):
                             continue
 
                 # Big play: restore missing high-value constraints for pattern precision
                 if "soprano_degree" in constraints:
                     # Check soprano scale degree at cadence resolution
                     expected_degrees = constraints["soprano_degree"]
-                    if not self._check_soprano_degree(context, i + pattern_len - 1, expected_degrees):
+                    if not self._check_soprano_degree(
+                        context, i + pattern_len - 1, expected_degrees
+                    ):
                         continue
 
                 if "bass_motion" in constraints:
                     # Check bass line motion pattern
                     expected_motion = constraints["bass_motion"]
-                    if not self._check_bass_motion(context, i, i + pattern_len, expected_motion):
+                    if not self._check_bass_motion(
+                        context, i, i + pattern_len, expected_motion
+                    ):
                         continue
 
                 if "voice_leading" in constraints:
                     # Check voice leading quality
                     expected_quality = constraints["voice_leading"]
-                    if not self._check_voice_leading(context, i, i + pattern_len, expected_quality):
+                    if not self._check_voice_leading(
+                        context, i, i + pattern_len, expected_quality
+                    ):
                         continue
 
                 # Victory lap: add valid match
@@ -716,17 +744,18 @@ class PatternEngine:
 
         # Main play: strip common extensions
         # Remove 7th indicators (7, 9, 11, 13, maj7, etc.)
-        normalized = re.sub(r'\d+', '', normalized)
-        normalized = re.sub(r'maj', '', normalized, flags=re.IGNORECASE)
-        normalized = re.sub(r'min', '', normalized, flags=re.IGNORECASE)
-        normalized = re.sub(r'add', '', normalized, flags=re.IGNORECASE)
-        normalized = re.sub(r'sus', '', normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r"\d+", "", normalized)
+        normalized = re.sub(r"maj", "", normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r"min", "", normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r"add", "", normalized, flags=re.IGNORECASE)
+        normalized = re.sub(r"sus", "", normalized, flags=re.IGNORECASE)
 
-        # Remove inversion figures (64, 6, 43, etc.) - but preserve quality markers like °, ø, +
+        # Remove inversion figures (64, 6, 43, etc.) - but preserve quality
+        # markers like °, ø, +
         # Careful: don't remove degree numbers like vi, VII, etc.
-        if '/' in normalized:
+        if "/" in normalized:
             # Handle secondary dominants: V/vi -> V, vii°/V -> vii°
-            normalized = normalized.split('/')[0]
+            normalized = normalized.split("/")[0]
 
         # Victory lap: clean up any trailing spaces or punctuation
         normalized = normalized.strip()
@@ -749,9 +778,12 @@ class PatternEngine:
                 return pattern
         return None
 
-    def _get_pattern_display_name(self, pattern_def: Optional[Dict[str, Any]], pattern_id: str) -> str:
+    def _get_pattern_display_name(
+        self, pattern_def: Optional[Dict[str, Any]], pattern_id: str
+    ) -> str:
         """
-        Get the best display name for a pattern, preferring aliases for test compatibility.
+        Get the best display name for a pattern, preferring aliases for
+        test compatibility.
 
         Args:
             pattern_def: Pattern definition dictionary (may be None)
@@ -765,7 +797,8 @@ class PatternEngine:
             metadata = pattern_def.get("metadata", {})
             aliases = metadata.get("aliases", [])
 
-            # Special case: if full name contains "authentic", use it for test compatibility (adj4c.md)
+            # Special case: if full name contains "authentic", use it for
+            # test compatibility (adj4c.md)
             if "authentic" in full_name.lower():
                 return full_name
 
@@ -831,7 +864,9 @@ class PatternEngine:
             return self._calibration_mapping.apply(raw_score)
         return raw_score
 
-    def _lookup_pattern_glossary(self, pattern_name: str, family: str) -> Optional[Dict[str, Any]]:
+    def _lookup_pattern_glossary(
+        self, pattern_name: str, family: str
+    ) -> Optional[Dict[str, Any]]:
         """Return glossary information for a detected pattern if available."""
 
         if not self._glossary_service:
@@ -930,13 +965,16 @@ class PatternEngine:
                     target_symbol = context.chords[start + 1]
                     if raw_romans and start + 1 < len(raw_romans):
                         target_roman = raw_romans[start + 1]
-                    elif context.roman_numerals and start + 1 < len(context.roman_numerals):
+                    elif context.roman_numerals and start + 1 < len(
+                        context.roman_numerals
+                    ):
                         target_roman = context.roman_numerals[start + 1]
                     resolution_str = f"{dominant_symbol}→{target_symbol}"
 
                 element_type = (
                     "secondary_dominant"
-                    if "secondary_dominant" in evidence.pattern_id or "V_of" in evidence.pattern_id
+                    if "secondary_dominant" in evidence.pattern_id
+                    or "V_of" in evidence.pattern_id
                     else "chromatic_chord"
                 )
 
@@ -994,7 +1032,7 @@ class PatternEngine:
         confidences = [
             (functional_conf, AnalysisType.FUNCTIONAL),
             (modal_conf, AnalysisType.MODAL),
-            (chromatic_conf, AnalysisType.CHROMATIC)
+            (chromatic_conf, AnalysisType.CHROMATIC),
         ]
         confidence, analysis_type = max(confidences, key=lambda x: x[0])
 
@@ -1006,7 +1044,9 @@ class PatternEngine:
             if analysis_type.value.lower() in evidence.track_weights:
                 # Opening move: look up pattern definition for better naming
                 pattern_def = self._find_pattern_by_id(evidence.pattern_id)
-                pattern_name = self._get_pattern_display_name(pattern_def, evidence.pattern_id)
+                pattern_name = self._get_pattern_display_name(
+                    pattern_def, evidence.pattern_id
+                )
 
                 family = (
                     evidence.pattern_id.split(".")[0]
@@ -1040,7 +1080,11 @@ class PatternEngine:
             if base_role and not pattern_match.cadence_role:
                 pattern_match.cadence_role = base_role
 
-            landing_index = pattern_match.end - 1 if pattern_match.end > pattern_match.start else pattern_match.start
+            landing_index = (
+                pattern_match.end - 1
+                if pattern_match.end > pattern_match.start
+                else pattern_match.start
+            )
             landing_index = max(landing_index, 0)
 
             section_obj: Optional[SectionDTO] = None
@@ -1068,10 +1112,15 @@ class PatternEngine:
                         pattern_match.cadence_role = "internal"
                 elif pattern_match.cadence_role == "internal" and closes_section:
                     pattern_match.cadence_role = "section-final"
-            elif closes_section and ("cadence" in tags or pattern_match.family.lower() == "cadence"):
+            elif closes_section and (
+                "cadence" in tags or pattern_match.family.lower() == "cadence"
+            ):
                 pattern_match.cadence_role = "section-final"
 
-            if closes_progression and pattern_match.cadence_role in {"section-final", "final"}:
+            if closes_progression and pattern_match.cadence_role in {
+                "section-final",
+                "final",
+            }:
                 pattern_match.cadence_role = "final"
                 final_cadence = pattern_match
 
@@ -1122,11 +1171,15 @@ class PatternEngine:
 
         authentic_flag = False
         if pattern_matches:
-            ranked_patterns = sorted(pattern_matches, key=lambda p: p.score, reverse=True)[:2]
+            ranked_patterns = sorted(
+                pattern_matches, key=lambda p: p.score, reverse=True
+            )[:2]
             pattern_names = [p.name for p in ranked_patterns if p.name]
             if pattern_names:
                 reasoning_parts.append("Detected patterns: " + ", ".join(pattern_names))
-            authentic_flag = any("authentic" in (p.name or "").lower() for p in pattern_matches)
+            authentic_flag = any(
+                "authentic" in (p.name or "").lower() for p in pattern_matches
+            )
 
         if roman_sequence:
             reasoning_parts.append("Progression: " + " → ".join(roman_sequence))
@@ -1144,7 +1197,9 @@ class PatternEngine:
                 if any(token in roman for token in ("♭II", "bII")):
                     modal_accents.append("bII signature")
             if modal_accents:
-                reasoning_parts.append("Modal accents: " + ", ".join(sorted(set(modal_accents))))
+                reasoning_parts.append(
+                    "Modal accents: " + ", ".join(sorted(set(modal_accents)))
+                )
             reasoning_parts.append("modal analysis")
         else:
             key_label = context.key or "Unknown key"
@@ -1167,11 +1222,17 @@ class PatternEngine:
                     if any(token in roman for token in ("♭II", "bII")):
                         modal_accents.append("♭II")
                 if modal_accents:
-                    reasoning_parts.append(f"modal accents: {', '.join(sorted(set(modal_accents)))}")
+                    reasoning_parts.append(
+                        f"modal accents: {', '.join(sorted(set(modal_accents)))}"
+                    )
                 if "mixolydian" in (mode_label or "").lower():
                     reasoning_parts.append("Mixolydian coloration")
 
-        reasoning_text = "; ".join(reasoning_parts) if reasoning_parts else f"Pattern-based analysis with {len(evidences)} matches"
+        reasoning_text = (
+            "; ".join(reasoning_parts)
+            if reasoning_parts
+            else f"Pattern-based analysis with {len(evidences)} matches"
+        )
 
         # Iteration 9A: Collect modal evidence and characteristics for arbitration
         modal_evidence = []
@@ -1180,70 +1241,86 @@ class PatternEngine:
         for evidence in evidences:
             pattern_def = evidence.pattern_id
             # Check if evidence contributes to modal analysis track
-            has_modal_weight = 'modal' in evidence.track_weights and evidence.track_weights['modal'] > 0.0
-            if has_modal_weight or 'modal' in pattern_def.lower():
+            has_modal_weight = (
+                "modal" in evidence.track_weights
+                and evidence.track_weights["modal"] > 0.0
+            )
+            if has_modal_weight or "modal" in pattern_def.lower():
                 # Create modal evidence based on pattern characteristics
-                evidence_type = EvidenceType.STRUCTURAL  # Default to structural for modal patterns
+                evidence_type = (
+                    EvidenceType.STRUCTURAL
+                )  # Default to structural for modal patterns
                 strength = evidence.raw_score  # Use raw_score instead of confidence
                 description = f"Modal pattern: {pattern_def}"
 
                 # Enhance evidence type based on pattern characteristics
-                if 'cadence' in pattern_def.lower():
+                if "cadence" in pattern_def.lower():
                     evidence_type = EvidenceType.CADENTIAL
-                elif any(token in pattern_def.lower() for token in ['bvii', 'bii', 'bv', 'iv']):
+                elif any(
+                    token in pattern_def.lower()
+                    for token in ["bvii", "bii", "bv", "iv"]
+                ):
                     evidence_type = EvidenceType.INTERVALLIC
                     description = f"Modal intervallic pattern: {pattern_def}"
 
-                modal_evidence.append(ModalEvidenceRecord(
-                    type=evidence_type,
-                    strength=strength,
-                    description=description
-                ))
+                modal_evidence.append(
+                    ModalEvidenceRecord(
+                        type=evidence_type, strength=strength, description=description
+                    )
+                )
 
                 # Iteration 9B: Collect modal characteristics regardless of primary type
                 # Extract descriptive characteristic from pattern name/id
-                if 'mixolydian' in pattern_def.lower():
+                if "mixolydian" in pattern_def.lower():
                     modal_characteristics.append("Mixolydian ♭VII")
-                elif 'dorian' in pattern_def.lower():
+                elif "dorian" in pattern_def.lower():
                     modal_characteristics.append("Dorian natural VI")
-                elif 'phrygian' in pattern_def.lower():
+                elif "phrygian" in pattern_def.lower():
                     modal_characteristics.append("Phrygian ♭II")
-                elif 'lydian' in pattern_def.lower():
+                elif "lydian" in pattern_def.lower():
                     modal_characteristics.append("Lydian ♯IV")
-                elif 'locrian' in pattern_def.lower():
+                elif "locrian" in pattern_def.lower():
                     modal_characteristics.append("Locrian ♭V")
-                elif 'aeolian' in pattern_def.lower():
+                elif "aeolian" in pattern_def.lower():
                     modal_characteristics.append("Natural minor v")
 
         # Also add evidence for detected modal signatures in roman numerals
-        roman_signature = ' '.join(roman_sequence).upper()
-        if 'BVII' in roman_signature or '♭VII' in roman_signature:
-            modal_evidence.append(ModalEvidenceRecord(
-                type=EvidenceType.INTERVALLIC,
-                strength=0.8,
-                description="Mixolydian ♭VII signature detected"
-            ))
+        roman_signature = " ".join(roman_sequence).upper()
+        if "BVII" in roman_signature or "♭VII" in roman_signature:
+            modal_evidence.append(
+                ModalEvidenceRecord(
+                    type=EvidenceType.INTERVALLIC,
+                    strength=0.8,
+                    description="Mixolydian ♭VII signature detected",
+                )
+            )
             modal_characteristics.append("♭VII chord")
-        if 'BII' in roman_signature or '♭II' in roman_signature:
-            modal_evidence.append(ModalEvidenceRecord(
-                type=EvidenceType.INTERVALLIC,
-                strength=0.8,
-                description="Phrygian ♭II signature detected"
-            ))
+        if "BII" in roman_signature or "♭II" in roman_signature:
+            modal_evidence.append(
+                ModalEvidenceRecord(
+                    type=EvidenceType.INTERVALLIC,
+                    strength=0.8,
+                    description="Phrygian ♭II signature detected",
+                )
+            )
             modal_characteristics.append("♭II chord")
-        if 'BV' in roman_signature or '♭V' in roman_signature:
-            modal_evidence.append(ModalEvidenceRecord(
-                type=EvidenceType.INTERVALLIC,
-                strength=0.7,
-                description="Lydian/Modal ♭V signature detected"
-            ))
+        if "BV" in roman_signature or "♭V" in roman_signature:
+            modal_evidence.append(
+                ModalEvidenceRecord(
+                    type=EvidenceType.INTERVALLIC,
+                    strength=0.7,
+                    description="Lydian/Modal ♭V signature detected",
+                )
+            )
             modal_characteristics.append("♭V chord")
-        if 'SHARPIV' in roman_signature or '♯IV' in roman_signature:
-            modal_evidence.append(ModalEvidenceRecord(
-                type=EvidenceType.INTERVALLIC,
-                strength=0.8,
-                description="Lydian ♯IV signature detected"
-            ))
+        if "SHARPIV" in roman_signature or "♯IV" in roman_signature:
+            modal_evidence.append(
+                ModalEvidenceRecord(
+                    type=EvidenceType.INTERVALLIC,
+                    strength=0.8,
+                    description="Lydian ♯IV signature detected",
+                )
+            )
             modal_characteristics.append("raised 4th")
 
         return AnalysisSummary(
@@ -1263,8 +1340,11 @@ class PatternEngine:
             sections=sections_list,
             terminal_cadences=terminal_cadences,
             final_cadence=final_cadence,
-            modal_evidence=modal_evidence,  # Iteration 9A: Include modal evidence for arbitration
-            modal_characteristics=list(set(modal_characteristics)),  # Iteration 9B: Include modal characteristics
+            modal_evidence=modal_evidence,  # Iteration 9A: Include modal
+            # evidence for arbitration
+            modal_characteristics=list(
+                set(modal_characteristics)
+            ),  # Iteration 9B: Include modal characteristics
         )
 
     def _build_alternatives(
@@ -1301,7 +1381,9 @@ class PatternEngine:
                 alternatives.append(
                     AnalysisSummary(
                         type=AnalysisType.MODAL,
-                        roman_numerals=context.roman_numerals if context.roman_numerals else [],
+                        roman_numerals=(
+                            context.roman_numerals if context.roman_numerals else []
+                        ),
                         confidence=modal_conf,
                         key_signature=context.key,
                         mode=context.metadata.get("mode"),
@@ -1315,7 +1397,9 @@ class PatternEngine:
                 alternatives.append(
                     AnalysisSummary(
                         type=AnalysisType.FUNCTIONAL,
-                        roman_numerals=context.roman_numerals if context.roman_numerals else [],
+                        roman_numerals=(
+                            context.roman_numerals if context.roman_numerals else []
+                        ),
                         confidence=functional_conf,
                         key_signature=context.key,
                         mode=context.metadata.get("mode"),

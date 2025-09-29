@@ -5,7 +5,7 @@ Unified Target Builder for corpus-based ground truth.
 import logging
 import numpy as np
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from .types import (
     CalibrationBucket,
@@ -29,8 +29,7 @@ class UnifiedTargetBuilder:
         self.logger = logging.getLogger(__name__)
 
     def build_unified_targets(
-        self,
-        labeled_samples: List[LabeledSample]
+        self, labeled_samples: List[LabeledSample]
     ) -> Tuple[np.ndarray, np.ndarray, TargetStatistics]:
         """
         Build unified reliability targets from labeled corpus samples.
@@ -75,8 +74,7 @@ class UnifiedTargetBuilder:
         return raw_scores, reliability_targets, stats
 
     def build_stratified_targets(
-        self,
-        labeled_samples: List[LabeledSample]
+        self, labeled_samples: List[LabeledSample]
     ) -> Dict[str, CalibrationBucket]:
         """
         Build stratified calibration buckets for difficulty-aware calibration.
@@ -160,14 +158,14 @@ class UnifiedTargetBuilder:
             samples=samples,
             empirical_reliability=empirical_reliability,
             sample_count=len(samples),
-            label_variance=label_variance
+            label_variance=label_variance,
         )
 
     def _compute_target_statistics(
         self,
         labeled_samples: List[LabeledSample],
         raw_scores: np.ndarray,
-        reliability_targets: np.ndarray
+        reliability_targets: np.ndarray,
     ) -> TargetStatistics:
         """Compute comprehensive statistics for target quality assessment."""
 
@@ -193,7 +191,11 @@ class UnifiedTargetBuilder:
         # Correlation statistics
         correlation_stats = {}
         try:
-            if len(raw_scores) > 1 and np.std(raw_scores) > 0 and np.std(reliability_targets) > 0:
+            if (
+                len(raw_scores) > 1
+                and np.std(raw_scores) > 0
+                and np.std(reliability_targets) > 0
+            ):
                 correlation_stats["raw_reliability_corr"] = float(
                     np.corrcoef(raw_scores, reliability_targets)[0, 1]
                 )
@@ -201,12 +203,14 @@ class UnifiedTargetBuilder:
                 correlation_stats["raw_reliability_corr"] = 0.0
 
             correlation_stats["raw_score_variance"] = float(np.var(raw_scores))
-            correlation_stats["reliability_variance"] = float(np.var(reliability_targets))
+            correlation_stats["reliability_variance"] = float(
+                np.var(reliability_targets)
+            )
         except Exception:
             correlation_stats = {
                 "raw_reliability_corr": 0.0,
                 "raw_score_variance": 0.0,
-                "reliability_variance": 0.0
+                "reliability_variance": 0.0,
             }
 
         return TargetStatistics(
@@ -216,7 +220,7 @@ class UnifiedTargetBuilder:
             pattern_family_distribution=dict(family_dist),
             reliability_range=(
                 float(np.min(reliability_targets)),
-                float(np.max(reliability_targets))
+                float(np.max(reliability_targets)),
             ),
-            correlation_stats=correlation_stats
+            correlation_stats=correlation_stats,
         )

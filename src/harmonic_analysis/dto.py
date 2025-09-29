@@ -118,7 +118,7 @@ class ChromaticElementDTO:
 
         # Add resolution if present (prefer chord symbol for resolution display)
         if self.resolution:
-            resolution_target = self.target_chord or display_target or 'unresolved'
+            resolution_target = self.target_chord or display_target or "unresolved"
             parts.append(f"→ {resolution_target}")
 
         # Add strength if present
@@ -338,7 +338,10 @@ class AnalysisSummary:
             chords=[_fc(x) for x in d.get("chords", [])],
             modal_characteristics=list(d.get("modal_characteristics", [])),
             modal_evidence=list(d.get("modal_evidence", [])),
-            sections=[SectionDTO(**x) if isinstance(x, dict) else x for x in d.get("sections", [])],
+            sections=[
+                SectionDTO(**x) if isinstance(x, dict) else x
+                for x in d.get("sections", [])
+            ],
             terminal_cadences=[_pm(x) for x in d.get("terminal_cadences", [])],
             final_cadence=_pm(d["final_cadence"]) if d.get("final_cadence") else None,
         )

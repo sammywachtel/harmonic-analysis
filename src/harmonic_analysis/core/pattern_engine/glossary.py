@@ -58,39 +58,74 @@ def explain_feature(glossary: Dict[str, Any], key: str) -> Tuple[str, str]:
     # Map common feature keys to human-readable labels with custom logic
     feature_mappings = {
         # Cadence features
-        "has_auth_cadence": ("Authentic Cadence", "Perfect or Imperfect Authentic Cadence detected"),
-        "has_plagal_cadence": ("Plagal Cadence", "IV-I progression, often at hymn endings"),
-        "has_half_cadence": ("Half Cadence", "Cadence ending on V, creating expectation"),
-        "has_deceptive_cadence": ("Deceptive Cadence", "V-vi avoiding resolution to tonic"),
-
+        "has_auth_cadence": (
+            "Authentic Cadence",
+            "Perfect or Imperfect Authentic Cadence detected",
+        ),
+        "has_plagal_cadence": (
+            "Plagal Cadence",
+            "IV-I progression, often at hymn endings",
+        ),
+        "has_half_cadence": (
+            "Half Cadence",
+            "Cadence ending on V, creating expectation",
+        ),
+        "has_deceptive_cadence": (
+            "Deceptive Cadence",
+            "V-vi avoiding resolution to tonic",
+        ),
         # Modal features
-        "modal_char_score": ("Modal Character", "Strength of modal vs functional characteristics"),
-        "dorian_character": ("Dorian Character", "Dorian mode characteristics (raised 6th)"),
-        "phrygian_character": ("Phrygian Character", "Phrygian mode characteristics (lowered 2nd)"),
-        "mixolydian_character": ("Mixolydian Character", "Mixolydian mode characteristics (lowered 7th)"),
-
+        "modal_char_score": (
+            "Modal Character",
+            "Strength of modal vs functional characteristics",
+        ),
+        "dorian_character": (
+            "Dorian Character",
+            "Dorian mode characteristics (raised 6th)",
+        ),
+        "phrygian_character": (
+            "Phrygian Character",
+            "Phrygian mode characteristics (lowered 2nd)",
+        ),
+        "mixolydian_character": (
+            "Mixolydian Character",
+            "Mixolydian mode characteristics (lowered 7th)",
+        ),
         # Functional features
-        "tonal_clarity": ("Tonal Clarity", "Strength of functional harmonic progression"),
-        "predominant_function": ("Predominant Function", "Pre-dominant harmony (ii, IV, vi)"),
+        "tonal_clarity": (
+            "Tonal Clarity",
+            "Strength of functional harmonic progression",
+        ),
+        "predominant_function": (
+            "Predominant Function",
+            "Pre-dominant harmony (ii, IV, vi)",
+        ),
         "dominant_function": ("Dominant Function", "Dominant harmony creating tension"),
-
         # Chromatic features
-        "outside_key_ratio": ("Chromatic Content", "Proportion of notes outside the diatonic scale"),
+        "outside_key_ratio": (
+            "Chromatic Content",
+            "Proportion of notes outside the diatonic scale",
+        ),
         "chromatic_density": ("Chromatic Density", "Amount of chromatic alteration"),
-        "secondary_dominants": ("Secondary Dominants", "V/x chords tonicizing other degrees"),
-
+        "secondary_dominants": (
+            "Secondary Dominants",
+            "V/x chords tonicizing other degrees",
+        ),
         # Voice leading features
-        "voice_leading_smoothness": ("Voice Leading", "Quality of melodic motion between chords"),
+        "voice_leading_smoothness": (
+            "Voice Leading",
+            "Quality of melodic motion between chords",
+        ),
         "soprano_degree": ("Soprano Degree", "Scale degree of the soprano voice"),
-
         # Rhythmic features
         "harmonic_rhythm": ("Harmonic Rhythm", "Rate of chord change"),
-
         # Legacy support for common features
-        "lt_suppression": ("Leading Tone Suppression", "Avoidance of leading tone resolution"),
+        "lt_suppression": (
+            "Leading Tone Suppression",
+            "Avoidance of leading tone resolution",
+        ),
         "raised6_ratio": ("Raised Sixth", "Proportion of raised 6th scale degrees"),
         "flat7_ratio": ("Lowered Seventh", "Proportion of lowered 7th scale degrees"),
-
         # Pattern weight features
         "pattern_weight": ("Pattern Weight", "Base confidence weight for this pattern"),
     }
@@ -117,7 +152,9 @@ def explain_feature(glossary: Dict[str, Any], key: str) -> Tuple[str, str]:
     return key, key
 
 
-def enrich_features(glossary: Dict[str, Any], features: Dict[str, Any]) -> Dict[str, Any]:
+def enrich_features(
+    glossary: Dict[str, Any], features: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Enrich feature dictionary with UI labels and tooltips.
 
@@ -202,7 +239,10 @@ def describe_feature(glossary: Dict[str, Any], key: str) -> Dict[str, Any]:
     if "cadence" in key.lower():
         description["examples"] = ["V-I progression", "Authentic resolution"]
     elif "modal" in key.lower():
-        description["examples"] = ["Dorian progression", "Mode-specific characteristics"]
+        description["examples"] = [
+            "Dorian progression",
+            "Mode-specific characteristics",
+        ]
     elif "chromatic" in key.lower():
         description["examples"] = ["Secondary dominants", "Non-diatonic chords"]
 

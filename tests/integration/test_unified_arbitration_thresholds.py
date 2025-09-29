@@ -42,8 +42,12 @@ class TestUnifiedArbitrationThresholds:
         )
 
         # Document the behavior - might be functional or modal depending on patterns
-        print(f"Strong functional: {result.primary.type}, conf={result.primary.confidence:.3f}")
-        print(f"Weak progression: {result_weak.primary.type}, conf={result_weak.primary.confidence:.3f}")
+        print(
+            f"Strong functional: {result.primary.type}, conf={result.primary.confidence:.3f}"
+        )
+        print(
+            f"Weak progression: {result_weak.primary.type}, conf={result_weak.primary.confidence:.3f}"
+        )
 
     def test_modal_threshold_boundary(self, unified_service):
         """Test modal analysis threshold boundary (min = 0.60)."""
@@ -66,8 +70,12 @@ class TestUnifiedArbitrationThresholds:
             phrygian_progression, key_hint="E phrygian"
         )
 
-        print(f"Dorian modal: {result.primary.type}, conf={result.primary.confidence:.3f}")
-        print(f"Phrygian modal: {result_phrygian.primary.type}, conf={result_phrygian.primary.confidence:.3f}")
+        print(
+            f"Dorian modal: {result.primary.type}, conf={result.primary.confidence:.3f}"
+        )
+        print(
+            f"Phrygian modal: {result_phrygian.primary.type}, conf={result_phrygian.primary.confidence:.3f}"
+        )
 
     def test_functional_dominance_margin(self, unified_service):
         """Test functional dominance margin (+0.10 over modal)."""
@@ -77,14 +85,14 @@ class TestUnifiedArbitrationThresholds:
                 "name": "Plagal Cadence",
                 "chords": ["F", "C"],
                 "key": "C major",
-                "note": "Can be functional (IV-I) or modal characteristic"
+                "note": "Can be functional (IV-I) or modal characteristic",
             },
             {
                 "name": "Minor iv",
                 "chords": ["C", "Fm", "C"],
                 "key": "C major",
-                "note": "Borrowed chord - functional or modal?"
-            }
+                "note": "Borrowed chord - functional or modal?",
+            },
         ]
 
         results = []
@@ -92,21 +100,27 @@ class TestUnifiedArbitrationThresholds:
             result = unified_service.analyze_with_patterns(
                 prog["chords"], key_hint=prog["key"]
             )
-            results.append({
-                "name": prog["name"],
-                "type": result.primary.type,
-                "confidence": result.primary.confidence,
-                "note": prog["note"]
-            })
+            results.append(
+                {
+                    "name": prog["name"],
+                    "type": result.primary.type,
+                    "confidence": result.primary.confidence,
+                    "note": prog["note"],
+                }
+            )
 
         # Document arbitration decisions
         for result in results:
-            print(f"{result['name']}: {result['type']}, conf={result['confidence']:.3f}")
+            print(
+                f"{result['name']}: {result['type']}, conf={result['confidence']:.3f}"
+            )
             print(f"  {result['note']}")
 
         # At least one should have reasonable confidence
         confidences = [r["confidence"] for r in results]
-        assert max(confidences) > 0.5, "At least one progression should have decent confidence"
+        assert (
+            max(confidences) > 0.5
+        ), "At least one progression should have decent confidence"
 
     def test_modal_dominance_margin(self, unified_service):
         """Test modal dominance margin (+0.15 over functional)."""
@@ -116,14 +130,14 @@ class TestUnifiedArbitrationThresholds:
                 "name": "Andalusian Cadence",
                 "chords": ["Dm", "C", "Bb", "A"],
                 "key": "A phrygian",
-                "expected_modal": True
+                "expected_modal": True,
             },
             {
                 "name": "Mixolydian ♭VII",
                 "chords": ["G", "F"],
                 "key": "G mixolydian",
-                "expected_modal": True
-            }
+                "expected_modal": True,
+            },
         ]
 
         for prog in modal_progressions:
@@ -131,7 +145,9 @@ class TestUnifiedArbitrationThresholds:
                 prog["chords"], key_hint=prog["key"]
             )
 
-            print(f"{prog['name']}: {result.primary.type}, conf={result.primary.confidence:.3f}")
+            print(
+                f"{prog['name']}: {result.primary.type}, conf={result.primary.confidence:.3f}"
+            )
 
             if prog["expected_modal"]:
                 # Strong modal progressions should be recognized as modal
@@ -156,11 +172,13 @@ class TestUnifiedArbitrationThresholds:
             result = unified_service.analyze_with_patterns(
                 prog["chords"], key_hint=prog["key"]
             )
-            results.append({
-                "key": prog["key"],
-                "type": result.primary.type,
-                "confidence": result.primary.confidence
-            })
+            results.append(
+                {
+                    "key": prog["key"],
+                    "type": result.primary.type,
+                    "confidence": result.primary.confidence,
+                }
+            )
 
         # All should have same analysis type (consistency)
         types = [r["type"] for r in results]
@@ -172,7 +190,9 @@ class TestUnifiedArbitrationThresholds:
 
         # Basic consistency checks
         assert len(set(types)) <= 2, "Should have consistent or similar analysis types"
-        assert all(c >= 0.0 for c in confidences), "All confidences should be non-negative"
+        assert all(
+            c >= 0.0 for c in confidences
+        ), "All confidences should be non-negative"
         assert all(c <= 1.0 for c in confidences), "All confidences should be <= 1.0"
 
     def test_threshold_configuration_coverage(self, unified_service):
@@ -182,7 +202,7 @@ class TestUnifiedArbitrationThresholds:
             "min_functional": 0.50,
             "min_modal": 0.60,  # Higher threshold for modal (more conservative)
             "functional_margin": 0.10,
-            "modal_dominance": 0.15
+            "modal_dominance": 0.15,
         }
 
         # Test boundary cases around these thresholds
@@ -192,15 +212,15 @@ class TestUnifiedArbitrationThresholds:
                 "chords": ["C", "Am", "F", "G", "C"],
                 "key": "C major",
                 "expected_type": AnalysisType.FUNCTIONAL,
-                "min_confidence": expected_thresholds["min_functional"]
+                "min_confidence": expected_thresholds["min_functional"],
             },
             {
                 "name": "Strong Modal",
                 "chords": ["Dm", "C"],
                 "key": "D dorian",
                 "expected_type": AnalysisType.MODAL,
-                "min_confidence": expected_thresholds["min_modal"]
-            }
+                "min_confidence": expected_thresholds["min_modal"],
+            },
         ]
 
         for case in test_cases:
@@ -208,7 +228,9 @@ class TestUnifiedArbitrationThresholds:
                 case["chords"], key_hint=case["key"]
             )
 
-            print(f"{case['name']}: {result.primary.type}, conf={result.primary.confidence:.3f}")
+            print(
+                f"{case['name']}: {result.primary.type}, conf={result.primary.confidence:.3f}"
+            )
 
             # Verify confidence meets minimum threshold if type matches expectation
             if result.primary.type == case["expected_type"]:
@@ -228,7 +250,9 @@ class TestUnifiedArbitrationThresholds:
 
         # Primary should have reasonable confidence
         assert result.primary is not None, "Should always have a primary analysis"
-        assert result.primary.confidence >= 0.0, "Primary confidence should be non-negative"
+        assert (
+            result.primary.confidence >= 0.0
+        ), "Primary confidence should be non-negative"
 
         # Alternatives (if any) should generally have lower confidence than primary
         if result.alternatives:
@@ -244,7 +268,7 @@ class TestUnifiedArbitrationThresholds:
 
             # This is a soft check - document the behavior
             if max_alt_conf > primary_conf:
-                print(f"Note: Alternative has higher confidence than primary")
+                print("Note: Alternative has higher confidence than primary")
 
     def test_override_flag_behavior(self, unified_service):
         """Test override flag behavior (should default to off)."""
@@ -264,8 +288,12 @@ class TestUnifiedArbitrationThresholds:
         # For a simple I-IV, confidence shouldn't be extremely high unless there's
         # strong pattern evidence
         if result.primary.confidence > 0.95:
-            print(f"Note: Very high confidence ({result.primary.confidence:.3f}) for simple I-IV")
+            print(
+                f"Note: Very high confidence ({result.primary.confidence:.3f}) for simple I-IV"
+            )
 
-        print(f"Simple I-IV: {result.primary.type}, conf={result.primary.confidence:.3f}")
+        print(
+            f"Simple I-IV: {result.primary.type}, conf={result.primary.confidence:.3f}"
+        )
 
         # Document that this represents the "default off" state for overrides
