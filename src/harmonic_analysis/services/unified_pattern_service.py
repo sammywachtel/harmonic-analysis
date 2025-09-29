@@ -188,7 +188,7 @@ class UnifiedPatternService:
 
             logger.debug(f"🎵 Converted romans to chords: {romans} → {chords} (key: {key_hint})")
 
-        elif not chords:
+        elif chords is None:
             raise ValueError("Must provide either chords or romans parameter")
 
         # Time to tackle the tricky bit: convert to unified engine format

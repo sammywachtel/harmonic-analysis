@@ -101,7 +101,8 @@ class PatternAnalysisService:
         if chord_symbols and romans:
             raise ValueError("Cannot provide both chord_symbols and romans - choose one input type")
 
-        if not chord_symbols and not romans:
+        # Special case: empty chord_symbols list is allowed for backward compatibility
+        if chord_symbols is None and not romans:
             raise ValueError("Must provide either chord_symbols or romans")
 
         if romans and not key_hint:
