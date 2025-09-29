@@ -4,3 +4,5 @@ numpy>=1.20.0
 scipy>=1.7.0
 scikit-learn>=1.0.0
 typing-extensions>=4.0.0
+# Pattern engine dependencies
+jsonschema>=4.0.0

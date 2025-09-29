@@ -215,6 +215,7 @@ def get_engine() -> PatternEngine:
 # Rendering helpers
 # ---------------------------------------------------------------------------
 
+
 def format_confidence_badge(confidence: float) -> str:
     """Create a colored confidence badge based on value."""
     if confidence >= 0.8:
@@ -265,7 +266,11 @@ def format_evidence_html(evidence_list) -> str:
                 label = meta.get("label", key)
                 val = meta.get("value")
                 tooltip = meta.get("tooltip", "")
-                tooltip_text = f" <span style='color: #64748b; font-size: 0.85rem;'>({tooltip})</span>" if tooltip else ""
+                tooltip_text = (
+                    f" <span style='color: #64748b; font-size: 0.85rem;'>({tooltip})</span>"
+                    if tooltip
+                    else ""
+                )
                 html += f"<div style='margin: 0.25rem 0;'>• <strong>{label}:</strong> {val}{tooltip_text}</div>"
             html += "</div>"
         elif features:
@@ -439,9 +444,7 @@ def summarize_envelope(envelope, include_raw: bool = True) -> str:
         if primary.reasoning:
             lines.append(f"Reasoning      : {primary.reasoning}")
         if primary.roman_numerals:
-            lines.append(
-                f"Roman Numerals : {', '.join(primary.roman_numerals)}"
-            )
+            lines.append(f"Roman Numerals : {', '.join(primary.roman_numerals)}")
         if primary.terms:
             lines.append("")
             lines.append("Glossary Terms:")
@@ -502,14 +505,13 @@ def summarize_envelope(envelope, include_raw: bool = True) -> str:
 # Analysis helpers
 # ---------------------------------------------------------------------------
 
+
 def normalize_scale_input(raw_scales: Optional[str | Sequence[str]]) -> List[str]:
     if raw_scales is None:
         return []
     if isinstance(raw_scales, str):
         candidates = [
-            line.strip()
-            for line in raw_scales.splitlines()
-            if line and line.strip()
+            line.strip() for line in raw_scales.splitlines() if line and line.strip()
         ]
         return candidates
     return [item.strip() for item in raw_scales if item and item.strip()]
@@ -546,7 +548,7 @@ def analyze_progression(
                 auto_romans = []
                 break
         if auto_romans:
-            romans = [rn.replace('b', '♭') for rn in auto_romans]
+            romans = [rn.replace("b", "♭") for rn in auto_romans]
 
     melody = parse_melody(melody_text)
 
@@ -591,7 +593,9 @@ def create_api_app() -> "FastAPI":
     glossary_service = GlossaryService()
 
     class ProgressionRequest(BaseModel):
-        key: Optional[str] = Field(default=None, description="Optional key hint (e.g. 'C major')")
+        key: Optional[str] = Field(
+            default=None, description="Optional key hint (e.g. 'C major')"
+        )
         profile: Optional[str] = Field(default="classical", description="Style profile")
         chords: Optional[List[str]] = Field(default=None, description="Chord symbols")
         romans: Optional[List[str]] = Field(default=None, description="Roman numerals")
@@ -729,7 +733,9 @@ def create_api_app() -> "FastAPI":
         result = _lookup_glossary(term)
         if result:
             return result
-        raise HTTPException(status_code=404, detail=f"No glossary entry found for '{term}'.")
+        raise HTTPException(
+            status_code=404, detail=f"No glossary entry found for '{term}'."
+        )
 
     return app
 
@@ -737,6 +743,7 @@ def create_api_app() -> "FastAPI":
 # ---------------------------------------------------------------------------
 # Gradio interface
 # ---------------------------------------------------------------------------
+
 
 def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None:
     try:
@@ -953,13 +960,13 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
     with gr.Blocks(title="Harmonic Analysis Demo", css=custom_css) as demo:
 
         gr.Markdown("# Harmonic Analysis Demo")
-        gr.Markdown("Analyze chord progressions, melodies, and scales with space or comma-separated input.")
+        gr.Markdown(
+            "Analyze chord progressions, melodies, and scales with space or comma-separated input."
+        )
 
         with gr.Row():
             key_choices = list(KEY_OPTIONS)
-            initial_key = (
-                default_key if default_key else KEY_OPTION_NONE
-            )
+            initial_key = default_key if default_key else KEY_OPTION_NONE
             if initial_key not in key_choices:
                 key_choices.append(initial_key)
 
@@ -1037,13 +1044,14 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
         server_port=7860,
         share=False,
         debug=True,
-        show_error=True
+        show_error=True,
     )
 
 
 # ---------------------------------------------------------------------------
 # Main CLI
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -1052,7 +1060,9 @@ def main() -> None:
             "of chords, roman numerals, melody, or scale notes."
         )
     )
-    parser.add_argument("--key", default=None, help="Optional key hint (e.g. 'C major')")
+    parser.add_argument(
+        "--key", default=None, help="Optional key hint (e.g. 'C major')"
+    )
     parser.add_argument(
         "--profile",
         default="classical",

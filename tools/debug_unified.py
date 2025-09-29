@@ -28,16 +28,22 @@ sys.path.insert(0, str(project_root / "src"))
 sys.path.insert(0, str(project_root))  # Add project root for tests.utils imports
 
 from tests.utils import (
-    UnifiedDebugger, DebugConfig, debug_progression,
-    debug_test_failure, DebugCase, PatternDebugger,
-    run_debug_case, get_case_by_name, list_available_cases,
-    COMMON_DEBUG_CASES
+    UnifiedDebugger,
+    DebugConfig,
+    debug_progression,
+    debug_test_failure,
+    DebugCase,
+    PatternDebugger,
+    run_debug_case,
+    get_case_by_name,
+    list_available_cases,
+    COMMON_DEBUG_CASES,
 )
 
 
 def parse_chord_string(chord_string: str) -> List[str]:
     """Parse chord string like 'Am F C G' into list."""
-    return [c.strip() for c in chord_string.replace(',', ' ').split() if c.strip()]
+    return [c.strip() for c in chord_string.replace(",", " ").split() if c.strip()]
 
 
 def interactive_debug():
@@ -62,12 +68,26 @@ def interactive_debug():
 
     # Get analysis options
     print("\nAnalysis options:")
-    analyze_patterns = input("Analyze patterns? [Y/n]: ").strip().lower() not in ['n', 'no']
-    analyze_tokens = input("Analyze tokens? [Y/n]: ").strip().lower() not in ['n', 'no']
-    analyze_stage_b = input("Analyze Stage B events? [y/N]: ").strip().lower() in ['y', 'yes']
-    analyze_backdoor = input("Analyze backdoor progressions? [y/N]: ").strip().lower() in ['y', 'yes']
-    analyze_intervals = input("Analyze intervals? [y/N]: ").strip().lower() in ['y', 'yes']
-    trace_patterns = input("Enable pattern tracing? [y/N]: ").strip().lower() in ['y', 'yes']
+    analyze_patterns = input("Analyze patterns? [Y/n]: ").strip().lower() not in [
+        "n",
+        "no",
+    ]
+    analyze_tokens = input("Analyze tokens? [Y/n]: ").strip().lower() not in ["n", "no"]
+    analyze_stage_b = input("Analyze Stage B events? [y/N]: ").strip().lower() in [
+        "y",
+        "yes",
+    ]
+    analyze_backdoor = input(
+        "Analyze backdoor progressions? [y/N]: "
+    ).strip().lower() in ["y", "yes"]
+    analyze_intervals = input("Analyze intervals? [y/N]: ").strip().lower() in [
+        "y",
+        "yes",
+    ]
+    trace_patterns = input("Enable pattern tracing? [y/N]: ").strip().lower() in [
+        "y",
+        "yes",
+    ]
 
     # Create debugger with configuration
     config = DebugConfig(
@@ -77,7 +97,7 @@ def interactive_debug():
         analyze_intervals=analyze_intervals,
         analyze_stage_b_events=analyze_stage_b,
         analyze_backdoor=analyze_backdoor,
-        verbose=True
+        verbose=True,
     )
 
     debugger = UnifiedDebugger(config)
@@ -87,16 +107,21 @@ def interactive_debug():
         chords=chords,
         profile=profile,
         key_hint=key_hint,
-        test_name="interactive_session"
+        test_name="interactive_session",
     )
 
     debugger.print_debug_summary(debug_info)
 
     # Ask if user wants to save results
-    save = input("\nSave debug results to file? [y/N]: ").strip().lower() in ['y', 'yes']
+    save = input("\nSave debug results to file? [y/N]: ").strip().lower() in [
+        "y",
+        "yes",
+    ]
     if save:
-        filename = input("Filename [debug_results.txt]: ").strip() or "debug_results.txt"
-        with open(filename, 'w') as f:
+        filename = (
+            input("Filename [debug_results.txt]: ").strip() or "debug_results.txt"
+        )
+        with open(filename, "w") as f:
             f.write(f"Debug Results for {chords}\n")
             f.write("=" * 50 + "\n")
             f.write(str(debug_info))
@@ -113,6 +138,7 @@ def run_common_case(case_name: str, **overrides):
 
     # Apply any overrides (only valid DebugCase fields)
     import dataclasses
+
     valid_fields = {f.name for f in dataclasses.fields(DebugCase)}
     case_overrides = {k: v for k, v in overrides.items() if k in valid_fields}
     if case_overrides:
@@ -126,19 +152,19 @@ def run_common_case(case_name: str, **overrides):
     result = run_debug_case(case, verbose=True)
 
     # Also run unified analysis if advanced options requested
-    advanced_options = ['analyze_stage_b', 'analyze_backdoor', 'analyze_intervals']
+    advanced_options = ["analyze_stage_b", "analyze_backdoor", "analyze_intervals"]
     if any(overrides.get(opt, False) for opt in advanced_options):
         print(f"\n🔬 UNIFIED ANALYSIS:")
         print("-" * 30)
 
         config = DebugConfig(
             enabled=True,
-            trace_patterns=overrides.get('trace', case.trace),
+            trace_patterns=overrides.get("trace", case.trace),
             analyze_tokens=True,
-            analyze_intervals=overrides.get('analyze_intervals', False),
-            analyze_stage_b_events=overrides.get('analyze_stage_b', False),
-            analyze_backdoor=overrides.get('analyze_backdoor', False),
-            verbose=True
+            analyze_intervals=overrides.get("analyze_intervals", False),
+            analyze_stage_b_events=overrides.get("analyze_stage_b", False),
+            analyze_backdoor=overrides.get("analyze_backdoor", False),
+            verbose=True,
         )
 
         debugger = UnifiedDebugger(config)
@@ -146,7 +172,7 @@ def run_common_case(case_name: str, **overrides):
             chords=case.chords,
             profile=case.profile,
             key_hint=case.key_hint,
-            test_name=case.name
+            test_name=case.name,
         )
         debugger.print_debug_summary(unified_result)
 
@@ -159,13 +185,11 @@ def run_test_failure_debug(test_name: str, chord_string: str, **kwargs):
     print("=" * 50)
     print(f"Chords: {chords}")
 
-    debug_info = debug_test_failure(
-        test_name=test_name,
-        chords=chords,
-        **kwargs
-    )
+    debug_info = debug_test_failure(test_name=test_name, chords=chords, **kwargs)
 
-    print(f"\n✅ Debug analysis complete. Found {len(debug_info.get('analyses', {}))} analysis types.")
+    print(
+        f"\n✅ Debug analysis complete. Found {len(debug_info.get('analyses', {}))} analysis types."
+    )
 
 
 def run_progression_debug(chord_string: str, **kwargs):
@@ -175,10 +199,7 @@ def run_progression_debug(chord_string: str, **kwargs):
     print(f"\n🎵 DEBUGGING PROGRESSION: {chords}")
     print("=" * 50)
 
-    debug_info = debug_progression(
-        chords=chords,
-        **kwargs
-    )
+    debug_info = debug_progression(chords=chords, **kwargs)
 
     return debug_info
 
@@ -234,38 +255,30 @@ Examples:
 
   # List all capabilities
   python tools/debug_unified.py --list-capabilities
-        """
+        """,
     )
 
     # Input modes (mutually exclusive)
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
-        "--progression", "-p",
-        help="Chord progression to debug (e.g., 'Am F C G')"
+        "--progression", "-p", help="Chord progression to debug (e.g., 'Am F C G')"
+    )
+    input_group.add_argument("--case", "-c", help="Run a common debug case by name")
+    input_group.add_argument(
+        "--test-failure",
+        "-t",
+        nargs=2,
+        metavar=("TEST_NAME", "CHORDS"),
+        help="Debug a test failure: test_name 'chord progression'",
     )
     input_group.add_argument(
-        "--case", "-c",
-        help="Run a common debug case by name"
+        "--interactive", "-i", action="store_true", help="Interactive debugging session"
     )
     input_group.add_argument(
-        "--test-failure", "-t",
-        nargs=2, metavar=("TEST_NAME", "CHORDS"),
-        help="Debug a test failure: test_name 'chord progression'"
+        "--list-cases", action="store_true", help="List available common debug cases"
     )
     input_group.add_argument(
-        "--interactive", "-i",
-        action="store_true",
-        help="Interactive debugging session"
-    )
-    input_group.add_argument(
-        "--list-cases",
-        action="store_true",
-        help="List available common debug cases"
-    )
-    input_group.add_argument(
-        "--list-capabilities",
-        action="store_true",
-        help="List all debug capabilities"
+        "--list-capabilities", action="store_true", help="List all debug capabilities"
     )
 
     # Analysis options
@@ -273,60 +286,38 @@ Examples:
         "--profile",
         default="classical",
         choices=["classical", "pop", "jazz"],
-        help="Analysis profile (default: classical)"
+        help="Analysis profile (default: classical)",
     )
-    parser.add_argument(
-        "--key-hint", "-k",
-        help="Key hint (e.g., 'C major')"
-    )
+    parser.add_argument("--key-hint", "-k", help="Key hint (e.g., 'C major')")
 
     # Analysis types
     parser.add_argument(
         "--patterns",
         action="store_true",
-        help="Enable pattern analysis (default for progressions)"
+        help="Enable pattern analysis (default for progressions)",
     )
     parser.add_argument(
-        "--tokens",
-        action="store_true",
-        help="Enable token stream analysis"
+        "--tokens", action="store_true", help="Enable token stream analysis"
     )
     parser.add_argument(
-        "--stage-b",
-        action="store_true",
-        help="Enable Stage B event analysis"
+        "--stage-b", action="store_true", help="Enable Stage B event analysis"
     )
     parser.add_argument(
-        "--backdoor",
-        action="store_true",
-        help="Enable backdoor progression analysis"
+        "--backdoor", action="store_true", help="Enable backdoor progression analysis"
     )
     parser.add_argument(
-        "--intervals",
-        action="store_true",
-        help="Enable interval analysis"
+        "--intervals", action="store_true", help="Enable interval analysis"
     )
     parser.add_argument(
-        "--trace",
-        action="store_true",
-        help="Enable detailed pattern tracing"
+        "--trace", action="store_true", help="Enable detailed pattern tracing"
     )
-    parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Enable all analysis types"
-    )
+    parser.add_argument("--all", action="store_true", help="Enable all analysis types")
 
     # Output options
     parser.add_argument(
-        "--quiet", "-q",
-        action="store_true",
-        help="Suppress verbose output"
+        "--quiet", "-q", action="store_true", help="Suppress verbose output"
     )
-    parser.add_argument(
-        "--output", "-o",
-        help="Save results to file"
-    )
+    parser.add_argument("--output", "-o", help="Save results to file")
 
     args = parser.parse_args()
 
@@ -363,7 +354,7 @@ Examples:
             profile=args.profile,
             key_hint=args.key_hint,
             trace=args.trace,
-            analyze_all=args.all
+            analyze_all=args.all,
         )
 
     elif args.case:
@@ -374,7 +365,7 @@ Examples:
             trace=args.trace,
             analyze_stage_b=analyze_stage_b,
             analyze_backdoor=analyze_backdoor,
-            analyze_intervals=analyze_intervals
+            analyze_intervals=analyze_intervals,
         )
 
     elif args.test_failure:
@@ -383,7 +374,7 @@ Examples:
             test_name=test_name,
             chord_string=chord_string,
             profile=args.profile,
-            key_hint=args.key_hint
+            key_hint=args.key_hint,
         )
 
 

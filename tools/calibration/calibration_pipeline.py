@@ -78,20 +78,30 @@ class CalibrationPipeline:
         self.baseline_path = self.calibration_dir / "confidence_baseline.json"
         self.mapping_path = self.calibration_dir / "calibration_mapping.json"
         self.test_suite_path = (
-            project_root / "tests" / "data" / "generated" / "comprehensive-multi-layer-tests.json"
+            project_root
+            / "tests"
+            / "data"
+            / "generated"
+            / "comprehensive-multi-layer-tests.json"
         )
-        self.validation_df_path = self.calibration_dir / "calibration_validation_df.json"
+        self.validation_df_path = (
+            self.calibration_dir / "calibration_validation_df.json"
+        )
 
         # Define valid track/category combinations to prevent data contamination
         self.valid_combinations = {
-            'functional': [
-                'functional_cadential', 'functional_clear', 'functional_simple',
-                'ambiguous'  # Include ambiguous for functional track
+            "functional": [
+                "functional_cadential",
+                "functional_clear",
+                "functional_simple",
+                "ambiguous",  # Include ambiguous for functional track
             ],
-            'modal': [
-                'modal_characteristic', 'modal_contextless', 'modal_marked'
+            "modal": [
+                "modal_characteristic",
+                "modal_contextless",
+                "modal_marked",
                 # Exclude functional_clear and ambiguous for modal track
-            ]
+            ],
         }
 
     def _log(self, message: str, emoji: str = "📝"):
@@ -104,58 +114,80 @@ class CalibrationPipeline:
         valid_mask = pd.Series(False, index=df.index)
 
         for _, row in df.iterrows():
-            category = row.get('category', '')
-            track = row.get('track', '')
+            category = row.get("category", "")
+            track = row.get("track", "")
 
             # Check if this track/category combination is valid
-            if track in self.valid_combinations and category in self.valid_combinations[track]:
+            if (
+                track in self.valid_combinations
+                and category in self.valid_combinations[track]
+            ):
                 valid_mask[row.name] = True
 
         return df[valid_mask].copy()
 
-    def _check_calibration_viability(self, df: pd.DataFrame, track: str, bucket: str = None) -> bool:
+    def _check_calibration_viability(
+        self, df: pd.DataFrame, track: str, bucket: str = None
+    ) -> bool:
         """Check if calibration is viable for given track/bucket combination."""
         # Filter data
         if bucket:
-            mask = (df['track'] == track) & (df['bucket'] == bucket)
+            mask = (df["track"] == track) & (df["bucket"] == bucket)
         else:
-            mask = (df['track'] == track)
+            mask = df["track"] == track
 
-        mask = mask & df['expected_confidence'].notna() & df['confidence'].notna()
+        mask = mask & df["expected_confidence"].notna() & df["confidence"].notna()
         df_subset = df[mask]
 
         if len(df_subset) < 10:
-            self._log(f"    ⚠️  Insufficient data ({len(df_subset)} samples) for {track}" +
-                     (f"/{bucket}" if bucket else ""))
+            self._log(
+                f"    ⚠️  Insufficient data ({len(df_subset)} samples) for {track}"
+                + (f"/{bucket}" if bucket else "")
+            )
             return False
 
         # Check variance
-        conf_var = df_subset['confidence'].var()
-        expected_var = df_subset['expected_confidence'].var()
+        conf_var = df_subset["confidence"].var()
+        expected_var = df_subset["expected_confidence"].var()
 
         if conf_var < 0.001 or expected_var < 0.001:
-            self._log(f"    ⚠️  Insufficient variance (conf: {conf_var:.4f}, expected: {expected_var:.4f}) for {track}" +
-                     (f"/{bucket}" if bucket else ""))
+            self._log(
+                f"    ⚠️  Insufficient variance (conf: {conf_var:.4f}, expected: {expected_var:.4f}) for {track}"
+                + (f"/{bucket}" if bucket else "")
+            )
             return False
 
         # Check correlation
         try:
-            correlation = np.corrcoef(df_subset['confidence'], df_subset['expected_confidence'])[0, 1]
-            self._log(f"    📊 Correlation: {correlation:.3f} for {track}" + (f"/{bucket}" if bucket else ""))
+            correlation = np.corrcoef(
+                df_subset["confidence"], df_subset["expected_confidence"]
+            )[0, 1]
+            self._log(
+                f"    📊 Correlation: {correlation:.3f} for {track}"
+                + (f"/{bucket}" if bucket else "")
+            )
 
             if abs(correlation) < 0.1:
-                self._log(f"    ⚠️  Low correlation ({correlation:.3f}) for {track}" +
-                         (f"/{bucket}" if bucket else "") + " - will use identity mapping")
+                self._log(
+                    f"    ⚠️  Low correlation ({correlation:.3f}) for {track}"
+                    + (f"/{bucket}" if bucket else "")
+                    + " - will use identity mapping"
+                )
                 return False
 
         except Exception:
-            self._log(f"    ⚠️  Could not calculate correlation for {track}" +
-                     (f"/{bucket}" if bucket else "") + " - will use identity mapping")
+            self._log(
+                f"    ⚠️  Could not calculate correlation for {track}"
+                + (f"/{bucket}" if bucket else "")
+                + " - will use identity mapping"
+            )
             return False
 
         return True
 
-    def _run_case(self, service: PatternAnalysisService, case: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _run_case(
+        self, service: PatternAnalysisService, case: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Run a single test case and extract calibration data."""
         chords = case.get("chords", [])
         profile = case.get("profile", "classical")
@@ -165,10 +197,10 @@ class CalibrationPipeline:
         # CRITICAL FIX #1: EXCLUDE PROBLEMATIC CATEGORIES
         excluded_categories = {
             "scale_melody",  # 68% of data, all zeros - pollutes calibration
-            "edge_single",   # Too few samples, causes instability
-            "edge_repeated", # Too few samples
-            "edge_chromatic", # Too few samples
-            "edge_enharmonic" # Too few samples
+            "edge_single",  # Too few samples, causes instability
+            "edge_repeated",  # Too few samples
+            "edge_chromatic",  # Too few samples
+            "edge_enharmonic",  # Too few samples
         }
 
         if category in excluded_categories:
@@ -252,11 +284,17 @@ class CalibrationPipeline:
             "routing_features": routing_features,
             "functional_confidence": func_conf,
             "modal_confidence": modal_conf,
-            "expected_functional_confidence": expected_func_conf if func_conf is not None else None,
-            "expected_modal_confidence": expected_modal_conf if modal_conf is not None else None,
+            "expected_functional_confidence": (
+                expected_func_conf if func_conf is not None else None
+            ),
+            "expected_modal_confidence": (
+                expected_modal_conf if modal_conf is not None else None
+            ),
         }
 
-    def _extract_routing_features_fixed(self, chords: List[str], result, case: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_routing_features_fixed(
+        self, chords: List[str], result, case: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """routing features extraction with better modal detection."""
         features = {
             "chord_count": len(chords),
@@ -271,7 +309,9 @@ class CalibrationPipeline:
             "has_flat2": False,
             "has_flat5": False,
             "chord_density": 0.5,
-            "category": case.get("category", "unknown"),  # Add category for bucket routing
+            "category": case.get(
+                "category", "unknown"
+            ),  # Add category for bucket routing
         }
 
         # Enhanced modal characteristic detection
@@ -313,7 +353,9 @@ class CalibrationPipeline:
 
         return features
 
-    def _compute_bucket_fixed(self, track: str, features: Dict[str, Any], case: Dict[str, Any]) -> str:
+    def _compute_bucket_fixed(
+        self, track: str, features: Dict[str, Any], case: Dict[str, Any]
+    ) -> str:
         """bucket computation with proper modal buckets."""
         category = features.get("category", "unknown")
 
@@ -366,7 +408,9 @@ class CalibrationPipeline:
         excluded_count = 0
         for i, case in enumerate(test_cases):
             if (i + 1) % 100 == 0:
-                self._log(f"  Progress: {i+1}/{len(test_cases)} ({excluded_count} excluded)")
+                self._log(
+                    f"  Progress: {i+1}/{len(test_cases)} ({excluded_count} excluded)"
+                )
 
             try:
                 row = self._run_case(service, case)
@@ -388,12 +432,20 @@ class CalibrationPipeline:
             category_counts[cat] = category_counts.get(cat, 0) + 1
 
         self._log("📊 Category exclusion analysis:")
-        excluded_categories = {"scale_melody", "edge_single", "edge_repeated", "edge_chromatic", "edge_enharmonic"}
+        excluded_categories = {
+            "scale_melody",
+            "edge_single",
+            "edge_repeated",
+            "edge_chromatic",
+            "edge_enharmonic",
+        }
         total_excluded = sum(category_counts.get(cat, 0) for cat in excluded_categories)
         self._log(f"  Total originally: {len(test_cases)}")
         self._log(f"  Excluded by category: {total_excluded}")
         self._log(f"  Excluded by confidence: {excluded_count - total_excluded}")
-        self._log(f"  Final dataset: {len(rows)} ({len(rows)/len(test_cases)*100:.1f}%)")
+        self._log(
+            f"  Final dataset: {len(rows)} ({len(rows)/len(test_cases)*100:.1f}%)"
+        )
 
         # Save baseline
         baseline_data = {
@@ -403,7 +455,7 @@ class CalibrationPipeline:
                 "excluded_categories": list(excluded_categories),
                 "min_confidence_threshold": 0.1,
                 "total_excluded": excluded_count,
-                "exclusion_rate": excluded_count / len(test_cases)
+                "exclusion_rate": excluded_count / len(test_cases),
             },
             "rows": rows,
         }
@@ -414,7 +466,9 @@ class CalibrationPipeline:
 
         # Create enhanced dataframe for calibration
         df_enhanced = pd.DataFrame(rows)
-        self._log(f"✅ Enhanced baseline: {len(df_enhanced)} rows with proper bucket routing")
+        self._log(
+            f"✅ Enhanced baseline: {len(df_enhanced)} rows with proper bucket routing"
+        )
 
         # Note: Bucket distribution will be shown after data hygiene since buckets are computed per track there
 
@@ -424,7 +478,9 @@ class CalibrationPipeline:
 
         # Apply corrected filtering for valid track/category combinations
         df_clean = self._filter_valid_combinations(df_clean)
-        self._log(f"✅ Filtered to {len(df_clean)} samples with valid track/category combinations")
+        self._log(
+            f"✅ Filtered to {len(df_clean)} samples with valid track/category combinations"
+        )
 
         # Build calibration mapping with stages
         self._log("🎯 Training 4-stage calibration pipeline...")
@@ -439,7 +495,7 @@ class CalibrationPipeline:
                 "enhanced_bucket_routing",
                 "filtered_invalid_track_category_combinations",
                 "correlation_and_variance_quality_checks",
-                "identity_mapping_for_poor_quality_data"
+                "identity_mapping_for_poor_quality_data",
             ],
             "tracks": {},
         }
@@ -462,21 +518,20 @@ class CalibrationPipeline:
                 isotonic_global = stage2_isotonic_regression(
                     df_clean, track, "GLOBAL", platt_global
                 )
-                uncertainty_global = stage4_uncertainty_learning(df_clean, track, "GLOBAL")
+                uncertainty_global = stage4_uncertainty_learning(
+                    df_clean, track, "GLOBAL"
+                )
             else:
                 # Use identity mapping to preserve original performance
                 self._log(f"    🔄 Using identity mapping for {track.upper()} GLOBAL")
                 platt_global = {"a": 1.0, "b": 0.0}
-                isotonic_global = {
-                    "x": [0.001, 0.999],
-                    "y": [0.001, 0.999]
-                }
+                isotonic_global = {"x": [0.001, 0.999], "y": [0.001, 0.999]}
                 uncertainty_global = {
                     "base_uncertainty": 0.3,
                     "confidence_penalty": 0.0,
                     "uncertainty_std": 0.2,
                     "sample_count": len(df_clean[df_clean["track"] == track]),
-                    "method": "identity"
+                    "method": "identity",
                 }
 
             track_mapping["GLOBAL"] = {
@@ -486,11 +541,15 @@ class CalibrationPipeline:
             }
 
             # Find buckets with sufficient data (LOWERED threshold for modal)
-            bucket_counts = df_clean[df_clean["track"] == track]["bucket"].value_counts()
+            bucket_counts = df_clean[df_clean["track"] == track][
+                "bucket"
+            ].value_counts()
             min_samples = 30 if track == "modal" else 60  # Lower threshold for modal
             viable_buckets = bucket_counts[bucket_counts >= min_samples].index.tolist()
 
-            self._log(f"  Viable buckets for {track}: {viable_buckets} (min {min_samples} samples)")
+            self._log(
+                f"  Viable buckets for {track}: {viable_buckets} (min {min_samples} samples)"
+            )
 
             # Stage 1-4 for each viable bucket with viability check
             for bucket in viable_buckets:
@@ -510,19 +569,23 @@ class CalibrationPipeline:
                         )
                     else:
                         # Use identity mapping to preserve original performance
-                        self._log(f"    🔄 Using identity mapping for {track.upper()} {bucket}")
-                        bucket_samples = len(df_clean[(df_clean["track"] == track) & (df_clean["bucket"] == bucket)])
+                        self._log(
+                            f"    🔄 Using identity mapping for {track.upper()} {bucket}"
+                        )
+                        bucket_samples = len(
+                            df_clean[
+                                (df_clean["track"] == track)
+                                & (df_clean["bucket"] == bucket)
+                            ]
+                        )
                         platt_bucket = {"a": 1.0, "b": 0.0}
-                        isotonic_bucket = {
-                            "x": [0.001, 0.999],
-                            "y": [0.001, 0.999]
-                        }
+                        isotonic_bucket = {"x": [0.001, 0.999], "y": [0.001, 0.999]}
                         uncertainty_bucket = {
                             "base_uncertainty": 0.3,
                             "confidence_penalty": 0.0,
                             "uncertainty_std": 0.2,
                             "sample_count": bucket_samples,
-                            "method": "identity"
+                            "method": "identity",
                         }
 
                     track_mapping["buckets"][bucket] = {
@@ -572,58 +635,68 @@ class CalibrationPipeline:
             self._log("✅ Loaded calibration service")
 
             # Load baseline data
-            with open(self.baseline_path, 'r') as f:
+            with open(self.baseline_path, "r") as f:
                 baseline_data = json.load(f)
-            baseline_df = pd.DataFrame(baseline_data.get('rows', []))
+            baseline_df = pd.DataFrame(baseline_data.get("rows", []))
             self._log(f"✅ Loaded baseline: {len(baseline_df)} cases")
 
             # Create validation dataset
             validation_rows = []
             for _, row in baseline_df.iterrows():
-                routing_features = row.get('routing_features', {})
+                routing_features = row.get("routing_features", {})
 
                 # Test functional track
-                if (row.get('functional_confidence') is not None and
-                    row.get('expected_functional_confidence') is not None):
+                if (
+                    row.get("functional_confidence") is not None
+                    and row.get("expected_functional_confidence") is not None
+                ):
                     try:
                         calibrated = service.calibrate_confidence(
-                            row['functional_confidence'], 'functional', routing_features
+                            row["functional_confidence"], "functional", routing_features
                         )
-                        validation_rows.append({
-                            'name': row.get('name', 'unknown'),
-                            'track': 'functional',
-                            'raw_confidence': row['functional_confidence'],
-                            'calibrated_confidence': calibrated,
-                            'expected_confidence': row['expected_functional_confidence']
-                        })
+                        validation_rows.append(
+                            {
+                                "name": row.get("name", "unknown"),
+                                "track": "functional",
+                                "raw_confidence": row["functional_confidence"],
+                                "calibrated_confidence": calibrated,
+                                "expected_confidence": row[
+                                    "expected_functional_confidence"
+                                ],
+                            }
+                        )
                     except Exception as e:
                         self._log(f"   ⚠️  Failed functional calibration: {e}")
 
                 # Test modal track
-                if (row.get('modal_confidence') is not None and
-                    row.get('expected_modal_confidence') is not None):
+                if (
+                    row.get("modal_confidence") is not None
+                    and row.get("expected_modal_confidence") is not None
+                ):
                     try:
                         calibrated = service.calibrate_confidence(
-                            row['modal_confidence'], 'modal', routing_features
+                            row["modal_confidence"], "modal", routing_features
                         )
-                        validation_rows.append({
-                            'name': row.get('name', 'unknown'),
-                            'track': 'modal',
-                            'raw_confidence': row['modal_confidence'],
-                            'calibrated_confidence': calibrated,
-                            'expected_confidence': row['expected_modal_confidence']
-                        })
+                        validation_rows.append(
+                            {
+                                "name": row.get("name", "unknown"),
+                                "track": "modal",
+                                "raw_confidence": row["modal_confidence"],
+                                "calibrated_confidence": calibrated,
+                                "expected_confidence": row["expected_modal_confidence"],
+                            }
+                        )
                     except Exception as e:
                         self._log(f"   ⚠️  Failed modal calibration: {e}")
 
             # Save validation dataframe
             validation_data = {
-                'created_at': datetime.datetime.utcnow().isoformat() + 'Z',
-                'method': 'calibration_validation_v1',
-                'validation_rows': validation_rows
+                "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+                "method": "calibration_validation_v1",
+                "validation_rows": validation_rows,
             }
 
-            with open(self.validation_df_path, 'w') as f:
+            with open(self.validation_df_path, "w") as f:
                 json.dump(validation_data, f, indent=2)
 
             self._log(f"✅ Created validation dataset: {len(validation_rows)} records")
@@ -631,10 +704,13 @@ class CalibrationPipeline:
 
             # Basic validation statistics
             validation_df = pd.DataFrame(validation_rows)
-            for track in ['functional', 'modal']:
-                track_data = validation_df[validation_df['track'] == track]
+            for track in ["functional", "modal"]:
+                track_data = validation_df[validation_df["track"] == track]
                 if len(track_data) > 0:
-                    mae = abs(track_data['calibrated_confidence'] - track_data['expected_confidence']).mean()
+                    mae = abs(
+                        track_data["calibrated_confidence"]
+                        - track_data["expected_confidence"]
+                    ).mean()
                     self._log(f"📊 {track.capitalize()} MAE: {mae:.4f}")
 
             return True
@@ -664,7 +740,9 @@ class CalibrationPipeline:
             # Backup existing production file
             if prod_mapping.exists():
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                backup_path = prod_assets / f"calibration_mapping_backup_{timestamp}.json"
+                backup_path = (
+                    prod_assets / f"calibration_mapping_backup_{timestamp}.json"
+                )
                 shutil.copy2(prod_mapping, backup_path)
                 self._log(f"✅ Backed up production mapping to {backup_path.name}")
 
@@ -701,7 +779,7 @@ Examples:
   python calibration_pipeline.py validate    # Validate calibration
   python calibration_pipeline.py deploy      # Deploy to production
   python calibration_pipeline.py all         # Run all stages
-"""
+""",
     )
 
     parser.add_argument(
@@ -711,9 +789,7 @@ Examples:
     )
 
     parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Enable verbose output"
+        "-v", "--verbose", action="store_true", help="Enable verbose output"
     )
 
     args = parser.parse_args()

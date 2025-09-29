@@ -31,7 +31,7 @@ warnings.filterwarnings("ignore", "The least populated class in y has only")
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 # Add project root to path for imports
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(project_root)
 
 
@@ -72,91 +72,115 @@ def stage0_data_hygiene(df):
 
     # Deduplication by (name, category)
     initial_count = len(df)
-    df_clean = df.drop_duplicates(subset=['name', 'category'], keep='first')
+    df_clean = df.drop_duplicates(subset=["name", "category"], keep="first")
     dedupe_count = len(df_clean)
-    print(f"  ✅ Deduplication: {initial_count} → {dedupe_count} rows ({initial_count - dedupe_count} duplicates removed)")
+    print(
+        f"  ✅ Deduplication: {initial_count} → {dedupe_count} rows ({initial_count - dedupe_count} duplicates removed)"
+    )
 
     # FIXED: minimum evidence filter
     before_filter = len(df_clean)
 
     def meets_evidence_threshold(row):
         # All cases should be harmony (we excluded melody in pipeline)
-        chord_count = row.get('routing_features', {}).get('chord_count', 0)
+        chord_count = row.get("routing_features", {}).get("chord_count", 0)
         return chord_count >= 2  # Minimum 2 chords for meaningful analysis
 
     df_clean = df_clean[df_clean.apply(meets_evidence_threshold, axis=1)]
     after_filter = len(df_clean)
-    print(f"  ✅ Evidence filter: {before_filter} → {after_filter} rows ({before_filter - after_filter} too sparse)")
+    print(
+        f"  ✅ Evidence filter: {before_filter} → {after_filter} rows ({before_filter - after_filter} too sparse)"
+    )
 
     # FIXED: confidence filtering - remove zeros more aggressively
     before_conf_filter = len(df_clean)
 
     # For each track, only keep rows where that track has meaningful confidence
-    valid_functional = (df_clean['functional_confidence'].notna() &
-                       (df_clean['functional_confidence'] >= 0.1))
-    valid_modal = (df_clean['modal_confidence'].notna() &
-                  (df_clean['modal_confidence'] >= 0.1))
+    valid_functional = df_clean["functional_confidence"].notna() & (
+        df_clean["functional_confidence"] >= 0.1
+    )
+    valid_modal = df_clean["modal_confidence"].notna() & (
+        df_clean["modal_confidence"] >= 0.1
+    )
 
     # Keep rows that have at least one valid track
     df_clean = df_clean[valid_functional | valid_modal]
 
     after_conf_filter = len(df_clean)
-    print(f"  ✅ confidence filter: {before_conf_filter} → {after_conf_filter} rows ({before_conf_filter - after_conf_filter} zero/low confidence removed)")
+    print(
+        f"  ✅ confidence filter: {before_conf_filter} → {after_conf_filter} rows ({before_conf_filter - after_conf_filter} zero/low confidence removed)"
+    )
 
     # Create track column for filtering
     tracks_data = []
     for _, row in df_clean.iterrows():
-        routing_features = row.get('routing_features', {})
+        routing_features = row.get("routing_features", {})
 
         # Create functional track record
-        if (row.get('functional_confidence') is not None and
-            row.get('expected_functional_confidence') is not None and
-            row.get('functional_confidence') >= 0.1):
+        if (
+            row.get("functional_confidence") is not None
+            and row.get("expected_functional_confidence") is not None
+            and row.get("functional_confidence") >= 0.1
+        ):
             # Compute functional bucket
-            functional_bucket = _compute_bucket_for_track('functional', routing_features, row.get('category', 'unknown'))
-            tracks_data.append({
-                **row.to_dict(),
-                'track': 'functional',
-                'bucket': functional_bucket,
-                'confidence': row['functional_confidence'],
-                'expected_confidence': row['expected_functional_confidence']
-            })
+            functional_bucket = _compute_bucket_for_track(
+                "functional", routing_features, row.get("category", "unknown")
+            )
+            tracks_data.append(
+                {
+                    **row.to_dict(),
+                    "track": "functional",
+                    "bucket": functional_bucket,
+                    "confidence": row["functional_confidence"],
+                    "expected_confidence": row["expected_functional_confidence"],
+                }
+            )
 
         # Create modal track record
-        if (row.get('modal_confidence') is not None and
-            row.get('expected_modal_confidence') is not None and
-            row.get('modal_confidence') >= 0.1):
+        if (
+            row.get("modal_confidence") is not None
+            and row.get("expected_modal_confidence") is not None
+            and row.get("modal_confidence") >= 0.1
+        ):
             # Compute modal bucket
-            modal_bucket = _compute_bucket_for_track('modal', routing_features, row.get('category', 'unknown'))
-            tracks_data.append({
-                **row.to_dict(),
-                'track': 'modal',
-                'bucket': modal_bucket,
-                'confidence': row['modal_confidence'],
-                'expected_confidence': row['expected_modal_confidence']
-            })
+            modal_bucket = _compute_bucket_for_track(
+                "modal", routing_features, row.get("category", "unknown")
+            )
+            tracks_data.append(
+                {
+                    **row.to_dict(),
+                    "track": "modal",
+                    "bucket": modal_bucket,
+                    "confidence": row["modal_confidence"],
+                    "expected_confidence": row["expected_modal_confidence"],
+                }
+            )
 
     df_tracks = pd.DataFrame(tracks_data)
 
-    print(f"  ✅ Track expansion: {len(df_clean)} cases → {len(df_tracks)} track records")
-    print(f"    Functional track: {len(df_tracks[df_tracks['track'] == 'functional'])} records")
+    print(
+        f"  ✅ Track expansion: {len(df_clean)} cases → {len(df_tracks)} track records"
+    )
+    print(
+        f"    Functional track: {len(df_tracks[df_tracks['track'] == 'functional'])} records"
+    )
     print(f"    Modal track: {len(df_tracks[df_tracks['track'] == 'modal'])} records")
 
     # Winsorize targets and clip model outputs
-    if 'expected_confidence' in df_tracks.columns:
-        df_tracks['expected_confidence'] = df_tracks['expected_confidence'].clip(0, 1)
-    if 'confidence' in df_tracks.columns:
-        df_tracks['confidence'] = df_tracks['confidence'].clip(1e-4, 1-1e-4)
+    if "expected_confidence" in df_tracks.columns:
+        df_tracks["expected_confidence"] = df_tracks["expected_confidence"].clip(0, 1)
+    if "confidence" in df_tracks.columns:
+        df_tracks["confidence"] = df_tracks["confidence"].clip(1e-4, 1 - 1e-4)
 
     # Final statistics
     print(f"  📊 Final cleaned dataset: {len(df_tracks)} track records")
 
     # Show bucket distribution
-    if 'bucket' in df_tracks.columns and 'track' in df_tracks.columns:
+    if "bucket" in df_tracks.columns and "track" in df_tracks.columns:
         print("  📊 Bucket distribution after cleaning:")
-        for track in df_tracks['track'].unique():
-            track_data = df_tracks[df_tracks['track'] == track]
-            bucket_counts = track_data['bucket'].value_counts()
+        for track in df_tracks["track"].unique():
+            track_data = df_tracks[df_tracks["track"] == track]
+            bucket_counts = track_data["bucket"].value_counts()
             print(f"    {track.upper()}:")
             for bucket, count in bucket_counts.items():
                 print(f"      {bucket}: {count} samples")
@@ -168,28 +192,35 @@ def stage1_platt_scaling(df, track, bucket):
     """Stage 1: Platt scaling with better regularization."""
     print(f"  🎯 Stage 1: Platt scaling for {track}/{bucket}")
 
-    expected_col = 'expected_confidence'
-    actual_col = 'confidence'
+    expected_col = "expected_confidence"
+    actual_col = "confidence"
 
     # Filter data with logic
-    if bucket != 'GLOBAL':
-        mask = (df['track'] == track) & (df['bucket'] == bucket) & df[expected_col].notna() & df[actual_col].notna()
+    if bucket != "GLOBAL":
+        mask = (
+            (df["track"] == track)
+            & (df["bucket"] == bucket)
+            & df[expected_col].notna()
+            & df[actual_col].notna()
+        )
     else:
-        mask = (df['track'] == track) & df[expected_col].notna() & df[actual_col].notna()
+        mask = (
+            (df["track"] == track) & df[expected_col].notna() & df[actual_col].notna()
+        )
 
     sample_count = mask.sum()
 
     if sample_count < 10:
         print(f"    ⚠️  Insufficient data ({sample_count} samples), using identity")
-        return {'a': 1.0, 'b': 0.0}
+        return {"a": 1.0, "b": 0.0}
     else:
         print(f"    ✅ Training with {sample_count} samples")
 
     df_subset = df[mask].copy()
 
     # FIXED: Multiple threshold approach with better regularization
-    best_params = {'a': 1.0, 'b': 0.0}
-    best_score = float('inf')
+    best_params = {"a": 1.0, "b": 0.0}
+    best_score = float("inf")
 
     # Try multiple thresholds for more robust fitting
     thresholds = [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
@@ -214,9 +245,9 @@ def stage1_platt_scaling(df, track, bucket):
             lr = LogisticRegression(
                 fit_intercept=True,
                 C=1.0,  # Moderate regularization
-                solver='lbfgs',
+                solver="lbfgs",
                 max_iter=1000,
-                random_state=42
+                random_state=42,
             )
 
             lr.fit(X, y_binary)
@@ -230,8 +261,8 @@ def stage1_platt_scaling(df, track, bucket):
                     if score < best_score:
                         best_score = score
                         best_params = {
-                            'a': float(lr.coef_[0][0]),
-                            'b': float(lr.intercept_[0])
+                            "a": float(lr.coef_[0][0]),
+                            "b": float(lr.intercept_[0]),
                         }
             except:
                 continue
@@ -239,7 +270,9 @@ def stage1_platt_scaling(df, track, bucket):
         except Exception:
             continue
 
-    print(f"    ✅ Best Platt: a={best_params['a']:.4f}, b={best_params['b']:.4f} (score: {best_score:.4f})")
+    print(
+        f"    ✅ Best Platt: a={best_params['a']:.4f}, b={best_params['b']:.4f} (score: {best_score:.4f})"
+    )
     return best_params
 
 
@@ -247,14 +280,21 @@ def stage2_isotonic_regression(df, track, bucket, platt_params):
     """Stage 2: isotonic regression preserving granularity."""
     print(f"  📈 Stage 2: Isotonic regression for {track}/{bucket}")
 
-    expected_col = 'expected_confidence'
-    actual_col = 'confidence'
+    expected_col = "expected_confidence"
+    actual_col = "confidence"
 
     # Filter data
-    if bucket != 'GLOBAL':
-        mask = (df['track'] == track) & (df['bucket'] == bucket) & df[expected_col].notna() & df[actual_col].notna()
+    if bucket != "GLOBAL":
+        mask = (
+            (df["track"] == track)
+            & (df["bucket"] == bucket)
+            & df[expected_col].notna()
+            & df[actual_col].notna()
+        )
     else:
-        mask = (df['track'] == track) & df[expected_col].notna() & df[actual_col].notna()
+        mask = (
+            (df["track"] == track) & df[expected_col].notna() & df[actual_col].notna()
+        )
 
     sample_count = mask.sum()
 
@@ -264,8 +304,8 @@ def stage2_isotonic_regression(df, track, bucket, platt_params):
         x_points = np.linspace(0.001, 0.999, 50)  # More points for smoothness
         y_points = []
 
-        a = platt_params['a']
-        b = platt_params['b']
+        a = platt_params["a"]
+        b = platt_params["b"]
 
         for x in x_points:
             # Apply Platt scaling
@@ -273,18 +313,15 @@ def stage2_isotonic_regression(df, track, bucket, platt_params):
             platt_adjusted = 1 / (1 + np.exp(-logit))
             y_points.append(platt_adjusted)
 
-        return {
-            'x': x_points.tolist(),
-            'y': y_points
-        }
+        return {"x": x_points.tolist(), "y": y_points}
 
     print(f"    ✅ Training with {sample_count} samples")
 
     df_subset = df[mask].copy()
 
     # Apply Platt scaling first
-    a = platt_params['a']
-    b = platt_params['b']
+    a = platt_params["a"]
+    b = platt_params["b"]
 
     raw_probs = df_subset[actual_col].values
 
@@ -295,7 +332,9 @@ def stage2_isotonic_regression(df, track, bucket, platt_params):
 
     for p in raw_probs_clipped:
         logit = a * np.log(p / (1 - p)) + b
-        platt_prob = 1 / (1 + np.exp(-np.clip(logit, -500, 500)))  # Clip to prevent overflow
+        platt_prob = 1 / (
+            1 + np.exp(-np.clip(logit, -500, 500))
+        )  # Clip to prevent overflow
         platt_adjusted.append(platt_prob)
 
     platt_adjusted = np.array(platt_adjusted)
@@ -304,10 +343,7 @@ def stage2_isotonic_regression(df, track, bucket, platt_params):
     # FIXED: isotonic regression with better granularity preservation
     try:
         # Use isotonic regression with increasing constraint
-        iso_reg = IsotonicRegression(
-            increasing=True,
-            out_of_bounds='clip'
-        )
+        iso_reg = IsotonicRegression(increasing=True, out_of_bounds="clip")
 
         iso_reg.fit(platt_adjusted, y_true)
 
@@ -321,20 +357,25 @@ def stage2_isotonic_regression(df, track, bucket, platt_params):
         # FIXED: Add noise to prevent complete discretization
         # This helps preserve some of the original confidence distribution
         if len(np.unique(y_isotonic)) < 5:  # If too discretized
-            print(f"    ⚠️  Isotonic over-discretized ({len(np.unique(y_isotonic))} unique values), adding smoothing")
+            print(
+                f"    ⚠️  Isotonic over-discretized ({len(np.unique(y_isotonic))} unique values), adding smoothing"
+            )
 
             # Add small amount of smoothing to preserve granularity
             for i in range(1, len(y_isotonic) - 1):
                 # Slight interpolation with neighbors
-                y_isotonic[i] = 0.8 * y_isotonic[i] + 0.1 * y_isotonic[i-1] + 0.1 * y_isotonic[i+1]
+                y_isotonic[i] = (
+                    0.8 * y_isotonic[i]
+                    + 0.1 * y_isotonic[i - 1]
+                    + 0.1 * y_isotonic[i + 1]
+                )
 
-        mapping = {
-            'x': x_points.tolist(),
-            'y': y_isotonic.tolist()
-        }
+        mapping = {"x": x_points.tolist(), "y": y_isotonic.tolist()}
 
         unique_outputs = len(set(y_isotonic))
-        print(f"    ✅ Isotonic mapping: {n_points} points → {unique_outputs} unique outputs")
+        print(
+            f"    ✅ Isotonic mapping: {n_points} points → {unique_outputs} unique outputs"
+        )
 
         if unique_outputs < 3:
             print(f"    ⚠️  Very few unique outputs - may need more data")
@@ -352,34 +393,36 @@ def stage2_isotonic_regression(df, track, bucket, platt_params):
             platt_prob = 1 / (1 + np.exp(-np.clip(logit, -500, 500)))
             y_points.append(platt_prob)
 
-        return {
-            'x': x_points.tolist(),
-            'y': y_points
-        }
+        return {"x": x_points.tolist(), "y": y_points}
 
 
 def stage4_uncertainty_learning(df, track, bucket):
     """Stage 4: uncertainty learning with better statistics."""
     print(f"  🎲 Stage 4: Uncertainty learning for {track}/{bucket}")
 
-    expected_col = 'expected_confidence'
-    actual_col = 'confidence'
+    expected_col = "expected_confidence"
+    actual_col = "confidence"
 
     # Filter data
-    if bucket != 'GLOBAL':
-        mask = (df['track'] == track) & (df['bucket'] == bucket) & df[expected_col].notna() & df[actual_col].notna()
+    if bucket != "GLOBAL":
+        mask = (
+            (df["track"] == track)
+            & (df["bucket"] == bucket)
+            & df[expected_col].notna()
+            & df[actual_col].notna()
+        )
     else:
-        mask = (df['track'] == track) & df[expected_col].notna() & df[actual_col].notna()
+        mask = (
+            (df["track"] == track) & df[expected_col].notna() & df[actual_col].notna()
+        )
 
     sample_count = mask.sum()
 
     if sample_count < 10:
-        print(f"    ⚠️  Insufficient data ({sample_count} samples), using default uncertainty")
-        return {
-            'base_uncertainty': 0.5,
-            'confidence_penalty': 0.1,
-            'method': 'default'
-        }
+        print(
+            f"    ⚠️  Insufficient data ({sample_count} samples), using default uncertainty"
+        )
+        return {"base_uncertainty": 0.5, "confidence_penalty": 0.1, "method": "default"}
 
     print(f"    ✅ Learning uncertainty with {sample_count} samples")
 
@@ -406,14 +449,16 @@ def stage4_uncertainty_learning(df, track, bucket):
         confidence_penalty = 0.1  # Default penalty
 
     result = {
-        'base_uncertainty': base_uncertainty,
-        'confidence_penalty': confidence_penalty,
-        'uncertainty_std': uncertainty_std,
-        'sample_count': int(sample_count),
-        'method': 'learned'
+        "base_uncertainty": base_uncertainty,
+        "confidence_penalty": confidence_penalty,
+        "uncertainty_std": uncertainty_std,
+        "sample_count": int(sample_count),
+        "method": "learned",
     }
 
-    print(f"    ✅ Uncertainty: base={base_uncertainty:.3f}, penalty={confidence_penalty:.3f}, std={uncertainty_std:.3f}")
+    print(
+        f"    ✅ Uncertainty: base={base_uncertainty:.3f}, penalty={confidence_penalty:.3f}, std={uncertainty_std:.3f}"
+    )
 
     return result
 
@@ -462,55 +507,80 @@ def _safe_load_json(file_path, default=None):
 def _show_calibration_examples(df):
     """Show specific examples of good and bad calibration"""
     # Calculate errors for functional
-    func_mask = df['expected_functional_confidence'].notnull() & df['functional_confidence'].notnull()
+    func_mask = (
+        df["expected_functional_confidence"].notnull()
+        & df["functional_confidence"].notnull()
+    )
     df_func = df[func_mask].copy()
-    df_func['error'] = (df_func['functional_confidence'] - df_func['expected_functional_confidence']).abs()
+    df_func["error"] = (
+        df_func["functional_confidence"] - df_func["expected_functional_confidence"]
+    ).abs()
 
     # Calculate errors for modal
-    modal_mask = df['expected_modal_confidence'].notnull() & df['modal_confidence'].notnull()
+    modal_mask = (
+        df["expected_modal_confidence"].notnull() & df["modal_confidence"].notnull()
+    )
     df_modal = df[modal_mask].copy()
-    df_modal['error'] = (df_modal['modal_confidence'] - df_modal['expected_modal_confidence']).abs()
+    df_modal["error"] = (
+        df_modal["modal_confidence"] - df_modal["expected_modal_confidence"]
+    ).abs()
 
-    print('=' * 80)
-    print('FUNCTIONAL ANALYSIS EXAMPLES')
-    print('=' * 80)
+    print("=" * 80)
+    print("FUNCTIONAL ANALYSIS EXAMPLES")
+    print("=" * 80)
 
-    print('\n✅ GOOD CALIBRATION (error < 0.1):')
-    good_func = df_func[df_func['error'] < 0.1].head(3)
+    print("\n✅ GOOD CALIBRATION (error < 0.1):")
+    good_func = df_func[df_func["error"] < 0.1].head(3)
     for _, row in good_func.iterrows():
-        chords_str = row.get('chords_str', str(row.get('chords', 'Unknown')))
+        chords_str = row.get("chords_str", str(row.get("chords", "Unknown")))
         print(f"  Chords: {chords_str[:30]}...")
-        print(f"    Expected: {row['expected_functional_confidence']:.2f}, Actual: {row['functional_confidence']:.2f}, Error: {row['error']:.3f}")
+        print(
+            f"    Expected: {row['expected_functional_confidence']:.2f}, Actual: {row['functional_confidence']:.2f}, Error: {row['error']:.3f}"
+        )
         print()
 
-    print('\n❌ BAD CALIBRATION (error > 0.2):')
-    bad_func = df_func[df_func['error'] > 0.2].head(3)
+    print("\n❌ BAD CALIBRATION (error > 0.2):")
+    bad_func = df_func[df_func["error"] > 0.2].head(3)
     for _, row in bad_func.iterrows():
-        chords_str = row.get('chords_str', str(row.get('chords', 'Unknown')))
+        chords_str = row.get("chords_str", str(row.get("chords", "Unknown")))
         print(f"  Chords: {chords_str[:30]}...")
-        print(f"    Expected: {row['expected_functional_confidence']:.2f}, Actual: {row['functional_confidence']:.2f}, Error: {row['error']:.3f}")
-        direction = '📈 overconfident' if row['functional_confidence'] > row['expected_functional_confidence'] else '📉 underconfident'
+        print(
+            f"    Expected: {row['expected_functional_confidence']:.2f}, Actual: {row['functional_confidence']:.2f}, Error: {row['error']:.3f}"
+        )
+        direction = (
+            "📈 overconfident"
+            if row["functional_confidence"] > row["expected_functional_confidence"]
+            else "📉 underconfident"
+        )
         print(f"    Issue: {direction}")
         print()
 
-    print('=' * 80)
-    print('MODAL ANALYSIS EXAMPLES')
-    print('=' * 80)
+    print("=" * 80)
+    print("MODAL ANALYSIS EXAMPLES")
+    print("=" * 80)
 
-    print('\n✅ GOOD CALIBRATION (error < 0.1):')
-    good_modal = df_modal[df_modal['error'] < 0.1].head(3)
+    print("\n✅ GOOD CALIBRATION (error < 0.1):")
+    good_modal = df_modal[df_modal["error"] < 0.1].head(3)
     for _, row in good_modal.iterrows():
-        chords_str = row.get('chords_str', str(row.get('chords', 'Unknown')))
+        chords_str = row.get("chords_str", str(row.get("chords", "Unknown")))
         print(f"  Chords: {chords_str[:30]}...")
-        print(f"    Expected: {row['expected_modal_confidence']:.2f}, Actual: {row['modal_confidence']:.2f}, Error: {row['error']:.3f}")
+        print(
+            f"    Expected: {row['expected_modal_confidence']:.2f}, Actual: {row['modal_confidence']:.2f}, Error: {row['error']:.3f}"
+        )
         print()
 
-    print('\n❌ BAD CALIBRATION (error > 0.2):')
-    bad_modal = df_modal[df_modal['error'] > 0.2].head(3)
+    print("\n❌ BAD CALIBRATION (error > 0.2):")
+    bad_modal = df_modal[df_modal["error"] > 0.2].head(3)
     for _, row in bad_modal.iterrows():
-        chords_str = row.get('chords_str', str(row.get('chords', 'Unknown')))
+        chords_str = row.get("chords_str", str(row.get("chords", "Unknown")))
         print(f"  Chords: {chords_str[:30]}...")
-        print(f"    Expected: {row['expected_modal_confidence']:.2f}, Actual: {row['modal_confidence']:.2f}, Error: {row['error']:.3f}")
-        direction = '📈 overconfident' if row['modal_confidence'] > row['expected_modal_confidence'] else '📉 underconfident'
+        print(
+            f"    Expected: {row['expected_modal_confidence']:.2f}, Actual: {row['modal_confidence']:.2f}, Error: {row['error']:.3f}"
+        )
+        direction = (
+            "📈 overconfident"
+            if row["modal_confidence"] > row["expected_modal_confidence"]
+            else "📉 underconfident"
+        )
         print(f"    Issue: {direction}")
         print()
