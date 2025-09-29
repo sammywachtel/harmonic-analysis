@@ -172,12 +172,16 @@ class PatternAnalysisService:
                         f"🎯 ARBITRATION DIAGNOSTIC:\n"
                         f"  Input: {chord_symbols}\n"
                         f"  Functional conf: {functional_summary.confidence:.3f}\n"
-                        f"  Modal conf: {modal_summary.confidence if modal_summary else 'N/A'}\n"
+                        f"  Modal conf: "
+                        f"{modal_summary.confidence if modal_summary else 'N/A'}\n"
                         f"  Result: {arbitration_result.primary.type}\n"
                         f"  Confidence gap: {arbitration_result.confidence_gap:.3f}\n"
                         f"  Rationale: {arbitration_result.rationale}\n"
-                        f"  Policy thresholds: func_min={self._arbitration_service.policy.min_functional_confidence}, "
-                        f"modal_min={self._arbitration_service.policy.min_modal_confidence}"
+                        f"  Policy thresholds: "
+                        f"func_min="
+                        f"{self._arbitration_service.policy.min_functional_confidence}, "
+                        f"modal_min="
+                        f"{self._arbitration_service.policy.min_modal_confidence}"
                     )
 
                 # Update envelope with arbitration result
@@ -185,7 +189,8 @@ class PatternAnalysisService:
                 envelope.alternatives = arbitration_result.alternatives
 
                 logger.debug(
-                    f"🎯 Arbitration applied: {arbitration_result.primary.type} (gap: {arbitration_result.confidence_gap:.3f})"
+                    f"🎯 Arbitration applied: {arbitration_result.primary.type} "
+                    f"(gap: {arbitration_result.confidence_gap:.3f})"
                 )
 
             except Exception as e:

@@ -162,7 +162,8 @@ class UnifiedPatternService:
             chords: List of chord symbols (e.g., ['C', 'F', 'G', 'C'])
             key_hint: Optional key context for analysis (required for roman inputs)
             profile: Analysis profile (currently ignored)
-            options: Additional analysis options (supports "sections" for section-aware analysis)
+            options: Additional analysis options (supports "sections" for
+                   section-aware analysis)
             romans: List of roman numerals (e.g., ['I', 'vi', 'IV', 'V'])
                    Mutually exclusive with chords; requires key_hint
 
@@ -184,13 +185,16 @@ class UnifiedPatternService:
                     chords.append(chord)
                 except Exception as e:
                     logger.warning(
-                        f"⚠️ Failed to convert roman '{roman}' in key '{key_hint}': {e}"
+                        f"⚠️ Failed to convert roman '{roman}' "
+                        f"in key '{key_hint}': {e}"
                     )
-                    # Fallback: use roman as-is (will likely fail pattern matching but won't crash)
+                    # Fallback: use roman as-is (will likely fail pattern
+                # matching but won't crash)
                     chords.append(roman)
 
             logger.debug(
-                f"🎵 Converted romans to chords: {romans} → {chords} (key: {key_hint})"
+                f"🎵 Converted romans to chords: {romans} → {chords} "
+                f"(key: {key_hint})"
             )
 
         elif chords is None:
@@ -203,12 +207,16 @@ class UnifiedPatternService:
 
         # Special handling: if romans were provided, use them directly
         if romans:
-            # Victory lap: normalize provided romans for pattern matching compatibility
+            # Victory lap: normalize provided romans for pattern matching
+            # compatibility
             roman_numerals = [roman.replace("b", "♭") for roman in romans]
-            logger.debug(f"🎵 Using provided romans: {romans} → {roman_numerals}")
+            logger.debug(
+                f"🎵 Using provided romans: {romans} → {roman_numerals}"
+            )
         else:
             # Standard chord-to-roman conversion path
-            # Iteration 9B: Advanced key inference analyzing chord quality and modal signatures
+            # Iteration 9B: Advanced key inference analyzing chord quality
+            # and modal signatures
             if not key_hint and chords:
                 inferred_key = self._infer_key_from_progression(chords)
                 logger.debug(f"🔍 Inferred key: {inferred_key}")
@@ -217,11 +225,13 @@ class UnifiedPatternService:
                 try:
                     for chord in chords:
                         roman = romanize_chord(chord, inferred_key, profile)
-                        # Victory lap: normalize 'b' to '♭' for pattern matching compatibility
+                        # Victory lap: normalize 'b' to '♭' for pattern
+                        # matching compatibility
                         roman = roman.replace("b", "♭")
                         roman_numerals.append(roman)
                     logger.debug(
-                        f"🎵 Derived romans with key {inferred_key}: {chords} → {roman_numerals}"
+                        f"🎵 Derived romans with key {inferred_key}: "
+                        f"{chords} → {roman_numerals}"
                     )
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to derive roman numerals: {e}")
@@ -256,7 +266,8 @@ class UnifiedPatternService:
         # Big play: run the unified engine analysis
         envelope = self.engine.analyze(context)
 
-        # Iteration 9F: Conditional modal parent key conversion (only when modal > functional confidence AND no explicit key hint)
+        # Iteration 9F: Conditional modal parent key conversion (only when
+        # modal > functional confidence AND no explicit key hint)
         if mode_label and envelope.primary:
             # Always preserve modal parent key info in metadata for reporting
             modal_parent_key = self._convert_to_modal_parent_key(
@@ -269,20 +280,27 @@ class UnifiedPatternService:
                         hasattr(envelope.primary, "metadata")
                         and envelope.primary.metadata
                     ):
-                        envelope.primary.metadata["modal_parent_key"] = modal_parent_key
+                        envelope.primary.metadata[
+                            "modal_parent_key"
+                        ] = modal_parent_key
                     logger.debug(
-                        f"📝 Stored modal parent key {modal_parent_key} in metadata (key hint: {key_hint})"
+                        f"📝 Stored modal parent key {modal_parent_key} "
+                        f"in metadata (key hint: {key_hint})"
                     )
 
-            # Selective modal parent key conversion: Only when strong modal evidence AND no key hint
-            # Avoid conversion for ambiguous cases that could be analyzed functionally
+            # Selective modal parent key conversion: Only when strong modal
+            # evidence AND no key hint. Avoid conversion for ambiguous cases
+            # that could be analyzed functionally
             if not key_hint:
-                modal_conf = getattr(envelope.primary, "modal_confidence", 0.0) or 0.0
+                modal_conf = (
+                    getattr(envelope.primary, "modal_confidence", 0.0) or 0.0
+                )
                 func_conf = (
                     getattr(envelope.primary, "functional_confidence", 0.0) or 0.0
                 )
 
-                # Only convert for specific modal patterns that clearly benefit from parent key context
+                # Only convert for specific modal patterns that clearly benefit
+                # from parent key context
                 # Avoid conversion for ambiguous patterns that could be analyzed functionally
                 should_convert = (
                     modal_conf > 0.6
