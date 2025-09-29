@@ -189,7 +189,7 @@ class UnifiedPatternService:
                         f"in key '{key_hint}': {e}"
                     )
                     # Fallback: use roman as-is (will likely fail pattern
-                # matching but won't crash)
+                    # matching but won't crash)
                     chords.append(roman)
 
             logger.debug(
@@ -210,9 +210,7 @@ class UnifiedPatternService:
             # Victory lap: normalize provided romans for pattern matching
             # compatibility
             roman_numerals = [roman.replace("b", "♭") for roman in romans]
-            logger.debug(
-                f"🎵 Using provided romans: {romans} → {roman_numerals}"
-            )
+            logger.debug(f"🎵 Using provided romans: {romans} → {roman_numerals}")
         else:
             # Standard chord-to-roman conversion path
             # Iteration 9B: Advanced key inference analyzing chord quality
@@ -280,9 +278,7 @@ class UnifiedPatternService:
                         hasattr(envelope.primary, "metadata")
                         and envelope.primary.metadata
                     ):
-                        envelope.primary.metadata[
-                            "modal_parent_key"
-                        ] = modal_parent_key
+                        envelope.primary.metadata["modal_parent_key"] = modal_parent_key
                     logger.debug(
                         f"📝 Stored modal parent key {modal_parent_key} "
                         f"in metadata (key hint: {key_hint})"
@@ -292,16 +288,15 @@ class UnifiedPatternService:
             # evidence AND no key hint. Avoid conversion for ambiguous cases
             # that could be analyzed functionally
             if not key_hint:
-                modal_conf = (
-                    getattr(envelope.primary, "modal_confidence", 0.0) or 0.0
-                )
+                modal_conf = getattr(envelope.primary, "modal_confidence", 0.0) or 0.0
                 func_conf = (
                     getattr(envelope.primary, "functional_confidence", 0.0) or 0.0
                 )
 
                 # Only convert for specific modal patterns that clearly benefit
                 # from parent key context
-                # Avoid conversion for ambiguous patterns that could be analyzed functionally
+                # Avoid conversion for ambiguous patterns that could be
+                # analyzed functionally
                 should_convert = (
                     modal_conf > 0.6
                     and func_conf < 0.1  # Strong modal evidence, weak functional
@@ -349,7 +344,8 @@ class UnifiedPatternService:
                             if modal_envelope.primary:
                                 envelope = modal_envelope
                                 logger.debug(
-                                    f"🎵 Re-analyzed with modal parent {modal_parent_key}: {chords} → {modal_romans}"
+                                    f"🎵 Re-analyzed with modal parent "
+                                    f"{modal_parent_key}: {chords} → {modal_romans}"
                                 )
 
                         except Exception as e:
@@ -367,7 +363,8 @@ class UnifiedPatternService:
                 )
                 envelope.primary.confidence = calibrated_confidence
                 logger.debug(
-                    f"🎯 Applied quality-gated calibration: {envelope.primary.confidence:.3f}"
+                    f"🎯 Applied quality-gated calibration: "
+                    f"{envelope.primary.confidence:.3f}"
                 )
             except Exception as e:
                 logger.warning(f"⚠️ Quality-gated calibration failed: {e}")
@@ -579,7 +576,8 @@ class UnifiedPatternService:
             )  # Remove diminished symbol if present
             mode_name = parts[1].lower()
 
-            # Mode interval mappings (semitones to subtract from modal tonic to get parent tonic)
+            # Mode interval mappings (semitones to subtract from modal
+            # tonic to get parent tonic)
             mode_intervals = {
                 "ionian": 0,  # C Ionian = C major (C - 0 = C)
                 "dorian": 2,  # D Dorian = C major (D - 2 = C)
@@ -782,10 +780,12 @@ class UnifiedPatternService:
 
     def _infer_key_from_progression(self, chords: List[str]) -> str:
         """
-        Iteration 9B: Advanced key inference analyzing chord quality and modal signatures.
+        Iteration 9B: Advanced key inference analyzing chord quality
+        and modal signatures.
 
-        Analyzes the opening chord quality and looks for modal signatures to infer
-        the most appropriate key context, keeping modal vamps rooted on their tonic.
+        Analyzes the opening chord quality and looks for modal signatures
+        to infer the most appropriate key context, keeping modal vamps
+        rooted on their tonic.
 
         Args:
             chords: List of chord symbols
@@ -834,7 +834,8 @@ class UnifiedPatternService:
 
         # Time to tackle the tricky bit: key inference based on chord analysis
         if first_quality == "minor" and first_root in common_keys:
-            # Iteration 9C: Enhanced functional vs modal detection for minor opening chords
+            # Iteration 9C: Enhanced functional vs modal detection for
+            # minor opening chords
 
             # Check if this might be a functional progression in a major key
             functional_major_key = self._detect_functional_major_key(chords)
@@ -857,22 +858,26 @@ class UnifiedPatternService:
             functional_major_key = self._detect_functional_major_key(chords)
 
             if functional_major_key:
-                # Strong evidence for functional progression overrides weak modal signatures
+                # Strong evidence for functional progression overrides
+                # weak modal signatures
                 inferred_key = functional_major_key
             else:
                 # Use modal signature heuristics
                 if first_root in common_keys:
                     if "lydian" in modal_signatures or "mixolydian" in modal_signatures:
-                        inferred_key = f"{first_root} major"  # Use major parent for Lydian/Mixolydian
+                        # Use major parent for Lydian/Mixolydian
+                        inferred_key = f"{first_root} major"
                     else:
-                        inferred_key = f"{first_root} minor"  # Use minor parent for Dorian/Phrygian
+                        # Use minor parent for Dorian/Phrygian
+                        inferred_key = f"{first_root} minor"
                 else:
                     # Fallback to C major
                     inferred_key = "C major"
         else:
             # No clear modal signatures - use conventional heuristics
 
-            # Iteration 9C: Check for functional patterns (including those starting with major chords)
+            # Iteration 9C: Check for functional patterns (including those
+            # starting with major chords)
             functional_major_key = self._detect_functional_major_key(chords)
 
             if functional_major_key:
@@ -888,7 +893,8 @@ class UnifiedPatternService:
                     inferred_key = f"{last_root} major"
                 elif first_root in common_keys:
                     # First chord heuristic
-                    inferred_key = f"{first_root} {'minor' if first_quality == 'minor' else 'major'}"
+                    quality = "minor" if first_quality == "minor" else "major"
+                    inferred_key = f"{first_root} {quality}"
                 else:
                     # Default fallback
                     inferred_key = "C major"
@@ -939,10 +945,12 @@ class UnifiedPatternService:
 
     def _detect_functional_major_key(self, chords: List[str]) -> Optional[str]:
         """
-        Iteration 9C: Detect if a minor-opening progression is actually functional in a major key.
+        Iteration 9C: Detect if a minor-opening progression is actually
+        functional in a major key.
 
-        Analyzes chord progressions starting with minor chords to determine if they're
-        better understood as functional progressions in a related major key.
+        Analyzes chord progressions starting with minor chords to determine
+        if they're better understood as functional progressions in a related
+        major key.
 
         Args:
             chords: List of chord symbols
@@ -1162,7 +1170,8 @@ class UnifiedPatternService:
             return False
 
     def _matches_IV_V_vi_pattern(self, roots: List[str]) -> bool:
-        """Check if roots match IV-V-vi pattern in some major key (deceptive cadence)."""
+        """Check if roots match IV-V-vi pattern in some major key
+        (deceptive cadence)."""
         if len(roots) < 3:
             return False
 

@@ -179,7 +179,7 @@ class PatternAnalysisService:
                         f"  Rationale: {arbitration_result.rationale}\n"
                         f"  Policy thresholds: "
                         f"func_min="
-                        f"{self._arbitration_service.policy.min_functional_confidence}, "
+                        f"{self._arbitration_service.policy.min_functional_confidence},"
                         f"modal_min="
                         f"{self._arbitration_service.policy.min_modal_confidence}"
                     )
