@@ -22,7 +22,8 @@ class Evidence:
     """Unique identifier of the pattern that generated this evidence."""
 
     track_weights: Dict[str, float]
-    """Contribution weights by analysis track (e.g., {"functional": 0.8, "modal": 0.3})."""
+    """Contribution weights by analysis track (e.g.,
+    {"functional": 0.8, "modal": 0.3})."""
 
     features: Dict[str, float]
     """Feature values extracted from the match (e.g., {"outside_key_ratio": 0.2})."""

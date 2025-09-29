@@ -133,7 +133,8 @@ class PluginRegistry:
         span = context.get("span", (0, 1))
         pattern_id = pattern.get("id", "unknown")
 
-        # Simple scoring based on pattern weight (placeholder for feature-driven scoring)
+        # Simple scoring based on pattern weight (placeholder for
+        # feature-driven scoring)
         raw_score = pattern_weight
 
         track_weights = self._build_track_weights(
