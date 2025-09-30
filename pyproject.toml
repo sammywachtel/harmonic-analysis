@@ -1,6 +1,7 @@
 [build-system]
 requires = [
-    "hatchling", "setuptools>=80"
+    "hatchling",
+    "setuptools>=80",
 ]
 build-backend = "hatchling.build"
 

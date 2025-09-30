@@ -32,7 +32,7 @@ class EdgeCaseType(Enum):
 
 **File**: `tests/integration/test_arbitration_policy_thresholds.py`
 
-**Purpose**: Ensure that arbitration policy defaults (functional vs modal) do not drift silently.  
+**Purpose**: Ensure that arbitration policy defaults (functional vs modal) do not drift silently.
 These tests bracket the exact threshold values implemented in `AnalysisArbitrationService`.
 
 **Arbitration Policy Defaults**:

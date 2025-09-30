@@ -6,8 +6,8 @@ from Iteration 5 continue to work properly.
 """
 
 from harmonic_analysis.core.pattern_engine.pattern_engine import (
-    PatternEngine,
     AnalysisContext,
+    PatternEngine,
 )
 
 
@@ -92,10 +92,11 @@ class TestPatternMatchingRegression:
     def test_pattern_engine_end_to_end_regression(self):
         """End-to-end test that full analysis works after pattern matching fix."""
         # Opening move: test the full analysis pipeline
+        import asyncio
+
         from harmonic_analysis.services.pattern_analysis_service import (
             PatternAnalysisService,
         )
-        import asyncio
 
         async def run_test():
             service = PatternAnalysisService()

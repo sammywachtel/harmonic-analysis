@@ -81,7 +81,8 @@ class CorpusExtractor:
         """Create a transposed version of a sample."""
         # Simplified transposition for mock data
         return MusicalContext(
-            key=f"{target_key} {sample.key.split()[1] if ' ' in sample.key else 'major'}",
+            key=f"{target_key} "
+            f"{sample.key.split()[1] if ' ' in sample.key else 'major'}",
             chords=sample.chords,  # Would transpose in real implementation
             roman_numerals=sample.roman_numerals,  # These stay the same
             melody=sample.melody,  # Would transpose in real implementation

@@ -936,6 +936,7 @@ class PatternEngine:
             List of chromatic element DTOs
         """
         from collections import defaultdict
+
         from harmonic_analysis.dto import ChromaticElementDTO, ChromaticSummaryDTO
 
         chromatic_elements: List[ChromaticElementDTO] = []

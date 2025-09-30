@@ -8,7 +8,8 @@ for key requirement validation, ensuring parity for CLI/UI/API users.
 # Key requirement error messages
 MISSING_KEY_FOR_ROMANS_MSG = (
     "Roman numeral analysis requires a key context. "
-    "Provide a key parameter to enable modal symbol validation and proper harmonic analysis."
+    "Provide a key parameter to enable modal symbol validation and proper "
+    "harmonic analysis."
 )
 
 MISSING_KEY_FOR_SCALE_MSG = (
@@ -35,12 +36,14 @@ INVALID_MODAL_SYMBOL_MSG = (
 # General validation messages
 EMPTY_ROMAN_NUMERALS_MSG = (
     "Roman numerals list is empty. "
-    "Provide valid roman numerals or use chord symbols with key context for auto-romanization."
+    "Provide valid roman numerals or use chord symbols with key context for "
+    "auto-romanization."
 )
 
 INCONSISTENT_ROMANS_KEY_MSG = (
     "Roman numerals '{}' are inconsistent with key context '{}'. "
-    "Ensure roman numerals match the provided key signature or provide correct key context."
+    "Ensure roman numerals match the provided key signature or provide correct "
+    "key context."
 )
 
 
@@ -68,7 +71,7 @@ class RomanNumeralValidationError(KeyContextError):
     pass
 
 
-def validate_key_for_romans(romans: list, key: str = None) -> None:
+def validate_key_for_romans(romans: list, key: str | None = None) -> None:
     """
     Validate that roman numerals are provided with appropriate key context.
 
@@ -106,7 +109,7 @@ def validate_key_for_romans(romans: list, key: str = None) -> None:
             pass
 
 
-def validate_key_for_analysis(key: str = None, analysis_type: str = "harmonic") -> None:
+def validate_key_for_analysis(key: str | None = None, analysis_type: str = "harmonic") -> None:
     """
     Validate that key context is provided for harmonic analysis.
 

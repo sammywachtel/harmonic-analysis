@@ -17,6 +17,7 @@ from harmonic_analysis.dto import (
     AnalysisType,
     SectionDTO,
 )
+
 from .analysis_arbitration_service import AnalysisArbitrationService
 from .unified_pattern_service import UnifiedPatternService
 
@@ -71,11 +72,12 @@ class PatternAnalysisService:
 
     async def analyze_with_patterns_async(
         self,
-        chord_symbols: List[str],
+        chord_symbols: Optional[List[str]] = None,
         profile: str = "classical",
         best_cover: bool = True,  # Ignored - compatibility only
         key_hint: Optional[str] = None,
         sections: Optional[List[SectionDTO]] = None,  # Ignored - compatibility only
+        romans: Optional[List[str]] = None,  # NEW: Roman numeral input support
     ) -> AnalysisEnvelope:
         """
         Analyze chord progression using unified pattern engine.
@@ -84,15 +86,35 @@ class PatternAnalysisService:
             chord_symbols: List of chord symbols (e.g., ['C', 'F', 'G', 'C'])
             profile: Analysis profile (passed through to unified service)
             best_cover: Legacy parameter (ignored)
-            key_hint: Optional key context for analysis
+            key_hint: Optional key context for analysis (required for roman inputs)
             sections: Legacy parameter (ignored)
+            romans: List of roman numerals (e.g., ['I', 'vi', 'IV', 'V'])
+                   Mutually exclusive with chord_symbols; requires key_hint
 
         Returns:
             AnalysisEnvelope with primary and alternative analyses
+
+        Raises:
+            ValueError: If both chord_symbols and romans are provided, or if
+                       romans are provided without key_hint
         """
+        # Opening move: validate input exclusivity and requirements
+        if chord_symbols and romans:
+            raise ValueError(
+                "Cannot provide both chord_symbols and romans - choose one input type"
+            )
+
+        # Special case: empty chord_symbols list is allowed for backward compatibility
+        if chord_symbols is None and not romans:
+            raise ValueError("Must provide either chord_symbols or romans")
+
+        if romans and not key_hint:
+            raise ValueError("Roman numeral analysis requires key_hint parameter")
+
         # Big play: delegate to unified service with parameter mapping
         envelope = await self._unified_service.analyze_with_patterns_async(
             chords=chord_symbols,
+            romans=romans,
             key_hint=key_hint,
             profile=profile,
             options={
@@ -150,12 +172,16 @@ class PatternAnalysisService:
                         f"🎯 ARBITRATION DIAGNOSTIC:\n"
                         f"  Input: {chord_symbols}\n"
                         f"  Functional conf: {functional_summary.confidence:.3f}\n"
-                        f"  Modal conf: {modal_summary.confidence if modal_summary else 'N/A'}\n"
+                        f"  Modal conf: "
+                        f"{modal_summary.confidence if modal_summary else 'N/A'}\n"
                         f"  Result: {arbitration_result.primary.type}\n"
                         f"  Confidence gap: {arbitration_result.confidence_gap:.3f}\n"
                         f"  Rationale: {arbitration_result.rationale}\n"
-                        f"  Policy thresholds: func_min={self._arbitration_service.policy.min_functional_confidence}, "
-                        f"modal_min={self._arbitration_service.policy.min_modal_confidence}"
+                        f"  Policy thresholds: "
+                        f"func_min="
+                        f"{self._arbitration_service.policy.min_functional_confidence},"
+                        f"modal_min="
+                        f"{self._arbitration_service.policy.min_modal_confidence}"
                     )
 
                 # Update envelope with arbitration result
@@ -163,7 +189,8 @@ class PatternAnalysisService:
                 envelope.alternatives = arbitration_result.alternatives
 
                 logger.debug(
-                    f"🎯 Arbitration applied: {arbitration_result.primary.type} (gap: {arbitration_result.confidence_gap:.3f})"
+                    f"🎯 Arbitration applied: {arbitration_result.primary.type} "
+                    f"(gap: {arbitration_result.confidence_gap:.3f})"
                 )
 
             except Exception as e:
@@ -175,11 +202,12 @@ class PatternAnalysisService:
 
     def analyze_with_patterns(
         self,
-        chord_symbols: List[str],
+        chord_symbols: Optional[List[str]] = None,
         profile: str = "classical",
         best_cover: bool = True,  # Ignored - compatibility only
         key_hint: Optional[str] = None,
         sections: Optional[List[SectionDTO]] = None,  # Ignored - compatibility only
+        romans: Optional[List[str]] = None,  # NEW: Roman numeral input support
     ) -> AnalysisEnvelope:
         """
         Synchronous wrapper for analyze_with_patterns_async.
@@ -193,7 +221,8 @@ class PatternAnalysisService:
         except RuntimeError:
             envelope = asyncio.run(
                 self.analyze_with_patterns_async(
-                    chord_symbols,
+                    chord_symbols=chord_symbols,
+                    romans=romans,
                     key_hint=key_hint,
                     profile=profile,
                     best_cover=best_cover,
@@ -207,7 +236,8 @@ class PatternAnalysisService:
                 future = executor.submit(
                     asyncio.run,
                     self.analyze_with_patterns_async(
-                        chord_symbols,
+                        chord_symbols=chord_symbols,
+                        romans=romans,
                         key_hint=key_hint,
                         profile=profile,
                         best_cover=best_cover,
@@ -232,17 +262,17 @@ class PatternAnalysisService:
 
     # Legacy property access for backward compatibility
     @property
-    def calibrator(self):
+    def calibrator(self) -> Any:
         """Access to calibrator for backward compatibility."""
         return self._unified_service.calibrator
 
     @property
-    def calibration_mapping(self):
+    def calibration_mapping(self) -> Any:
         """Access to calibration mapping for backward compatibility."""
         return self._unified_service.calibration_mapping
 
     @property
-    def glossary_service(self):
+    def glossary_service(self) -> Any:
         """Access to glossary service for backward compatibility."""
         # Import here to avoid circular dependencies
         from ..core.pattern_engine.glossary_service import GlossaryService

@@ -8,8 +8,8 @@ This is integrated with the corpus mining pipeline and provides a drop-in
 replacement for the legacy TargetBuilder.
 """
 
-from typing import Any, Dict, Iterable, List, Optional, Tuple
 from dataclasses import dataclass
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -30,12 +30,12 @@ class TargetAnnotation:
 # Import the production corpus miner
 try:
     from ...corpus_miner import (
-        UnifiedTargetBuilder as CorpusTargetBuilder,
+        DifficultyStratum,
         LabeledSample,
         LabelSource,
-        DifficultyStratum,
         PatternMatch,
     )
+    from ...corpus_miner import UnifiedTargetBuilder as CorpusTargetBuilder
 
     CORPUS_MINER_AVAILABLE = True
 except ImportError:
@@ -94,9 +94,11 @@ class UnifiedTargetBuilder:
         Initialize unified target builder.
 
         Args:
-            agreement_threshold: Min agreement for high confidence labels (legacy compat)
+            agreement_threshold: Min agreement for high confidence labels
+                (legacy compat)
             ambiguous_range: Confidence range for ambiguous cases (legacy compat)
-            use_corpus_pipeline: Whether to use corpus mining pipeline (recommended)
+            use_corpus_pipeline: Whether to use corpus mining pipeline
+                (recommended)
         """
         self.agreement_threshold = agreement_threshold
         self.ambiguous_range = ambiguous_range
@@ -133,7 +135,8 @@ class UnifiedTargetBuilder:
         if not evidences:
             return []
 
-        # Backward compatibility: if annotations provided, use them to override heuristics
+        # Backward compatibility: if annotations provided, use them to
+        # override heuristics
         if annotations:
             return self._build_annotation_targets(evidences, annotations)
 
@@ -400,7 +403,8 @@ class UnifiedTargetBuilder:
 
     def build_corpus_annotations(self, corpus_data: Dict[str, Any]) -> List[Any]:
         """Legacy method for compatibility - delegates to unified pipeline."""
-        # In the unified approach, corpus processing is handled by the corpus mining pipeline
+        # In the unified approach, corpus processing is handled by the
+        # corpus mining pipeline
         # This method is kept for compatibility but returns empty list
         return []
 

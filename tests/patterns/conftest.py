@@ -5,8 +5,10 @@ Provides utilities for building normalized contexts, creating test fixtures,
 and validating pattern matching behavior across transpositions.
 """
 
+from typing import Any, Dict, List, Optional
+
 import pytest
-from typing import List, Dict, Any, Optional
+
 from harmonic_analysis.core.pattern_engine.pattern_engine import AnalysisContext
 
 

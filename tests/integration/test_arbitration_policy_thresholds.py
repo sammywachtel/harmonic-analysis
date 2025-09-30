@@ -4,6 +4,7 @@
 # to work with the new AnalysisEnvelope and pattern-based analysis system.
 # Mark for deletion after Iteration 2 when new arbitration tests are written.
 import pytest
+
 from harmonic_analysis.dto import AnalysisSummary, AnalysisType
 from harmonic_analysis.services.analysis_arbitration_service import (
     AnalysisArbitrationService,
