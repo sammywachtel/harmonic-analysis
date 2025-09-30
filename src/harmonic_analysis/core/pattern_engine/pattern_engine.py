@@ -70,7 +70,7 @@ class AnalysisContext:
     sections: List[SectionDTO] = field(default_factory=list)
     """Annotated sections provided by the caller (optional)."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate key-context requirements after initialization."""
         from ..validation_errors import validate_key_for_romans
 

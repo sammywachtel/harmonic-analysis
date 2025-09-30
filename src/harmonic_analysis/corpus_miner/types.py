@@ -62,13 +62,13 @@ class LabeledSample:
 class ExtractionConfig:
     """Configuration for corpus extraction."""
 
-    corpus_sources: List[str] = None
+    corpus_sources: Optional[List[str]] = None
     max_samples_per_source: int = 100
-    transposition_keys: List[str] = None
+    transposition_keys: Optional[List[str]] = None
     min_chord_count: int = 4
     max_chord_count: int = 16
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.corpus_sources is None:
             self.corpus_sources = ["bach/chorales", "jazz/standards"]
         if self.transposition_keys is None:
@@ -81,10 +81,10 @@ class AdjudicationRules:
 
     strong_evidence_threshold: float = 0.9
     weak_evidence_threshold: float = 0.3
-    consensus_patterns: List[str] = None
-    contradiction_patterns: List[str] = None
+    consensus_patterns: Optional[List[str]] = None
+    contradiction_patterns: Optional[List[str]] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.consensus_patterns is None:
             self.consensus_patterns = [
                 "cadence.authentic.perfect",

@@ -144,7 +144,7 @@ class Aggregator:
 
         # Sort by score descending
         sorted_evidence = sorted(evidences, key=lambda e: e.raw_score, reverse=True)
-        kept = []
+        kept: List[Evidence] = []
 
         for evidence in sorted_evidence:
             # Check if this overlaps with any kept evidence
@@ -223,7 +223,7 @@ class Aggregator:
         Returns:
             Dictionary of track names to aggregated scores
         """
-        track_scores = defaultdict(float)
+        track_scores: Dict[str, float] = defaultdict(float)
 
         for evidence in evidences:
             for track, weight in evidence.track_weights.items():

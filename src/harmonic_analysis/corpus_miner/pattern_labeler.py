@@ -3,7 +3,7 @@ Pattern Labeler - Unified target construction with adjudication heuristics.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .types import (
     AdjudicationRules,
@@ -97,7 +97,8 @@ class PatternLabeler:
         strong_patterns = [
             m
             for m in pattern_matches
-            if m.pattern_id in self.rules.consensus_patterns
+            if self.rules.consensus_patterns
+            and m.pattern_id in self.rules.consensus_patterns
             and m.raw_score >= self.rules.strong_evidence_threshold
         ]
 

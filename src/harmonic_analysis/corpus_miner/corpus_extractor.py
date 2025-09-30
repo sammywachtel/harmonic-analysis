@@ -67,7 +67,8 @@ class CorpusExtractor:
         # Generate transpositions
         transposed = []
         for sample in samples:
-            for key in self.config.transposition_keys[:2]:  # Limit for production
+            keys_to_use = self.config.transposition_keys or []
+            for key in keys_to_use[:2]:  # Limit for production
                 if key != sample.key.split()[0]:
                     transposed.append(self._transpose_mock(sample, key))
 

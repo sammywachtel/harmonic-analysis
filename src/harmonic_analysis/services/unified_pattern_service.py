@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from harmonic_analysis.dto import (
     AnalysisEnvelope,
@@ -18,7 +18,7 @@ from harmonic_analysis.dto import (
 )
 
 from ..core.pattern_engine.aggregator import Aggregator
-from ..core.pattern_engine.calibration import Calibrator
+from ..core.pattern_engine.calibration import CalibrationMapping, Calibrator
 from ..core.pattern_engine.pattern_engine import AnalysisContext, PatternEngine
 from ..core.pattern_engine.pattern_loader import PatternLoader
 from ..core.pattern_engine.plugin_registry import PluginRegistry
@@ -75,7 +75,7 @@ class UnifiedPatternService:
 
         # Modern pattern engine calibration (quality-gated)
         self.calibrator = Calibrator() if auto_calibrate else None
-        self.calibration_mapping = None
+        self.calibration_mapping: Optional[CalibrationMapping] = None
 
         # Initialize calibration if enabled
         if self.calibrator:
@@ -92,9 +92,13 @@ class UnifiedPatternService:
                 self.calibration_mapping = self.calibrator.fit(raw_scores, targets)
 
                 if self.calibration_mapping and self.calibration_mapping.passed_gates:
+                    mapping_type = (
+                        self.calibration_mapping.mapping_type
+                        if self.calibration_mapping
+                        else "unknown"
+                    )
                     logger.info(
-                        f"✅ Quality-gated calibration initialized: "
-                        f"{self.calibration_mapping.mapping_type if self.calibration_mapping else 'unknown'}"
+                        f"✅ Quality-gated calibration initialized: {mapping_type}"
                     )
                 else:
                     logger.info(
