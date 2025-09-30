@@ -3,7 +3,7 @@ Pattern Labeler - Unified target construction with adjudication heuristics.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .types import (
     AdjudicationRules,
@@ -17,13 +17,13 @@ from .types import (
 class PatternLabeler:
     """Unified pattern labeling with adjudication heuristics."""
 
-    def __init__(self, adjudication_rules: AdjudicationRules = None):
+    def __init__(self, adjudication_rules: AdjudicationRules | None = None):
         self.rules = adjudication_rules or AdjudicationRules()
         self.logger = logging.getLogger(__name__)
         self.pattern_engine = None  # Lazy initialization
 
     def label_corpus_samples(
-        self, samples: List[Dict[str, any]]
+        self, samples: List[Dict[str, Any]]
     ) -> List[LabeledSample]:
         """
         Generate unified reliability labels for corpus samples.
@@ -48,7 +48,7 @@ class PatternLabeler:
         self.logger.info(f"Generated {len(labeled_samples)} labeled samples")
         return labeled_samples
 
-    def _label_single_sample(self, sample: Dict[str, any]) -> Optional[LabeledSample]:
+    def _label_single_sample(self, sample: Dict[str, Any]) -> Optional[LabeledSample]:
         """Generate unified label for a single sample."""
         # For production, use simplified heuristic labeling
         # Real implementation would use pattern engine analysis
@@ -89,7 +89,7 @@ class PatternLabeler:
         )
 
     def _adjudicate_reliability(
-        self, pattern_matches: List[PatternMatch], sample: Dict[str, any]
+        self, pattern_matches: List[PatternMatch], sample: Dict[str, Any]
     ) -> Tuple[float, LabelSource, Dict[str, float]]:
         """Apply adjudication heuristics to determine reliability."""
 
@@ -97,7 +97,8 @@ class PatternLabeler:
         strong_patterns = [
             m
             for m in pattern_matches
-            if m.pattern_id in self.rules.consensus_patterns
+            if self.rules.consensus_patterns
+            and m.pattern_id in self.rules.consensus_patterns
             and m.raw_score >= self.rules.strong_evidence_threshold
         ]
 
@@ -106,7 +107,7 @@ class PatternLabeler:
             return (
                 reliability,
                 LabelSource.ADJUDICATION_HEURISTIC,
-                {"strong_patterns": len(strong_patterns), "rule": "strong_evidence"},
+                {"strong_patterns": float(len(strong_patterns)), "rule_type": 1.0},
             )
 
         # Pattern consensus
@@ -118,9 +119,9 @@ class PatternLabeler:
                     reliability,
                     LabelSource.ADJUDICATION_HEURISTIC,
                     {
-                        "pattern_count": len(pattern_matches),
+                        "pattern_count": float(len(pattern_matches)),
                         "avg_score": avg_score,
-                        "rule": "pattern_consensus",
+                        "rule_type": 2.0,
                     },
                 )
 
@@ -132,11 +133,11 @@ class PatternLabeler:
         return (
             base_confidence,
             LabelSource.WEAK_SUPERVISION,
-            {"base_confidence": base_confidence, "rule": "default_heuristic"},
+            {"base_confidence": base_confidence, "rule_type": 0.0},
         )
 
     def _classify_difficulty(
-        self, sample: Dict[str, any], pattern_matches: List[PatternMatch]
+        self, sample: Dict[str, Any], pattern_matches: List[PatternMatch]
     ) -> DifficultyStratum:
         """Classify sample difficulty."""
 

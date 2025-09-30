@@ -152,7 +152,7 @@ class PatternLoader:
             data = json.load(f)
 
         self.validate(data)
-        return data
+        return data  # type: ignore[no-any-return]
 
     def validate(self, data: Dict[str, Any]) -> None:
         """
@@ -199,7 +199,7 @@ class PatternLoader:
             List of pattern definitions
         """
         data = self.load(path)
-        return data.get("patterns", [])
+        return data.get("patterns", [])  # type: ignore[no-any-return]
 
     def merge_patterns(self, *paths: Path) -> Dict[str, Any]:
         """

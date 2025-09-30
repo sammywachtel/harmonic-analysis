@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from harmonic_analysis.dto import (
     AnalysisEnvelope,
@@ -18,7 +18,7 @@ from harmonic_analysis.dto import (
 )
 
 from ..core.pattern_engine.aggregator import Aggregator
-from ..core.pattern_engine.calibration import Calibrator
+from ..core.pattern_engine.calibration import CalibrationMapping, Calibrator
 from ..core.pattern_engine.pattern_engine import AnalysisContext, PatternEngine
 from ..core.pattern_engine.pattern_loader import PatternLoader
 from ..core.pattern_engine.plugin_registry import PluginRegistry
@@ -75,7 +75,7 @@ class UnifiedPatternService:
 
         # Modern pattern engine calibration (quality-gated)
         self.calibrator = Calibrator() if auto_calibrate else None
-        self.calibration_mapping = None
+        self.calibration_mapping: Optional[CalibrationMapping] = None
 
         # Initialize calibration if enabled
         if self.calibrator:
@@ -87,14 +87,18 @@ class UnifiedPatternService:
             # Big play: collect synthetic calibration data for quality-gated calibration
             raw_scores, targets = self._collect_calibration_data()
 
-            if len(raw_scores) > 0:
+            if len(raw_scores) > 0 and self.calibrator is not None:
                 # Victory lap: fit calibration mapping with quality gates
                 self.calibration_mapping = self.calibrator.fit(raw_scores, targets)
 
-                if self.calibration_mapping.passed_gates:
+                if self.calibration_mapping and self.calibration_mapping.passed_gates:
+                    mapping_type = (
+                        self.calibration_mapping.mapping_type
+                        if self.calibration_mapping
+                        else "unknown"
+                    )
                     logger.info(
-                        f"✅ Quality-gated calibration initialized: "
-                        f"{self.calibration_mapping.mapping_type}"
+                        f"✅ Quality-gated calibration initialized: {mapping_type}"
                     )
                 else:
                     logger.info(
@@ -123,8 +127,8 @@ class UnifiedPatternService:
 
         # Opening move: generate synthetic calibration data
         # This simulates real analysis scenarios with known reliability
-        raw_scores = []
-        targets = []
+        raw_scores: List[float] = []
+        targets: List[float] = []
 
         # High confidence scenarios (strong patterns, clear tonality)
         high_conf_base = np.random.uniform(0.7, 0.95, 50)
@@ -246,7 +250,7 @@ class UnifiedPatternService:
             logger.debug(f"🎵 Detected mode: {mode_label}")
 
         # Iteration 9C: Extract sections from options for section-aware analysis
-        sections = []
+        sections: List[Any] = []
         if options and isinstance(options, dict) and "sections" in options:
             sections = options["sections"] or []
             logger.debug(f"🎭 Section-aware analysis with {len(sections)} sections")
@@ -269,7 +273,7 @@ class UnifiedPatternService:
         if mode_label and envelope.primary:
             # Always preserve modal parent key info in metadata for reporting
             modal_parent_key = self._convert_to_modal_parent_key(
-                mode_label, context.key
+                mode_label, context.key or "C major"
             )
             if modal_parent_key != context.key:
                 if not hasattr(envelope.primary, "modal_parent_key"):
@@ -309,7 +313,7 @@ class UnifiedPatternService:
                 )
                 if should_convert:
                     modal_parent_key = self._convert_to_modal_parent_key(
-                        mode_label, context.key
+                        mode_label, context.key or "C major"
                     )
                     if modal_parent_key != context.key:
                         logger.debug(
@@ -641,7 +645,7 @@ class UnifiedPatternService:
         # 2. Repeated or emphasized chords
         # 3. Harmonic stability patterns
 
-        chord_counts = {}
+        chord_counts: Dict[str, int] = {}
         for chord in chords:
             root = (
                 chord.split("/")[0]

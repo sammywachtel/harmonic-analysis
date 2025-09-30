@@ -5,7 +5,6 @@ Validates the new scope=['melodic', 'scale'] patterns with interval sequences,
 scale degree patterns, and modal characteristic detection.
 """
 
-
 from harmonic_analysis.core.pattern_engine.pattern_engine import (
     AnalysisContext,
     PatternEngine,
