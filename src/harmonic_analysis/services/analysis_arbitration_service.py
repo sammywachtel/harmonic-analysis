@@ -279,7 +279,7 @@ class AnalysisArbitrationService:
         modal_char_score = self._calculate_modal_characteristic_score(modal_chars)
 
         # NEW: Evidence-based modal analysis (when feature flag enabled)
-        modal_evidence_items = []
+        modal_evidence_items: List[str] = []
         modal_evidence_labels: List[str] = []
         has_evidence_markers = False
         evidence_score = 0.0
