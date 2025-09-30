@@ -57,7 +57,7 @@ class TestKeyContextValidation:
     def test_analysis_context_key_validation(self):
         """Test AnalysisContext validates key requirements for roman numerals."""
         # Valid: empty romans without key
-        ctx = AnalysisContext(
+        AnalysisContext(
             key=None,
             chords=["C", "F", "G"],
             roman_numerals=[],
