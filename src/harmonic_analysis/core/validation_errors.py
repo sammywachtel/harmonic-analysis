@@ -71,7 +71,7 @@ class RomanNumeralValidationError(KeyContextError):
     pass
 
 
-def validate_key_for_romans(romans: list, key: str = None) -> None:
+def validate_key_for_romans(romans: list, key: str | None = None) -> None:
     """
     Validate that roman numerals are provided with appropriate key context.
 
@@ -109,7 +109,7 @@ def validate_key_for_romans(romans: list, key: str = None) -> None:
             pass
 
 
-def validate_key_for_analysis(key: str = None, analysis_type: str = "harmonic") -> None:
+def validate_key_for_analysis(key: str | None = None, analysis_type: str = "harmonic") -> None:
     """
     Validate that key context is provided for harmonic analysis.
 

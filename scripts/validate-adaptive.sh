@@ -111,14 +111,19 @@ record_result() {
 initialize_phase_config() {
     CURRENT_PHASE=$(read_config "quality_gates.current_phase" "0")
 
-    # Phase 1+ enables changed-files-only mode
-    if (( CURRENT_PHASE >= 1 )); then
+    # Phase 1-2 can use changed-files-only mode
+    # Phase 3 MUST do full repository validation (no bypasses)
+    if (( CURRENT_PHASE >= 1 && CURRENT_PHASE < 3 )); then
         local changed_files_enabled=$(read_config "quality_gates.phases.phase_1.changed_files_only" "false")
         [[ "$changed_files_enabled" == "true" ]] && CHANGED_FILES_ONLY=true
     fi
 
     print_status "Quality Gate Phase: $CURRENT_PHASE"
-    [[ "$CHANGED_FILES_ONLY" == "true" ]] && print_status "Mode: Changed files only"
+    if [[ "$CHANGED_FILES_ONLY" == "true" ]]; then
+        print_status "Mode: Changed files only"
+    else
+        print_status "Mode: Full repository validation"
+    fi
 }
 
 # Function to get changed files (for Phase 1+ enforcement)

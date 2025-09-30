@@ -5,11 +5,9 @@ Tests that arbitration policies correctly handle threshold boundaries
 for functional vs modal analysis with the new pattern-based system.
 """
 
-from typing import Any, Dict
-
 import pytest
 
-from harmonic_analysis.dto import AnalysisEnvelope, AnalysisType
+from harmonic_analysis.dto import AnalysisType
 from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
 
 

@@ -14,7 +14,6 @@ from tests.fixtures.utils import (
     FixtureLoader,
     create_context_from_progression,
     generate_transposed_tests,
-    validate_matches,
 )
 
 
@@ -246,7 +245,7 @@ class TestGoldenPatterns:
             priorities.append((pattern["id"], priority))
 
         # Check that higher priority patterns come first when sorted
-        sorted_priorities = sorted(priorities, key=lambda x: x[1], reverse=True)
+        _ = sorted(priorities, key=lambda x: x[1], reverse=True)
 
         # The perfect authentic cadence should have high priority
         pac_priority = None

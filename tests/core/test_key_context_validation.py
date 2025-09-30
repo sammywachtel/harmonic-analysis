@@ -67,7 +67,7 @@ class TestKeyContextValidation:
         )
 
         # Valid: romans with key
-        ctx = AnalysisContext(
+        AnalysisContext(
             key="C major",
             chords=["C", "F", "G"],
             roman_numerals=["I", "IV", "V"],
@@ -78,7 +78,7 @@ class TestKeyContextValidation:
 
         # Invalid: romans without key should raise error
         with pytest.raises(MissingKeyError):
-            ctx = AnalysisContext(
+            AnalysisContext(
                 key=None,
                 chords=["C", "F", "G"],
                 roman_numerals=["I", "IV", "V"],

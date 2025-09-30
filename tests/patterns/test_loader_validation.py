@@ -6,7 +6,6 @@ helpful error messages for common validation failures.
 """
 
 import json
-from pathlib import Path
 
 import pytest
 

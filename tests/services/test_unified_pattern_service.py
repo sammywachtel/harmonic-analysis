@@ -5,8 +5,6 @@ Validates that the unified service provides the same API as PatternAnalysisServi
 while using the new unified pattern engine under the hood.
 """
 
-from typing import List
-
 import pytest
 
 from harmonic_analysis.dto import AnalysisEnvelope, AnalysisType

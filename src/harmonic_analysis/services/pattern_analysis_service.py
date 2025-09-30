@@ -262,17 +262,17 @@ class PatternAnalysisService:
 
     # Legacy property access for backward compatibility
     @property
-    def calibrator(self):
+    def calibrator(self) -> Any:
         """Access to calibrator for backward compatibility."""
         return self._unified_service.calibrator
 
     @property
-    def calibration_mapping(self):
+    def calibration_mapping(self) -> Any:
         """Access to calibration mapping for backward compatibility."""
         return self._unified_service.calibration_mapping
 
     @property
-    def glossary_service(self):
+    def glossary_service(self) -> Any:
         """Access to glossary service for backward compatibility."""
         # Import here to avoid circular dependencies
         from ..core.pattern_engine.glossary_service import GlossaryService

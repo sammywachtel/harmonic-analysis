@@ -59,4 +59,4 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
-        exclude: 'docs/resources/OPEN-MUSIC-THEORY\.xml$'
+        exclude: package-lock.json
