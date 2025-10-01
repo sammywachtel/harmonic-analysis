@@ -880,6 +880,7 @@ def _build_chord_symbol(chord_root: str, roman_info: dict, is_minor_key: bool) -
 # Scale Analysis Functions (Iteration 12)
 # ============================================================================
 
+
 def normalize_scale_input(notes: List[str], key_hint: str) -> dict:
     """
     Normalize and validate scale input, detecting mode and scale degrees.
@@ -923,12 +924,12 @@ def normalize_scale_input(notes: List[str], key_hint: str) -> dict:
 
     if validation_errors:
         return {
-            'canonical_notes': canonical_notes,
-            'scale_degrees': [],
-            'detected_mode': None,
-            'intervals': [],
-            'is_valid': False,
-            'validation_errors': validation_errors
+            "canonical_notes": canonical_notes,
+            "scale_degrees": [],
+            "detected_mode": None,
+            "intervals": [],
+            "is_valid": False,
+            "validation_errors": validation_errors,
         }
 
     # Calculate intervals from first note
@@ -949,7 +950,7 @@ def normalize_scale_input(notes: List[str], key_hint: str) -> dict:
     detected_mode = _detect_mode_from_intervals(step_intervals)
 
     # Calculate scale degrees relative to the key hint
-    key_tonic = _extract_key_tonic(key_info['key'])
+    key_tonic = _extract_key_tonic(key_info["key"])
     key_pc = NOTE_TO_PITCH_CLASS.get(key_tonic, 0)
 
     scale_degrees = []
@@ -961,13 +962,13 @@ def normalize_scale_input(notes: List[str], key_hint: str) -> dict:
     is_valid = _validate_scale_against_key(step_intervals, key_info, detected_mode)
 
     return {
-        'canonical_notes': canonical_notes,
-        'scale_degrees': scale_degrees,
-        'detected_mode': detected_mode,
-        'intervals': intervals,
-        'is_valid': is_valid,
-        'validation_errors': validation_errors,
-        'key_info': key_info
+        "canonical_notes": canonical_notes,
+        "scale_degrees": scale_degrees,
+        "detected_mode": detected_mode,
+        "intervals": intervals,
+        "is_valid": is_valid,
+        "validation_errors": validation_errors,
+        "key_info": key_info,
     }
 
 
@@ -976,11 +977,11 @@ def _parse_scale_notes(notes: List[str]) -> List[str]:
     canonical_notes = []
 
     # Handle comma-separated strings
-    if len(notes) == 1 and ',' in notes[0]:
-        notes = [note.strip() for note in notes[0].split(',')]
+    if len(notes) == 1 and "," in notes[0]:
+        notes = [note.strip() for note in notes[0].split(",")]
 
     # Handle space-separated strings
-    elif len(notes) == 1 and ' ' in notes[0]:
+    elif len(notes) == 1 and " " in notes[0]:
         notes = [note.strip() for note in notes[0].split()]
 
     for note in notes:
@@ -991,10 +992,10 @@ def _parse_scale_notes(notes: List[str]) -> List[str]:
         note = note.strip()
 
         # Handle flat notation (both 'b' and '♭')
-        note = note.replace('♭', 'b')
+        note = note.replace("♭", "b")
 
         # Handle sharp notation (both '#' and '♯')
-        note = note.replace('♯', '#')
+        note = note.replace("♯", "#")
 
         # Capitalize first letter
         if note:
@@ -1012,43 +1013,49 @@ def _parse_key_hint(key_hint: str) -> dict:
     # Handle modal key hints (e.g., "D dorian", "G mixolydian")
     # Check longer mode names first to avoid substring matching issues
     modal_modes = [
-        'mixolydian', 'phrygian', 'aeolian', 'locrian', 'dorian', 'lydian', 'ionian'
+        "mixolydian",
+        "phrygian",
+        "aeolian",
+        "locrian",
+        "dorian",
+        "lydian",
+        "ionian",
     ]
 
     for mode in modal_modes:
         if mode in key_hint:
-            tonic = key_hint.replace(mode, '').strip()
+            tonic = key_hint.replace(mode, "").strip()
             return {
-                'key': f"{tonic.capitalize()} {mode}",
-                'tonic': tonic.capitalize(),
-                'mode': mode.capitalize(),
-                'is_modal': True
+                "key": f"{tonic.capitalize()} {mode}",
+                "tonic": tonic.capitalize(),
+                "mode": mode.capitalize(),
+                "is_modal": True,
             }
 
     # Handle standard major/minor keys
-    if 'major' in key_hint:
-        tonic = key_hint.replace('major', '').strip()
+    if "major" in key_hint:
+        tonic = key_hint.replace("major", "").strip()
         return {
-            'key': f"{tonic.capitalize()} major",
-            'tonic': tonic.capitalize(),
-            'mode': 'Ionian',
-            'is_modal': False
+            "key": f"{tonic.capitalize()} major",
+            "tonic": tonic.capitalize(),
+            "mode": "Ionian",
+            "is_modal": False,
         }
-    elif 'minor' in key_hint:
-        tonic = key_hint.replace('minor', '').strip()
+    elif "minor" in key_hint:
+        tonic = key_hint.replace("minor", "").strip()
         return {
-            'key': f"{tonic.capitalize()} minor",
-            'tonic': tonic.capitalize(),
-            'mode': 'Aeolian',
-            'is_modal': False
+            "key": f"{tonic.capitalize()} minor",
+            "tonic": tonic.capitalize(),
+            "mode": "Aeolian",
+            "is_modal": False,
         }
 
     # Default to major if no mode specified
     return {
-        'key': f"{key_hint.capitalize()} major",
-        'tonic': key_hint.capitalize(),
-        'mode': 'Ionian',
-        'is_modal': False
+        "key": f"{key_hint.capitalize()} major",
+        "tonic": key_hint.capitalize(),
+        "mode": "Ionian",
+        "is_modal": False,
     }
 
 
@@ -1092,20 +1099,20 @@ def _validate_scale_against_key(
 
     # Normalize case for comparison (modes are case-insensitive)
     detected_mode_lower = detected_mode.lower()
-    expected_mode_lower = key_info['mode'].lower() if key_info['mode'] else ''
+    expected_mode_lower = key_info["mode"].lower() if key_info["mode"] else ""
 
     # If the key hint specifies a mode, check if detected mode matches
-    if key_info['is_modal']:
+    if key_info["is_modal"]:
         return detected_mode_lower == expected_mode_lower
 
     # For major/minor keys, accept related modes
-    if expected_mode_lower == 'ionian':
+    if expected_mode_lower == "ionian":
         # Accept any major scale mode
-        major_modes = ['ionian', 'lydian', 'mixolydian']
+        major_modes = ["ionian", "lydian", "mixolydian"]
         return detected_mode_lower in major_modes
-    elif expected_mode_lower == 'aeolian':
+    elif expected_mode_lower == "aeolian":
         # Accept any minor scale mode
-        minor_modes = ['aeolian', 'dorian', 'phrygian']
+        minor_modes = ["aeolian", "dorian", "phrygian"]
         return detected_mode_lower in minor_modes
 
     return True

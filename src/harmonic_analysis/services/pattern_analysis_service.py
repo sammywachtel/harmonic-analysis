@@ -105,7 +105,9 @@ class PatternAnalysisService:
                        romans/notes/melody are provided without key_hint
         """
         # Opening move: validate input exclusivity and requirements
-        input_count = sum(1 for x in [chord_symbols, romans, notes, melody] if x is not None)
+        input_count = sum(
+            1 for x in [chord_symbols, romans, notes, melody] if x is not None
+        )
         if input_count > 1:
             raise ValueError(
                 "Cannot provide multiple input types - "
@@ -114,10 +116,14 @@ class PatternAnalysisService:
 
         # Special case: empty chord_symbols list is allowed for backward compatibility
         if chord_symbols is None and not romans and not notes and not melody:
-            raise ValueError("Must provide one of: chord_symbols, romans, notes, or melody")
+            raise ValueError(
+                "Must provide one of: chord_symbols, romans, notes, or melody"
+            )
 
         if (romans or notes or melody) and not key_hint:
-            analysis_type = "Roman numeral" if romans else ("Scale" if notes else "Melody")
+            analysis_type = (
+                "Roman numeral" if romans else ("Scale" if notes else "Melody")
+            )
             raise ValueError(f"{analysis_type} analysis requires key_hint parameter")
 
         # Big play: delegate to unified service with parameter mapping

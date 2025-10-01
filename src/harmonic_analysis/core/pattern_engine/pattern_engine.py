@@ -420,9 +420,9 @@ class PatternEngine:
         # Opening move: use explicit scale list if provided (maintain order)
         if context.scales:
             for scale_entry in context.scales:
-                if isinstance(scale_entry, dict) and 'degrees' in scale_entry:
+                if isinstance(scale_entry, dict) and "degrees" in scale_entry:
                     # Extract actual scale degrees from scale analysis data
-                    scale_degrees.extend(scale_entry['degrees'])
+                    scale_degrees.extend(scale_entry["degrees"])
                 else:
                     # Fallback for simple scale lists (legacy compatibility)
                     scale_degrees.extend(list(range(1, len(context.scales) + 1)))

@@ -199,8 +199,8 @@ class UnifiedPatternService:
             try:
                 scale_data = normalize_scale_input(notes, key_hint)
 
-                if not scale_data['is_valid']:
-                    error_msg = "; ".join(scale_data['validation_errors'])
+                if not scale_data["is_valid"]:
+                    error_msg = "; ".join(scale_data["validation_errors"])
                     if not error_msg:
                         error_msg = (
                             "Scale does not match any known mode "
@@ -209,9 +209,9 @@ class UnifiedPatternService:
                     raise ValueError(f"Invalid scale input: {error_msg}")
 
                 # Victory lap: extract normalized data for analysis context
-                canonical_notes = scale_data['canonical_notes']
-                scale_degrees = scale_data['scale_degrees']
-                detected_mode = scale_data['detected_mode']
+                canonical_notes = scale_data["canonical_notes"]
+                scale_degrees = scale_data["scale_degrees"]
+                detected_mode = scale_data["detected_mode"]
 
                 logger.debug(
                     f"🎼 Processed scale: {notes} → {canonical_notes} "
@@ -220,10 +220,10 @@ class UnifiedPatternService:
 
                 # Store scale analysis data for pattern engine
                 scale_analysis_data = {
-                    'notes': canonical_notes,
-                    'degrees': scale_degrees,
-                    'mode': detected_mode,
-                    'intervals': scale_data['intervals']
+                    "notes": canonical_notes,
+                    "degrees": scale_degrees,
+                    "mode": detected_mode,
+                    "intervals": scale_data["intervals"],
                 }
 
             except Exception as e:
@@ -249,11 +249,11 @@ class UnifiedPatternService:
 
                 # Store melody analysis data for pattern engine
                 melody_analysis_data = {
-                    'notes': melody_result.notes,
-                    'suggested_tonic': melody_result.suggested_tonic,
-                    'confidence': melody_result.confidence,
-                    'modal_labels': melody_result.modal_labels,
-                    'classification': melody_result.classification
+                    "notes": melody_result.notes,
+                    "suggested_tonic": melody_result.suggested_tonic,
+                    "confidence": melody_result.confidence,
+                    "modal_labels": melody_result.modal_labels,
+                    "classification": melody_result.classification,
                 }
 
             except Exception as e:
@@ -502,7 +502,9 @@ class UnifiedPatternService:
         except RuntimeError:
             # No running loop, safe to use asyncio.run
             return asyncio.run(
-                self.analyze_with_patterns_async(chords, key_hint, profile, options, romans, notes, melody)
+                self.analyze_with_patterns_async(
+                    chords, key_hint, profile, options, romans, notes, melody
+                )
             )
 
     # Additional compatibility methods can be added here as needed
