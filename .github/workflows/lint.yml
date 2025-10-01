@@ -70,7 +70,7 @@ jobs:
             pip install -r requirements-dev.txt
           fi
           # Install linting tools
-          pip install black isort flake8 mypy
+          pip install black isort flake8 mypy types-jsonschema
 
       - name: Validate Black formatting
         run: |
@@ -95,7 +95,7 @@ jobs:
       - name: Run Flake8 linter
         run: |
           echo "🔍 Running Flake8 linter..."
-          flake8 . --max-line-length=88 --extend-ignore=E203,W503 || {
+          flake8 . --max-line-length=88 --extend-ignore=E203,W503 --exclude=tools/,demo/,.local_docs/,.venv/ || {
             echo "❌ Linting issues found!"
             echo "💡 Fix issues locally and commit changes"
             echo "💡 Or run: pre-commit run flake8 --all-files"

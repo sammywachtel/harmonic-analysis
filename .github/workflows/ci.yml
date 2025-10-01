@@ -23,6 +23,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
         pip install -r requirements-dev.txt
+        pip install types-jsonschema
 
     - name: Generate comprehensive test cases
       run: python scripts/generate_comprehensive_multi_layer_tests.py
@@ -59,6 +60,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
         pip install -r requirements-dev.txt
+        pip install types-jsonschema
 
     - name: Run type checking
       run: mypy src/
