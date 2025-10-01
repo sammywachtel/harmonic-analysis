@@ -105,7 +105,7 @@ jobs:
       - name: Run MyPy type checking
         run: |
           echo "🔍 Running MyPy type checking..."
-          mypy src/ --ignore-missing-imports || {
+          mypy src/ || {
             echo "❌ Type checking issues found!"
             echo "💡 Fix type issues locally and commit changes"
             echo "💡 Or run: pre-commit run mypy-src --all-files"

@@ -10,7 +10,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
 
 from harmonic_analysis.analysis_types import EvidenceType
 from harmonic_analysis.dto import (
@@ -474,7 +474,7 @@ class PatternEngine:
 
         return base_modes.get(mode, base_modes["major"])
 
-    def _note_to_semitone(self, note: str) -> int:
+    def _note_to_semitone(self, note: Union[str, int, float]) -> int:
         """Convert note name to semitone offset from C."""
         if isinstance(note, (int, float)):
             return int(note) % 12
@@ -610,7 +610,7 @@ class PatternEngine:
         Returns:
             List of (start, end) indices where pattern matches
         """
-        matches = []
+        matches: List[Tuple[int, int]] = []
         pattern_len = len(pattern_seq)
         context_len = len(context_seq)
 
@@ -781,7 +781,7 @@ class PatternEngine:
         patterns = self._patterns.get("patterns", [])
         for pattern in patterns:
             if pattern.get("id") == pattern_id:
-                return pattern
+                return dict(pattern)  # Ensure Dict[str, Any] type
         return None
 
     def _get_pattern_display_name(
@@ -799,7 +799,7 @@ class PatternEngine:
             Display name string
         """
         if pattern_def:
-            full_name = pattern_def.get("name", "")
+            full_name = str(pattern_def.get("name", ""))
             metadata = pattern_def.get("metadata", {})
             aliases = metadata.get("aliases", [])
 
@@ -810,7 +810,7 @@ class PatternEngine:
 
             # Time to tackle the tricky bit: use first alias if available
             if aliases and len(aliases) > 0:
-                return aliases[0]
+                return str(aliases[0])
 
             # Fallback: use the pattern's "name" field if available
             if full_name:
@@ -916,7 +916,9 @@ class PatternEngine:
 
         return None
 
-    def _classify_cadence_role(self, pattern_id: str, tags: Set[str]) -> Optional[str]:
+    def _classify_cadence_role(
+        self, pattern_id: str, tags: Set[str]
+    ) -> Optional[Literal["final", "section-final", "internal"]]:
         """Heuristic classification of cadence role for a detected pattern."""
 
         lower_id = pattern_id.lower()
@@ -1160,7 +1162,7 @@ class PatternEngine:
                 terms["analysis_method"]["tooltip"] = method_definition
         if self._glossary:
             # Collect all feature keys from evidences
-            feature_keys = set()
+            feature_keys: set[str] = set()
             for evidence in evidences:
                 feature_keys.update(evidence.features.keys())
 
@@ -1246,29 +1248,28 @@ class PatternEngine:
         modal_characteristics = []
 
         for evidence in evidences:
-            pattern_def = evidence.pattern_id
+            pattern_id = evidence.pattern_id
             # Check if evidence contributes to modal analysis track
             has_modal_weight = (
                 "modal" in evidence.track_weights
                 and evidence.track_weights["modal"] > 0.0
             )
-            if has_modal_weight or "modal" in pattern_def.lower():
+            if has_modal_weight or "modal" in pattern_id.lower():
                 # Create modal evidence based on pattern characteristics
                 evidence_type = (
                     EvidenceType.STRUCTURAL
                 )  # Default to structural for modal patterns
                 strength = evidence.raw_score  # Use raw_score instead of confidence
-                description = f"Modal pattern: {pattern_def}"
+                description = f"Modal pattern: {pattern_id}"
 
                 # Enhance evidence type based on pattern characteristics
-                if "cadence" in pattern_def.lower():
+                if "cadence" in pattern_id.lower():
                     evidence_type = EvidenceType.CADENTIAL
                 elif any(
-                    token in pattern_def.lower()
-                    for token in ["bvii", "bii", "bv", "iv"]
+                    token in pattern_id.lower() for token in ["bvii", "bii", "bv", "iv"]
                 ):
                     evidence_type = EvidenceType.INTERVALLIC
-                    description = f"Modal intervallic pattern: {pattern_def}"
+                    description = f"Modal intervallic pattern: {pattern_id}"
 
                 modal_evidence.append(
                     ModalEvidenceRecord(
@@ -1278,17 +1279,17 @@ class PatternEngine:
 
                 # Iteration 9B: Collect modal characteristics regardless of primary type
                 # Extract descriptive characteristic from pattern name/id
-                if "mixolydian" in pattern_def.lower():
+                if "mixolydian" in pattern_id.lower():
                     modal_characteristics.append("Mixolydian ♭VII")
-                elif "dorian" in pattern_def.lower():
+                elif "dorian" in pattern_id.lower():
                     modal_characteristics.append("Dorian natural VI")
-                elif "phrygian" in pattern_def.lower():
+                elif "phrygian" in pattern_id.lower():
                     modal_characteristics.append("Phrygian ♭II")
-                elif "lydian" in pattern_def.lower():
+                elif "lydian" in pattern_id.lower():
                     modal_characteristics.append("Lydian ♯IV")
-                elif "locrian" in pattern_def.lower():
+                elif "locrian" in pattern_id.lower():
                     modal_characteristics.append("Locrian ♭V")
-                elif "aeolian" in pattern_def.lower():
+                elif "aeolian" in pattern_id.lower():
                     modal_characteristics.append("Natural minor v")
 
         # Also add evidence for detected modal signatures in roman numerals

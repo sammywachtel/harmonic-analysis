@@ -329,7 +329,7 @@ class UnifiedPatternService:
         roman_numerals = self._normalize_lydian_romans(roman_numerals, inferred_key)
 
         # Iteration 9A: Detect mode and add to metadata
-        mode_label = self._detect_mode_label(roman_numerals, inferred_key, chords)
+        mode_label = self._detect_mode_label(roman_numerals, inferred_key, chords or [])
         metadata = {"profile": profile}
         if mode_label:
             metadata["mode"] = mode_label
@@ -401,7 +401,7 @@ class UnifiedPatternService:
                         pattern in str(envelope.primary.patterns)
                         for pattern in ["phrygian", "dorian"]
                     )  # Specific modal patterns
-                    and len(chords)
+                    and len(chords or [])
                     <= 3  # Short progressions that clearly establish mode
                 )
                 if should_convert:
@@ -420,7 +420,7 @@ class UnifiedPatternService:
                         try:
                             # Re-derive roman numerals with corrected parent key
                             modal_romans = []
-                            for chord in chords:
+                            for chord in chords or []:
                                 roman = romanize_chord(chord, modal_parent_key, profile)
                                 roman = roman.replace("b", "♭")
                                 modal_romans.append(roman)
@@ -428,7 +428,7 @@ class UnifiedPatternService:
                             # Create new context with modal parent key
                             modal_context = AnalysisContext(
                                 key=modal_parent_key,
-                                chords=chords,
+                                chords=chords or [],
                                 roman_numerals=modal_romans,
                                 melody=context.melody,
                                 scales=context.scales,

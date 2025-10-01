@@ -45,8 +45,8 @@ class UnifiedTargetBuilder:
             raise ValueError("No labeled samples provided")
 
         # Extract raw scores and reliability labels
-        raw_scores = []
-        reliability_targets = []
+        raw_scores: List[float] = []
+        reliability_targets: List[float] = []
 
         for sample in labeled_samples:
             # Extract primary pattern score as raw score
@@ -58,21 +58,21 @@ class UnifiedTargetBuilder:
             raw_scores.append(primary_score)
             reliability_targets.append(sample.label)
 
-        raw_scores = np.array(raw_scores)
-        reliability_targets = np.array(reliability_targets)
+        raw_scores_array = np.array(raw_scores)
+        reliability_targets_array = np.array(reliability_targets)
 
         # Compute statistics
         stats = self._compute_target_statistics(
-            labeled_samples, raw_scores, reliability_targets
+            labeled_samples, raw_scores_array, reliability_targets_array
         )
 
         self.logger.info(
-            f"Built targets: {len(raw_scores)} samples, "
+            f"Built targets: {len(raw_scores_array)} samples, "
             f"reliability range [{stats.reliability_range[0]:.3f}, "
             f"{stats.reliability_range[1]:.3f}]"
         )
 
-        return raw_scores, reliability_targets, stats
+        return raw_scores_array, reliability_targets_array, stats
 
     def build_stratified_targets(
         self, labeled_samples: List[LabeledSample]
@@ -147,8 +147,8 @@ class UnifiedTargetBuilder:
             else:
                 raw_scores.append(0.5)
 
-        empirical_reliability = np.mean(labels)
-        label_variance = np.var(labels)
+        empirical_reliability = float(np.mean(labels))
+        label_variance = float(np.var(labels))
         score_range = (min(raw_scores), max(raw_scores)) if raw_scores else (0.0, 1.0)
 
         return CalibrationBucket(
@@ -171,17 +171,17 @@ class UnifiedTargetBuilder:
         """Compute comprehensive statistics for target quality assessment."""
 
         # Label source distribution
-        label_dist = defaultdict(int)
+        label_dist: Dict[str, int] = defaultdict(int)
         for sample in labeled_samples:
             label_dist[sample.label_source.value] += 1
 
         # Difficulty distribution
-        difficulty_dist = defaultdict(int)
+        difficulty_dist: Dict[str, int] = defaultdict(int)
         for sample in labeled_samples:
             difficulty_dist[sample.difficulty_stratum.value] += 1
 
         # Pattern family distribution
-        family_dist = defaultdict(int)
+        family_dist: Dict[str, int] = defaultdict(int)
         for sample in labeled_samples:
             if sample.matches:
                 family = self._extract_pattern_family(sample.matches[0].pattern_id)

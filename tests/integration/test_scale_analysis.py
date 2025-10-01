@@ -398,7 +398,9 @@ class TestScaleAnalysisIntegrationWithPatterns:
             assert scale_data[
                 "is_valid"
             ], f"Scale {notes} with key {key_hint} should be valid"
-            assert scale_data["canonical_notes"] == notes, f"Notes {notes} should match input"
+            assert (
+                scale_data["canonical_notes"] == notes
+            ), f"Notes {notes} should match input"
 
             # Key insight: The scale degrees should reflect the relationship to the key
             # For now, we verify the degrees are correctly calculated (may not be 1-7 for all cases)

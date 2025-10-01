@@ -177,9 +177,11 @@ class PatternLoader:
 
             # Add suggestions for common errors
             if "is not of type" in e.message:
-                error_msg += f"\nExpected type: {e.schema.get('type', 'unknown')}"
+                if isinstance(e.schema, dict):
+                    error_msg += f"\nExpected type: {e.schema.get('type', 'unknown')}"
             elif "is not one of" in e.message:
-                error_msg += f"\nAllowed values: {e.schema.get('enum', [])}"
+                if isinstance(e.schema, dict):
+                    error_msg += f"\nAllowed values: {e.schema.get('enum', [])}"
             elif "is a required property" in e.message:
                 missing_prop = (
                     e.message.split("'")[1] if "'" in e.message else "unknown"
