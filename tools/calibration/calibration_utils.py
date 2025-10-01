@@ -13,18 +13,18 @@ meaningful calibration bins.
 """
 
 import json
+import os
+import sys
+import warnings
 from pathlib import Path
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+from scipy.optimize import minimize_scalar
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import log_loss
-from scipy.optimize import minimize_scalar
-import sys
-import os
-import warnings
+from sklearn.model_selection import StratifiedKFold
 
 # Suppress sklearn warnings about small sample sizes
 warnings.filterwarnings("ignore", "The least populated class in y has only")

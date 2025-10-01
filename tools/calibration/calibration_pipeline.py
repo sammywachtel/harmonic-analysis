@@ -41,11 +41,6 @@ sys.path.append(str(project_root / "src"))
 sys.path.append(str(project_root / "scripts"))
 sys.path.append(str(Path(__file__).parent))
 
-# Import project modules
-from harmonic_analysis.dto import AnalysisEnvelope, AnalysisSummary, AnalysisType
-from harmonic_analysis.services.calibration_service import CalibrationService
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
-
 # Import calibration utilities
 from calibration_utils import (
     stage0_data_hygiene,
@@ -57,6 +52,11 @@ from calibration_utils import (
 # Import sklearn for correlation and variance checks
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
+
+# Import project modules
+from harmonic_analysis.dto import AnalysisEnvelope, AnalysisSummary, AnalysisType
+from harmonic_analysis.services.calibration_service import CalibrationService
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 warnings.filterwarnings("ignore", "The least populated class in y has only")
 
