@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import jsonschema  # type: ignore[import-untyped]
+import jsonschema
 
 
 class PatternLoader:
