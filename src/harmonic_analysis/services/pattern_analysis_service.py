@@ -78,6 +78,8 @@ class PatternAnalysisService:
         key_hint: Optional[str] = None,
         sections: Optional[List[SectionDTO]] = None,  # Ignored - compatibility only
         romans: Optional[List[str]] = None,  # NEW: Roman numeral input support
+        notes: Optional[List[str]] = None,  # NEW: Scale notes input support
+        melody: Optional[List[str]] = None,  # NEW: Melody input support
     ) -> AnalysisEnvelope:
         """
         Analyze chord progression using unified pattern engine.
@@ -86,35 +88,44 @@ class PatternAnalysisService:
             chord_symbols: List of chord symbols (e.g., ['C', 'F', 'G', 'C'])
             profile: Analysis profile (passed through to unified service)
             best_cover: Legacy parameter (ignored)
-            key_hint: Optional key context for analysis (required for roman inputs)
+            key_hint: Optional key context (required for roman/scale/melody inputs)
             sections: Legacy parameter (ignored)
             romans: List of roman numerals (e.g., ['I', 'vi', 'IV', 'V'])
-                   Mutually exclusive with chord_symbols; requires key_hint
+                   Mutually exclusive with other inputs; requires key_hint
+            notes: List of scale notes (e.g., ['C', 'D', 'E', 'F', 'G', 'A', 'B'])
+                   Mutually exclusive with other inputs; requires key_hint
+            melody: List of melodic notes (e.g., ['G4', 'A4', 'B4', 'C5'])
+                   Mutually exclusive with other inputs; requires key_hint
 
         Returns:
             AnalysisEnvelope with primary and alternative analyses
 
         Raises:
-            ValueError: If both chord_symbols and romans are provided, or if
-                       romans are provided without key_hint
+            ValueError: If multiple input types are provided, or if
+                       romans/notes/melody are provided without key_hint
         """
         # Opening move: validate input exclusivity and requirements
-        if chord_symbols and romans:
+        input_count = sum(1 for x in [chord_symbols, romans, notes, melody] if x is not None)
+        if input_count > 1:
             raise ValueError(
-                "Cannot provide both chord_symbols and romans - choose one input type"
+                "Cannot provide multiple input types - "
+                "choose one: chord_symbols, romans, notes, or melody"
             )
 
         # Special case: empty chord_symbols list is allowed for backward compatibility
-        if chord_symbols is None and not romans:
-            raise ValueError("Must provide either chord_symbols or romans")
+        if chord_symbols is None and not romans and not notes and not melody:
+            raise ValueError("Must provide one of: chord_symbols, romans, notes, or melody")
 
-        if romans and not key_hint:
-            raise ValueError("Roman numeral analysis requires key_hint parameter")
+        if (romans or notes or melody) and not key_hint:
+            analysis_type = "Roman numeral" if romans else ("Scale" if notes else "Melody")
+            raise ValueError(f"{analysis_type} analysis requires key_hint parameter")
 
         # Big play: delegate to unified service with parameter mapping
         envelope = await self._unified_service.analyze_with_patterns_async(
             chords=chord_symbols,
             romans=romans,
+            notes=notes,
+            melody=melody,
             key_hint=key_hint,
             profile=profile,
             options={
@@ -163,7 +174,7 @@ class PatternAnalysisService:
                 arbitration_result = self._arbitration_service.arbitrate(
                     functional_summary=functional_summary,
                     modal_summary=modal_summary,
-                    chord_symbols=chord_symbols,
+                    chord_symbols=chord_symbols or [],
                 )
 
                 # Iteration 9: Enhanced arbitration diagnostics
@@ -208,6 +219,8 @@ class PatternAnalysisService:
         key_hint: Optional[str] = None,
         sections: Optional[List[SectionDTO]] = None,  # Ignored - compatibility only
         romans: Optional[List[str]] = None,  # NEW: Roman numeral input support
+        notes: Optional[List[str]] = None,  # NEW: Scale notes input support
+        melody: Optional[List[str]] = None,  # NEW: Melody input support
     ) -> AnalysisEnvelope:
         """
         Synchronous wrapper for analyze_with_patterns_async.
@@ -223,6 +236,8 @@ class PatternAnalysisService:
                 self.analyze_with_patterns_async(
                     chord_symbols=chord_symbols,
                     romans=romans,
+                    notes=notes,
+                    melody=melody,
                     key_hint=key_hint,
                     profile=profile,
                     best_cover=best_cover,
@@ -238,6 +253,8 @@ class PatternAnalysisService:
                     self.analyze_with_patterns_async(
                         chord_symbols=chord_symbols,
                         romans=romans,
+                        notes=notes,
+                        melody=melody,
                         key_hint=key_hint,
                         profile=profile,
                         best_cover=best_cover,

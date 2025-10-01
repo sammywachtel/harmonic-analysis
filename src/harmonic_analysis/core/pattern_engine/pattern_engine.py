@@ -419,7 +419,13 @@ class PatternEngine:
 
         # Opening move: use explicit scale list if provided (maintain order)
         if context.scales:
-            scale_degrees.extend(list(range(1, len(context.scales) + 1)))
+            for scale_entry in context.scales:
+                if isinstance(scale_entry, dict) and 'degrees' in scale_entry:
+                    # Extract actual scale degrees from scale analysis data
+                    scale_degrees.extend(scale_entry['degrees'])
+                else:
+                    # Fallback for simple scale lists (legacy compatibility)
+                    scale_degrees.extend(list(range(1, len(context.scales) + 1)))
 
         # Extract from melody relative to key/mode if available
         if context.melody and context.key:

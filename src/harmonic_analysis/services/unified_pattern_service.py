@@ -158,24 +158,110 @@ class UnifiedPatternService:
         profile: str = "classical",
         options: Optional[Any] = None,
         romans: Optional[List[str]] = None,  # NEW: Roman numeral input support
+        notes: Optional[List[str]] = None,  # NEW: Scale notes input support
+        melody: Optional[List[str]] = None,  # NEW: Melody input support
     ) -> AnalysisEnvelope:
         """
         Analyze chord progression using unified pattern engine.
 
         Args:
             chords: List of chord symbols (e.g., ['C', 'F', 'G', 'C'])
-            key_hint: Optional key context for analysis (required for roman inputs)
+            key_hint: Optional key context (required for roman/scale/melody inputs)
             profile: Analysis profile (currently ignored)
             options: Additional analysis options (supports "sections" for
                    section-aware analysis)
             romans: List of roman numerals (e.g., ['I', 'vi', 'IV', 'V'])
-                   Mutually exclusive with chords; requires key_hint
+                   Mutually exclusive with other inputs; requires key_hint
+            notes: List of scale notes (e.g., ['C', 'D', 'E', 'F', 'G', 'A', 'B'])
+                   Mutually exclusive with other inputs; requires key_hint
+            melody: List of melodic notes (e.g., ['G4', 'A4', 'B4', 'C5'])
+                   Mutually exclusive with other inputs; requires key_hint
 
         Returns:
             AnalysisEnvelope with primary and alternative analyses
         """
-        # Opening move: handle roman numeral input conversion
-        if romans:
+        # Opening move: validate input exclusivity
+        input_count = sum(1 for x in [chords, romans, notes, melody] if x is not None)
+        if input_count > 1:
+            raise ValueError(
+                "Cannot provide multiple input types - "
+                "choose one: chords, romans, notes, or melody"
+            )
+
+        # Big play: handle scale notes input using our new normalize_scale_input
+        if notes:
+            if not key_hint:
+                raise ValueError("Scale analysis requires key_hint parameter")
+
+            # Main play: normalize and validate scale input
+            from ..core.pattern_engine.token_converter import normalize_scale_input
+
+            try:
+                scale_data = normalize_scale_input(notes, key_hint)
+
+                if not scale_data['is_valid']:
+                    error_msg = "; ".join(scale_data['validation_errors'])
+                    if not error_msg:
+                        error_msg = (
+                            "Scale does not match any known mode "
+                            "or contains insufficient data"
+                        )
+                    raise ValueError(f"Invalid scale input: {error_msg}")
+
+                # Victory lap: extract normalized data for analysis context
+                canonical_notes = scale_data['canonical_notes']
+                scale_degrees = scale_data['scale_degrees']
+                detected_mode = scale_data['detected_mode']
+
+                logger.debug(
+                    f"🎼 Processed scale: {notes} → {canonical_notes} "
+                    f"(degrees: {scale_degrees}, mode: {detected_mode})"
+                )
+
+                # Store scale analysis data for pattern engine
+                scale_analysis_data = {
+                    'notes': canonical_notes,
+                    'degrees': scale_degrees,
+                    'mode': detected_mode,
+                    'intervals': scale_data['intervals']
+                }
+
+            except Exception as e:
+                logger.error(f"❌ Scale analysis failed: {e}")
+                raise ValueError(f"Scale analysis failed: {e}")
+
+        # Big play: handle melody input using existing melody analysis
+        elif melody:
+            if not key_hint:
+                raise ValueError("Melody analysis requires key_hint parameter")
+
+            # Main play: analyze melody using existing API
+            from ..api.analysis import analyze_melody
+
+            try:
+                melody_result = await analyze_melody(melody, key=key_hint)
+
+                logger.debug(
+                    f"🎵 Processed melody: {melody} → "
+                    f"tonic: {melody_result.suggested_tonic}, "
+                    f"confidence: {melody_result.confidence}"
+                )
+
+                # Store melody analysis data for pattern engine
+                melody_analysis_data = {
+                    'notes': melody_result.notes,
+                    'suggested_tonic': melody_result.suggested_tonic,
+                    'confidence': melody_result.confidence,
+                    'modal_labels': melody_result.modal_labels,
+                    'classification': melody_result.classification
+                }
+
+            except Exception as e:
+                logger.error(f"❌ Melody analysis failed: {e}")
+                raise ValueError(f"Melody analysis failed: {e}")
+
+        # Handle roman numeral input conversion
+        elif romans:
             if not key_hint:
                 raise ValueError("Roman numeral analysis requires key_hint parameter")
 
@@ -202,7 +288,7 @@ class UnifiedPatternService:
             )
 
         elif chords is None:
-            raise ValueError("Must provide either chords or romans parameter")
+            raise ValueError("Must provide one of: chords, romans, or notes parameter")
 
         # Time to tackle the tricky bit: convert to unified engine format
         # Big play: derive roman numerals from chords and key hint
@@ -255,12 +341,24 @@ class UnifiedPatternService:
             sections = options["sections"] or []
             logger.debug(f"🎭 Section-aware analysis with {len(sections)} sections")
 
+        # Big play: prepare scale data for context
+        scales_data = []
+        if notes:
+            scales_data = [scale_analysis_data]
+            logger.debug("🎼 Including scale data in analysis context")
+
+        # Big play: prepare melody data for context
+        melody_data = []
+        if melody:
+            melody_data = [melody_analysis_data]
+            logger.debug("🎵 Including melody data in analysis context")
+
         context = AnalysisContext(
             key=inferred_key or "",
-            chords=chords,
+            chords=chords or [],  # Empty list for scale-only analysis
             roman_numerals=roman_numerals,
-            melody=[],
-            scales=[],
+            melody=melody_data,
+            scales=scales_data,
             metadata=metadata,
             sections=sections,
         )
@@ -276,17 +374,12 @@ class UnifiedPatternService:
                 mode_label, context.key or "C major"
             )
             if modal_parent_key != context.key:
-                if not hasattr(envelope.primary, "modal_parent_key"):
-                    # Store modal parent key in metadata for reference
-                    if (
-                        hasattr(envelope.primary, "metadata")
-                        and envelope.primary.metadata
-                    ):
-                        envelope.primary.metadata["modal_parent_key"] = modal_parent_key
-                    logger.debug(
-                        f"📝 Stored modal parent key {modal_parent_key} "
-                        f"in metadata (key hint: {key_hint})"
-                    )
+                # Store modal parent key in terms for reference
+                envelope.primary.terms["modal_parent_key"] = modal_parent_key
+                logger.debug(
+                    f"📝 Stored modal parent key {modal_parent_key} "
+                    f"in terms (key hint: {key_hint})"
+                )
 
             # Selective modal parent key conversion: Only when strong modal
             # evidence AND no key hint. Avoid conversion for ambiguous cases
@@ -377,10 +470,13 @@ class UnifiedPatternService:
 
     def analyze_with_patterns(
         self,
-        chords: List[str],
+        chords: Optional[List[str]] = None,
         key_hint: Optional[str] = None,
         profile: str = "classical",
         options: Optional[Any] = None,
+        romans: Optional[List[str]] = None,
+        notes: Optional[List[str]] = None,
+        melody: Optional[List[str]] = None,
     ) -> AnalysisEnvelope:
         """
         Synchronous wrapper for analyze_with_patterns_async.
@@ -399,14 +495,14 @@ class UnifiedPatternService:
                 future = executor.submit(
                     asyncio.run,
                     self.analyze_with_patterns_async(
-                        chords, key_hint, profile, options
+                        chords, key_hint, profile, options, romans, notes, melody
                     ),
                 )
                 return future.result()
         except RuntimeError:
             # No running loop, safe to use asyncio.run
             return asyncio.run(
-                self.analyze_with_patterns_async(chords, key_hint, profile, options)
+                self.analyze_with_patterns_async(chords, key_hint, profile, options, romans, notes, melody)
             )
 
     # Additional compatibility methods can be added here as needed

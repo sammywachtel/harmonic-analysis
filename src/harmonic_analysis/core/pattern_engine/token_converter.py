@@ -874,3 +874,238 @@ def _build_chord_symbol(chord_root: str, roman_info: dict, is_minor_key: bool) -
         pass  # Could add slash chord notation here
 
     return chord_symbol
+
+
+# ============================================================================
+# Scale Analysis Functions (Iteration 12)
+# ============================================================================
+
+def normalize_scale_input(notes: List[str], key_hint: str) -> dict:
+    """
+    Normalize and validate scale input, detecting mode and scale degrees.
+
+    Args:
+        notes: List of note names (e.g., ['C', 'D', 'E', 'F', 'G', 'A', 'B'])
+        key_hint: Key context (e.g., 'C major', 'D dorian') - required for validation
+
+    Returns:
+        Dictionary containing:
+        - canonical_notes: List of canonical note names
+        - scale_degrees: List of scale degrees relative to key
+        - detected_mode: Detected mode name (e.g., 'Ionian', 'Dorian')
+        - intervals: Interval pattern in semitones
+        - is_valid: Whether the scale is valid for the given key
+        - validation_errors: List of validation error messages
+
+    Raises:
+        ValueError: If key_hint is missing or invalid
+    """
+    from ..utils.scales import NOTE_TO_PITCH_CLASS
+
+    if not key_hint:
+        raise ValueError("Scale analysis requires key_hint parameter")
+
+    # Parse input notes - support various formats
+    canonical_notes = _parse_scale_notes(notes)
+
+    # Extract key info from hint
+    key_info = _parse_key_hint(key_hint)
+
+    # Convert notes to pitch classes and degrees
+    note_pitch_classes = []
+    validation_errors = []
+
+    for note in canonical_notes:
+        if note not in NOTE_TO_PITCH_CLASS:
+            validation_errors.append(f"Invalid note: {note}")
+            continue
+        note_pitch_classes.append(NOTE_TO_PITCH_CLASS[note])
+
+    if validation_errors:
+        return {
+            'canonical_notes': canonical_notes,
+            'scale_degrees': [],
+            'detected_mode': None,
+            'intervals': [],
+            'is_valid': False,
+            'validation_errors': validation_errors
+        }
+
+    # Calculate intervals from first note
+    if note_pitch_classes:
+        tonic_pc = note_pitch_classes[0]
+        intervals = [(pc - tonic_pc) % 12 for pc in note_pitch_classes]
+    else:
+        intervals = []
+
+    # Calculate step intervals for mode detection
+    step_intervals = []
+    if len(note_pitch_classes) > 1:
+        for i in range(1, len(note_pitch_classes)):
+            step = (note_pitch_classes[i] - note_pitch_classes[i - 1]) % 12
+            step_intervals.append(step)
+
+    # Detect mode by comparing step interval pattern
+    detected_mode = _detect_mode_from_intervals(step_intervals)
+
+    # Calculate scale degrees relative to the key hint
+    key_tonic = _extract_key_tonic(key_info['key'])
+    key_pc = NOTE_TO_PITCH_CLASS.get(key_tonic, 0)
+
+    scale_degrees = []
+    for pc in note_pitch_classes:
+        degree = ((pc - key_pc) % 12) + 1  # 1-based scale degrees
+        scale_degrees.append(degree)
+
+    # Validate against expected scale for the key
+    is_valid = _validate_scale_against_key(step_intervals, key_info, detected_mode)
+
+    return {
+        'canonical_notes': canonical_notes,
+        'scale_degrees': scale_degrees,
+        'detected_mode': detected_mode,
+        'intervals': intervals,
+        'is_valid': is_valid,
+        'validation_errors': validation_errors,
+        'key_info': key_info
+    }
+
+
+def _parse_scale_notes(notes: List[str]) -> List[str]:
+    """Parse and normalize note names from various input formats."""
+    canonical_notes = []
+
+    # Handle comma-separated strings
+    if len(notes) == 1 and ',' in notes[0]:
+        notes = [note.strip() for note in notes[0].split(',')]
+
+    # Handle space-separated strings
+    elif len(notes) == 1 and ' ' in notes[0]:
+        notes = [note.strip() for note in notes[0].split()]
+
+    for note in notes:
+        if not note.strip():
+            continue
+
+        # Normalize note name
+        note = note.strip()
+
+        # Handle flat notation (both 'b' and '♭')
+        note = note.replace('♭', 'b')
+
+        # Handle sharp notation (both '#' and '♯')
+        note = note.replace('♯', '#')
+
+        # Capitalize first letter
+        if note:
+            note = note[0].upper() + note[1:]
+
+        canonical_notes.append(note)
+
+    return canonical_notes
+
+
+def _parse_key_hint(key_hint: str) -> dict:
+    """Parse key hint into components."""
+    key_hint = key_hint.strip().lower()
+
+    # Handle modal key hints (e.g., "D dorian", "G mixolydian")
+    # Check longer mode names first to avoid substring matching issues
+    modal_modes = [
+        'mixolydian', 'phrygian', 'aeolian', 'locrian', 'dorian', 'lydian', 'ionian'
+    ]
+
+    for mode in modal_modes:
+        if mode in key_hint:
+            tonic = key_hint.replace(mode, '').strip()
+            return {
+                'key': f"{tonic.capitalize()} {mode}",
+                'tonic': tonic.capitalize(),
+                'mode': mode.capitalize(),
+                'is_modal': True
+            }
+
+    # Handle standard major/minor keys
+    if 'major' in key_hint:
+        tonic = key_hint.replace('major', '').strip()
+        return {
+            'key': f"{tonic.capitalize()} major",
+            'tonic': tonic.capitalize(),
+            'mode': 'Ionian',
+            'is_modal': False
+        }
+    elif 'minor' in key_hint:
+        tonic = key_hint.replace('minor', '').strip()
+        return {
+            'key': f"{tonic.capitalize()} minor",
+            'tonic': tonic.capitalize(),
+            'mode': 'Aeolian',
+            'is_modal': False
+        }
+
+    # Default to major if no mode specified
+    return {
+        'key': f"{key_hint.capitalize()} major",
+        'tonic': key_hint.capitalize(),
+        'mode': 'Ionian',
+        'is_modal': False
+    }
+
+
+def _extract_key_tonic(key: str) -> str:
+    """Extract tonic note from key string."""
+    return key.split()[0]
+
+
+def _detect_mode_from_intervals(intervals: List[int]) -> Optional[str]:
+    """Detect mode name from interval pattern between consecutive notes."""
+    from ..utils.scales import ALL_SCALE_SYSTEMS
+
+    if not intervals:
+        return None
+
+    # Convert step intervals to cumulative intervals for comparison
+    cumulative = [0]
+    current = 0
+    for step in intervals:
+        current += step
+        cumulative.append(current % 12)
+
+    # For scale matching, we want all scale degrees including the last one
+    scale_degrees = cumulative
+
+    # Search through all scale systems
+    for system_name, modes in ALL_SCALE_SYSTEMS.items():
+        for mode_name, mode_intervals in modes.items():
+            if scale_degrees == mode_intervals:
+                return mode_name
+
+    return None
+
+
+def _validate_scale_against_key(
+    intervals: List[int], key_info: dict, detected_mode: Optional[str]
+) -> bool:
+    """Validate that the scale makes sense for the given key context."""
+    if not detected_mode:
+        return False
+
+    # Normalize case for comparison (modes are case-insensitive)
+    detected_mode_lower = detected_mode.lower()
+    expected_mode_lower = key_info['mode'].lower() if key_info['mode'] else ''
+
+    # If the key hint specifies a mode, check if detected mode matches
+    if key_info['is_modal']:
+        return detected_mode_lower == expected_mode_lower
+
+    # For major/minor keys, accept related modes
+    if expected_mode_lower == 'ionian':
+        # Accept any major scale mode
+        major_modes = ['ionian', 'lydian', 'mixolydian']
+        return detected_mode_lower in major_modes
+    elif expected_mode_lower == 'aeolian':
+        # Accept any minor scale mode
+        minor_modes = ['aeolian', 'dorian', 'phrygian']
+        return detected_mode_lower in minor_modes
+
+    return True

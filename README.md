@@ -1,7 +1,8 @@
 # Harmonic Analysis Library 🎵
 
 A comprehensive Python library that analyzes music the way musicians think about it - identifying chord progressions,
-scales, modes, and harmonic relationships with detailed explanations of *why* it hears what it hears.
+scales, modes, and harmonic relationships with detailed explanations of *why* it hears what it hears. Now featuring
+unified scale analysis, roman numeral input, and advanced modal detection.
 
 ## ✅ UNIFIED PATTERN ENGINE — Production Ready
 
@@ -9,6 +10,9 @@ scales, modes, and harmonic relationships with detailed explanations of *why* it
 
 ### Pattern Engine Features
 - **36 Unified Patterns**: Comprehensive pattern library covering harmonic, modal, chromatic, and melodic analysis
+- **Scale Analysis**: Automatic mode detection for all major scale modes with pattern integration
+- **Roman Numeral Input**: Direct roman numeral analysis with automatic chord conversion
+- **Melody Analysis (NEW)**: Comprehensive melodic line analysis with tonic inference and modal recognition
 - **Quality-Gated Calibration**: Conservative calibration with identity fallback prevents degradation
 - **Evidence Aggregation**: Sophisticated conflict resolution and track-based scoring
 - **Plugin Architecture**: Extensible system for custom pattern evaluators
@@ -49,15 +53,27 @@ async def analyze_patterns():
 result = await service.analyze_with_patterns(['Am', 'G', 'F', 'E'], key_hint='A minor')
 
 # ✅ Scale analysis with key context
-from harmonic_analysis import analyze_scale
-result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'], key='C major')
+result = await service.analyze_with_patterns_async(
+    notes=['D', 'E', 'F', 'G', 'A', 'B', 'C'],
+    key_hint='D dorian',
+    profile='classical'
+)
 
-# ✅ Melody analysis with key context
-from harmonic_analysis import analyze_melody
-result = await analyze_melody(['G', 'A', 'B', 'C'], key='G major')
+# ✅ Melody analysis with tonic inference (NEW)
+result = await service.analyze_with_patterns_async(
+    melody=['C4', 'D4', 'E4', 'F4', 'G4'],
+    key_hint='C major',
+    profile='classical'
+)
 
-# ❌ Without key context, modal analysis cannot function properly
-# This will raise MissingKeyError for scale/melody analysis
+# ✅ Roman numeral analysis with key context (NEW)
+result = await service.analyze_with_patterns_async(
+    romans=['I', 'vi', 'IV', 'V'],
+    key_hint='C major',
+    profile='classical'
+)
+
+# ❌ Without key context, scale/roman analysis will raise ValueError
 ```
 
 **Why Key Context Matters**:
@@ -95,6 +111,8 @@ This library listens to your chord progressions, scales, and melodies and tells 
 - **What key you're in** and how confident it is about that
 - **The function of each chord** (tonic, dominant, subdominant, etc.) with full inversion analysis
 - **What mode you might be using** (Dorian, Mixolydian, Phrygian, etc.)
+- **Scale analysis with automatic mode detection** (NEW) - recognizes all 7 modes of major scale
+- **Roman numeral analysis with direct input** (NEW) - analyze progressions using roman numerals
 - **Advanced harmonic techniques** you're employing (secondary dominants, borrowed chords, chromatic mediants)
 - **Chord inversions with proper figured bass notation** (⁶, ⁶⁴, ⁴²)
 - **Multiple valid interpretations** when your music is ambiguous (which is often!)
