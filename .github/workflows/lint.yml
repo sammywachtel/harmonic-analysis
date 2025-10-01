@@ -7,6 +7,43 @@ on:
     branches: [ main, feature/* ]
 
 jobs:
+  test-generation:
+    name: Generate Test Data
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          fi
+          pip install -e .
+
+      - name: Generate comprehensive test data
+        run: |
+          echo "🎯 Generating comprehensive test data..."
+          python scripts/generate_comprehensive_multi_layer_tests.py
+          echo "✅ Generated test data files:"
+          ls -la tests/data/generated/
+
+      - name: Upload generated test data
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-test-data
+          path: tests/data/generated/
+
   lint:
     name: Lint Python Code
     runs-on: ubuntu-latest
@@ -78,10 +115,17 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    needs: test-generation
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Download generated test data
+        uses: actions/download-artifact@v4
+        with:
+          name: lint-test-data
+          path: tests/data/generated/
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -107,14 +151,9 @@ jobs:
       - name: Run core unit tests
         run: |
           echo "🧪 Running core unit tests..."
+          echo "✅ Using shared test data from artifact:"
+          ls -la tests/data/generated/
           pytest tests/ -v --cov=src/harmonic_analysis --cov-report=term-missing --cov-report=xml
-
-      - name: Generate comprehensive test data
-        run: |
-          echo "🎯 Generating comprehensive test data..."
-          python scripts/generate_comprehensive_multi_layer_tests.py
-          echo "✅ Generated test data files:"
-          ls -la tests/generated/
 
 
       - name: Upload coverage reports
