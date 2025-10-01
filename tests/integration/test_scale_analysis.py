@@ -404,7 +404,7 @@ class TestScaleAnalysisIntegrationWithPatterns:
             # For now, we verify the degrees are correctly calculated (may not be 1-7 for all cases)
             assert len(scale_data["scale_degrees"]) == len(
                 notes
-            ), f"Should have one degree per note"
+            ), "Should have one degree per note"
             assert all(
                 isinstance(d, int) for d in scale_data["scale_degrees"]
             ), "All degrees should be integers"
