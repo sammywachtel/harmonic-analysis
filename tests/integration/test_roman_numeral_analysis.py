@@ -98,9 +98,7 @@ class TestRomanNumeralAnalysis:
     @pytest.mark.asyncio
     async def test_validation_mixed_input(self):
         """Test that mixed chord/roman input is rejected."""
-        with pytest.raises(
-            ValueError, match="Cannot provide both chord_symbols and romans"
-        ):
+        with pytest.raises(ValueError, match="Cannot provide multiple input types"):
             await self.service.analyze_with_patterns_async(
                 chord_symbols=["C", "Am", "F", "G"],
                 romans=["I", "vi", "IV", "V"],
@@ -110,9 +108,7 @@ class TestRomanNumeralAnalysis:
     @pytest.mark.asyncio
     async def test_validation_no_input(self):
         """Test that at least one input type is required."""
-        with pytest.raises(
-            ValueError, match="Must provide either chord_symbols or romans"
-        ):
+        with pytest.raises(ValueError, match="Must provide one of"):
             await self.service.analyze_with_patterns_async(
                 key_hint="C major", profile="classical"
             )

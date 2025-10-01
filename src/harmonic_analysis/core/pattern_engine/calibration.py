@@ -6,11 +6,18 @@ to prevent degradation when signal is insufficient.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional
 
 import numpy as np
-from sklearn.isotonic import IsotonicRegression
-from sklearn.linear_model import LogisticRegression
+
+if TYPE_CHECKING:
+    # For type checking, import sklearn types
+    from sklearn.isotonic import IsotonicRegression  # type: ignore[import-untyped]
+    from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
+else:
+    # At runtime, import sklearn normally but handle missing stubs
+    from sklearn.isotonic import IsotonicRegression  # type: ignore[import-untyped]
+    from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
 
 
 @dataclass(frozen=True)
@@ -69,7 +76,7 @@ class CalibrationMapping:
             A = self.params.get("A", 0.0)
             B = self.params.get("B", 1.0)
             # Sigmoid: 1 / (1 + exp(-(Ax + B)))
-            return 1.0 / (1.0 + np.exp(-(A * x + B)))
+            return float(1.0 / (1.0 + np.exp(-(A * x + B))))
 
         elif self.mapping_type == "isotonic":
             # Apply isotonic regression mapping
@@ -79,7 +86,7 @@ class CalibrationMapping:
                 return x
 
             # Linear interpolation for isotonic mapping
-            return np.interp(x, X, Y)
+            return float(np.interp(x, X, Y))
 
         else:
             # Unknown mapping type - fallback to identity

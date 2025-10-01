@@ -89,7 +89,6 @@ except ModuleNotFoundError as exc:  # pragma: no cover - defensive import guard
 
 from harmonic_analysis.api.analysis import analyze_melody, analyze_scale
 
-
 # ---------------------------------------------------------------------------
 # Validation helpers
 # ---------------------------------------------------------------------------

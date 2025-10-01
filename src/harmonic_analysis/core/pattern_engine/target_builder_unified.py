@@ -8,8 +8,9 @@ This is integrated with the corpus mining pipeline and provides a drop-in
 replacement for the legacy TargetBuilder.
 """
 
+import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -28,7 +29,8 @@ class TargetAnnotation:
 
 
 # Import the production corpus miner
-try:
+if TYPE_CHECKING:
+    # For type checking, always import the real types
     from ...corpus_miner import (
         DifficultyStratum,
         LabeledSample,
@@ -36,44 +38,67 @@ try:
         PatternMatch,
     )
     from ...corpus_miner import UnifiedTargetBuilder as CorpusTargetBuilder
+else:
+    # At runtime, handle import gracefully
+    try:
+        from ...corpus_miner import (
+            DifficultyStratum,
+            LabeledSample,
+            LabelSource,
+            PatternMatch,
+        )
+        from ...corpus_miner import UnifiedTargetBuilder as CorpusTargetBuilder
 
-    CORPUS_MINER_AVAILABLE = True
-except ImportError:
-    CORPUS_MINER_AVAILABLE = False
+        CORPUS_MINER_AVAILABLE = True
+    except ImportError:
+        CORPUS_MINER_AVAILABLE = False
 
-    # Mock classes for when corpus miner is not available
-    class LabeledSample:
-        def __init__(
-            self,
-            context,
-            matches,
-            label,
-            label_source,
-            difficulty_stratum,
-            confidence_breakdown,
-        ):
-            self.context = context
-            self.matches = matches
-            self.label = label
-            self.label_source = label_source
-            self.difficulty_stratum = difficulty_stratum
-            self.confidence_breakdown = confidence_breakdown
+        # Mock classes for when corpus miner is not available
+        class LabeledSample:
+            def __init__(
+                self,
+                context: Any,
+                matches: List[Any],
+                label: float,
+                label_source: Any,
+                difficulty_stratum: Any,
+                confidence_breakdown: Dict[str, Any],
+            ) -> None:
+                self.context = context
+                self.matches = matches
+                self.label = label
+                self.label_source = label_source
+                self.difficulty_stratum = difficulty_stratum
+                self.confidence_breakdown = confidence_breakdown
 
-    class LabelSource:
-        ADJUDICATION_HEURISTIC = "adjudication_heuristic"
-        WEAK_SUPERVISION = "weak_supervision"
+        class LabelSource:
+            ADJUDICATION_HEURISTIC = "adjudication_heuristic"
+            WEAK_SUPERVISION = "weak_supervision"
 
-    class DifficultyStratum:
-        DIATONIC_SIMPLE = "diatonic_simple"
-        CHROMATIC_MODERATE = "chromatic_moderate"
-        MODAL_COMPLEX = "modal_complex"
+        class DifficultyStratum:
+            DIATONIC_SIMPLE = "diatonic_simple"
+            CHROMATIC_MODERATE = "chromatic_moderate"
+            MODAL_COMPLEX = "modal_complex"
 
-    class PatternMatch:
-        def __init__(self, pattern_id, span, raw_score, evidence_features):
-            self.pattern_id = pattern_id
-            self.span = span
-            self.raw_score = raw_score
-            self.evidence_features = evidence_features
+        class PatternMatch:
+            def __init__(
+                self,
+                pattern_id: str,
+                span: Tuple[int, int],
+                raw_score: float,
+                evidence_features: Dict[str, Any],
+            ) -> None:
+                self.pattern_id = pattern_id
+                self.span = span
+                self.raw_score = raw_score
+                self.evidence_features = evidence_features
+
+
+if TYPE_CHECKING:
+    CORPUS_MINER_AVAILABLE = True  # For type checking, assume available
+else:
+    # CORPUS_MINER_AVAILABLE is set in the runtime import block above
+    pass
 
 
 class UnifiedTargetBuilder:
@@ -83,6 +108,8 @@ class UnifiedTargetBuilder:
     Implements the Section 5 design: single reliability target per sample/match
     using adjudication heuristics and corpus labels.
     """
+
+    corpus_builder: Optional[Any]  # CorpusTargetBuilder when available
 
     def __init__(
         self,
@@ -149,10 +176,12 @@ class UnifiedTargetBuilder:
                 raw_scores, reliability_targets, _ = (
                     self.corpus_builder.build_unified_targets(labeled_samples)
                 )
-                return reliability_targets.tolist()
-            except Exception:
-                # Fallback to heuristic approach
-                pass
+                return list(reliability_targets.tolist())
+            except (AttributeError, ValueError, TypeError) as e:
+                # Fallback to heuristic approach when corpus builder fails
+                logging.debug(
+                    "Corpus target construction failed, using heuristic fallback: %s", e
+                )
 
         # Fallback: use heuristic unified target construction
         return self._build_heuristic_unified_targets(evidences)
@@ -198,8 +227,9 @@ class UnifiedTargetBuilder:
 
                 labeled_samples.append(labeled_sample)
 
-            except Exception:
-                # Skip invalid evidence
+            except (AttributeError, ValueError, TypeError) as e:
+                # Skip invalid evidence that can't be converted
+                logging.debug("Skipping invalid evidence during conversion: %s", e)
                 continue
 
         return labeled_samples
@@ -343,7 +373,7 @@ class UnifiedTargetBuilder:
             reliability_score, _ = self._adjudicate_evidence(evidence)
             return reliability_score
 
-        base_confidence = annotation.confidence
+        base_confidence = float(annotation.confidence)
 
         # Apply type matching logic from legacy implementation
         evidence_types = set(evidence.track_weights.keys())
