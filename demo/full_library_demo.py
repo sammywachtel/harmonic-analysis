@@ -747,29 +747,20 @@ def format_analysis_html(envelope) -> str:
                     <div style='opacity: 0.8; font-size: 0.85rem; margin-bottom: 0.4rem;'>📚 Terms</div>
                     <div style='display: flex; flex-wrap: wrap; gap: 0.4rem;'>
                 """
+
                 for key, value in primary.terms.items():
                     if isinstance(value, dict):
                         label = value.get("label", key)
                         tooltip = value.get("tooltip", "")
                     else:
-                        label = value
+                        label = str(value)
                         tooltip = ""
 
-                    # Create clickable glossary chip with modal trigger
-                    escaped_key = key.replace("'", "&#39;").replace('"', "&quot;")
-                    escaped_tooltip = (
-                        tooltip.replace("'", "&#39;").replace('"', "&quot;")
-                        if tooltip
-                        else ""
-                    )
-
+                    # Create simple glossary chip for now (remove complex onclick)
                     html += f"""
                     <span class='glossary-chip'
-                          onclick='showGlossaryModal("{escaped_key}", "{label}", "{escaped_tooltip}")'
-                          style='background: rgba(255,255,255,0.15); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.25);'
-                          onmouseover='this.style.background="rgba(255,255,255,0.25)"; this.style.transform="translateY(-1px)"'
-                          onmouseout='this.style.background="rgba(255,255,255,0.15)"; this.style.transform="translateY(0)"'
-                          title='Click for definition'>
+                          style='background: rgba(255,255,255,0.15); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.25);'
+                          title='{tooltip}'>
                         {label}
                     </span>
                     """
@@ -1428,44 +1419,59 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
 
             normalized_key = resolve_key_input(key)
 
-            # For now, prioritize chord analysis with new service
+            # Use unified service for all analysis types
+            service = get_service()
             if chords and chords.strip():
                 chord_list = validate_list("chord", parse_csv(chords))
-                envelope = run_analysis_sync(chord_list, profile, normalized_key)
+                envelope = asyncio.run(
+                    service.analyze_with_patterns_async(
+                        chord_symbols=chord_list,
+                        profile=profile,
+                        key_hint=normalized_key,
+                    )
+                )
                 html_output = format_analysis_html(envelope)
                 return html_output
 
-            # Fall back to legacy pattern for other analysis types
-            context = analyze_progression(
-                key=normalized_key,
-                profile=profile,
-                chords_text=chords,
-                romans_text=romans,
-                melody_text=melody,
-                scales_input=scales,
-            )
-            # For legacy analysis, we need to handle it differently
-            # This is a placeholder - will be fully implemented in next phase
-            return """
-            <div style='background: #fef2f2; border: 2px solid #f87171; border-radius: 12px; padding: 1.5rem; color: #991b1b; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);'>
-                <div style='display: flex; align-items: center; margin-bottom: 1rem;'>
-                    <span style='font-size: 1.5rem; margin-right: 0.75rem; color: #dc2626;'>⚠️</span>
-                    <strong style='color: #991b1b; font-weight: 700; font-size: 1.2rem;'>Analysis Type Not Yet Supported</strong>
-                </div>
-                <div style='margin-bottom: 1rem;'>
-                    <p style='margin: 0; color: #7f1d1d; font-weight: 500; line-height: 1.6;'>
-                        Roman numeral, melody, and scale analysis are not yet migrated to the new service.
+            elif romans and romans.strip():
+                roman_list = validate_list("roman", parse_csv(romans))
+                envelope = asyncio.run(
+                    service.analyze_with_patterns_async(
+                        romans=roman_list, profile=profile, key_hint=normalized_key
+                    )
+                )
+                html_output = format_analysis_html(envelope)
+                return html_output
+            elif melody and melody.strip():
+                melody_list = validate_list("note", parse_csv(melody))
+                envelope = asyncio.run(
+                    service.analyze_with_patterns_async(
+                        melody=melody_list, profile=profile, key_hint=normalized_key
+                    )
+                )
+                html_output = format_analysis_html(envelope)
+                return html_output
+            elif scales and scales.strip():
+                scale_list = parse_scales([scales])
+                envelope = asyncio.run(
+                    service.analyze_with_patterns_async(
+                        notes=scale_list[0], profile=profile, key_hint=normalized_key
+                    )
+                )
+                html_output = format_analysis_html(envelope)
+                return html_output
+            else:
+                return """
+                <div style='background: #fef9e7; border: 2px solid #fbbf24; border-radius: 12px; padding: 1.5rem; color: #92400e;'>
+                    <div style='display: flex; align-items: center; margin-bottom: 1rem;'>
+                        <span style='font-size: 1.5rem; margin-right: 0.75rem;'>📝</span>
+                        <strong style='font-weight: 700; font-size: 1.2rem;'>No Input Provided</strong>
+                    </div>
+                    <p style='margin: 0; line-height: 1.6;'>
+                        Please enter chord symbols, roman numerals, melody notes, or scale notes to analyze.
                     </p>
                 </div>
-                <div style='background: rgba(255, 255, 255, 0.9); padding: 1rem; border-radius: 8px; border-left: 4px solid #4f46e5;'>
-                    <strong style='color: #4f46e5; font-weight: 600;'>💡 Try using chord symbols instead:</strong>
-                    <div style='margin-top: 0.5rem; font-family: "SF Mono", Monaco, monospace; background: #f8fafc; padding: 0.5rem; border-radius: 4px; color: #1e293b;'>
-                        Chords: Am Dm G C<br>
-                        Key: C major
-                    </div>
-                </div>
-            </div>
-            """
+                """
         except ValueError as e:
             # Return formatted error message
             return f"""
