@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harmonic-analysis.dev/schemas/knowledge_base.json",
+  "title": "Educational Knowledge Base Schema",
+  "description": "Schema for music theory educational content in harmonic analysis",
+  "type": "object",
+  "required": ["version", "concepts"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version number"
+    },
+    "concepts": {
+      "type": "object",
+      "description": "Educational content for musical concepts",
+      "patternProperties": {
+        "^[a-zA-Z0-9._-]+$": {
+          "$ref": "#/$defs/concept"
+        }
+      }
+    },
+    "pattern_families": {
+      "type": "object",
+      "description": "Groupings of related patterns",
+      "patternProperties": {
+        "^[a-zA-Z0-9._-]+$": {
+          "$ref": "#/$defs/pattern_family"
+        }
+      }
+    },
+    "harmonic_functions": {
+      "type": "object",
+      "description": "Educational content for harmonic functions",
+      "patternProperties": {
+        "^[A-Z_]+$": {
+          "$ref": "#/$defs/harmonic_function"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "concept": {
+      "type": "object",
+      "required": ["id", "display_name", "learning_levels"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+$"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "learning_levels": {
+          "type": "object",
+          "properties": {
+            "beginner": {
+              "$ref": "#/$defs/learning_level_content"
+            },
+            "intermediate": {
+              "$ref": "#/$defs/learning_level_content"
+            },
+            "advanced": {
+              "$ref": "#/$defs/learning_level_content"
+            }
+          }
+        },
+        "musical_examples": {
+          "$ref": "#/$defs/musical_examples"
+        },
+        "relationships": {
+          "$ref": "#/$defs/relationships"
+        },
+        "misconceptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/misconception"
+          }
+        },
+        "practice_exercises": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "learning_level_content": {
+      "type": "object",
+      "required": ["summary"],
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "key_points": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "listen_for": {
+          "type": "string"
+        },
+        "common_uses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "theory_deep_dive": {
+          "type": "object"
+        },
+        "composition_tips": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "theoretical_context": {
+          "type": "object"
+        },
+        "analytical_considerations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "related_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "musical_examples": {
+      "type": "object",
+      "properties": {
+        "progressions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["chords", "key", "context"],
+            "properties": {
+              "chords": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "roman_numerals": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "repertoire": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["piece", "location"],
+            "properties": {
+              "composer": {
+                "type": "string"
+              },
+              "piece": {
+                "type": "string"
+              },
+              "location": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "relationships": {
+      "type": "object",
+      "properties": {
+        "contrasts_with": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "builds_from": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "leads_to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "misconception": {
+      "type": "object",
+      "required": ["myth", "reality"],
+      "properties": {
+        "myth": {
+          "type": "string"
+        },
+        "reality": {
+          "type": "string"
+        },
+        "clarification": {
+          "type": "string"
+        }
+      }
+    },
+    "pattern_family": {
+      "type": "object",
+      "properties": {
+        "overview": {
+          "type": "string"
+        },
+        "hierarchy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pedagogical_sequence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cross_references": {
+          "type": "object"
+        }
+      }
+    },
+    "harmonic_function": {
+      "type": "object",
+      "required": ["full_name", "musician_explanation"],
+      "properties": {
+        "full_name": {
+          "type": "string"
+        },
+        "musician_explanation": {
+          "type": "string"
+        },
+        "common_chords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "role_in_music": {
+          "type": "string"
+        },
+        "tension_level": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

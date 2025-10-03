@@ -78,6 +78,11 @@ try:
     from harmonic_analysis.core.pattern_engine.pattern_loader import PatternLoader
     from harmonic_analysis.core.pattern_engine.plugin_registry import PluginRegistry
     from harmonic_analysis.core.pattern_engine.token_converter import romanize_chord
+    from harmonic_analysis.educational import (
+        EducationalFormatter,
+        EducationalService,
+        LearningLevel,
+    )
 except ModuleNotFoundError as exc:  # pragma: no cover - defensive import guard
     missing = exc.name or str(exc)
     hint = OPTIONAL_DEP_HINTS.get(missing)
@@ -1224,6 +1229,11 @@ def main() -> None:
         default=8000,
         help="Port for API mode (default: 8000).",
     )
+    parser.add_argument(
+        "--explain",
+        choices=["beginner", "intermediate", "advanced"],
+        help="Show educational explanations at specified learning level.",
+    )
     args = parser.parse_args()
 
     if args.gradio and args.api:
@@ -1259,7 +1269,41 @@ def main() -> None:
     except ValueError as exc:
         parser.error(str(exc))
 
+    # Main play: print analysis summary
     print(summarize_envelope(envelope, include_raw=False))
+
+    # Victory lap: add educational content if requested
+    if args.explain:
+        level_map = {
+            "beginner": LearningLevel.BEGINNER,
+            "intermediate": LearningLevel.INTERMEDIATE,
+            "advanced": LearningLevel.ADVANCED,
+        }
+        learning_level = level_map[args.explain]
+
+        # Extract pattern IDs from evidence
+        pattern_ids = []
+        if envelope.evidence:
+            for evidence in envelope.evidence:
+                # Pattern reason is the pattern ID
+                pattern_id = evidence.reason
+                # Only include patterns we have educational content for
+                if pattern_id and "." in pattern_id:  # Valid pattern ID format
+                    pattern_ids.append(pattern_id)
+
+        # Show educational content for detected patterns
+        if pattern_ids:
+            print("\n" + "=" * 60)
+            print("📚 EDUCATIONAL CONTENT")
+            print("=" * 60)
+
+            edu_service = EducationalService()
+            formatter = EducationalFormatter()
+
+            for pattern_id in set(pattern_ids):  # Deduplicate
+                context = edu_service.explain_pattern(pattern_id, learning_level)
+                if context:
+                    print("\n" + formatter.format_text(context))
 
 
 if __name__ == "__main__":
