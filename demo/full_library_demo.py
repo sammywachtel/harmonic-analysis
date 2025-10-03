@@ -356,6 +356,46 @@ def format_analysis_html(envelope) -> str:
             </div>
             """
 
+        # Scale Summary (NEW in iteration 14-a)
+        if hasattr(primary, "scale_summary") and primary.scale_summary:
+            scale_summary = primary.scale_summary
+            html += f"""
+            <div style='margin-bottom: 1rem;'>
+                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;'>🎼 Scale Analysis</div>
+                <div style='background: rgba(255,255,255,0.15); padding: 0.75rem; border-radius: 8px;'>
+            """
+            if scale_summary.detected_mode:
+                html += (
+                    f"<div><strong>Mode:</strong> {scale_summary.detected_mode}</div>"
+                )
+            if scale_summary.parent_key:
+                html += f"<div><strong>Parent Key:</strong> {scale_summary.parent_key}</div>"
+            if scale_summary.characteristic_notes:
+                html += f"<div><strong>Characteristics:</strong> {', '.join(scale_summary.characteristic_notes)}</div>"
+            if scale_summary.notes:
+                html += f"<div><strong>Scale Notes:</strong> {' - '.join(scale_summary.notes)}</div>"
+            html += "</div></div>"
+
+        # Melody Summary (NEW in iteration 14-a)
+        if hasattr(primary, "melody_summary") and primary.melody_summary:
+            melody_summary = primary.melody_summary
+            html += f"""
+            <div style='margin-bottom: 1rem;'>
+                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;'>🎵 Melody Analysis</div>
+                <div style='background: rgba(255,255,255,0.15); padding: 0.75rem; border-radius: 8px;'>
+            """
+            if melody_summary.contour:
+                html += f"<div><strong>Contour:</strong> {melody_summary.contour.title()}</div>"
+            if melody_summary.range_semitones is not None:
+                html += f"<div><strong>Range:</strong> {melody_summary.range_semitones} semitones</div>"
+            if melody_summary.leading_tone_resolutions > 0:
+                html += f"<div><strong>Leading Tone Resolutions:</strong> {melody_summary.leading_tone_resolutions}</div>"
+            if melody_summary.melodic_characteristics:
+                html += f"<div><strong>Characteristics:</strong> {', '.join(melody_summary.melodic_characteristics)}</div>"
+            if melody_summary.chromatic_notes:
+                html += f"<div><strong>Chromatic Notes:</strong> {', '.join(melody_summary.chromatic_notes)}</div>"
+            html += "</div></div>"
+
         # Reasoning
         if primary.reasoning:
             html += f"""
@@ -444,6 +484,56 @@ def summarize_envelope(envelope, include_raw: bool = True) -> str:
             lines.append(f"Reasoning      : {primary.reasoning}")
         if primary.roman_numerals:
             lines.append(f"Roman Numerals : {', '.join(primary.roman_numerals)}")
+
+        # Scale Summary (NEW in iteration 14-a)
+        if hasattr(primary, "scale_summary") and primary.scale_summary:
+            scale_summary = primary.scale_summary
+            lines.append("")
+            lines.append("=== Scale Analysis ===")
+            if scale_summary.detected_mode:
+                lines.append(f"Mode           : {scale_summary.detected_mode}")
+            if scale_summary.parent_key:
+                lines.append(f"Parent Key     : {scale_summary.parent_key}")
+            if scale_summary.characteristic_notes:
+                lines.append(
+                    f"Characteristics: {', '.join(scale_summary.characteristic_notes)}"
+                )
+            if scale_summary.notes:
+                lines.append(f"Scale Notes    : {' - '.join(scale_summary.notes)}")
+            if scale_summary.degrees:
+                lines.append(
+                    f"Degrees        : {', '.join(map(str, scale_summary.degrees))}"
+                )
+
+        # Melody Summary (NEW in iteration 14-a)
+        if hasattr(primary, "melody_summary") and primary.melody_summary:
+            melody_summary = primary.melody_summary
+            lines.append("")
+            lines.append("=== Melody Analysis ===")
+            if melody_summary.contour:
+                lines.append(f"Contour        : {melody_summary.contour.title()}")
+            if melody_summary.range_semitones is not None:
+                lines.append(
+                    f"Range          : {melody_summary.range_semitones} semitones"
+                )
+            if melody_summary.intervals:
+                intervals_str = ", ".join(
+                    [f"{'+' if i > 0 else ''}{i}" for i in melody_summary.intervals]
+                )
+                lines.append(f"Intervals      : {intervals_str}")
+            if melody_summary.leading_tone_resolutions > 0:
+                lines.append(
+                    f"Leading Tones  : {melody_summary.leading_tone_resolutions} resolutions"
+                )
+            if melody_summary.melodic_characteristics:
+                lines.append(
+                    f"Characteristics: {', '.join(melody_summary.melodic_characteristics)}"
+                )
+            if melody_summary.chromatic_notes:
+                lines.append(
+                    f"Chromatic Notes: {', '.join(melody_summary.chromatic_notes)}"
+                )
+
         if primary.terms:
             lines.append("")
             lines.append("Glossary Terms:")
@@ -651,9 +741,37 @@ def create_api_app() -> "FastAPI":
         }
 
     def _serialize_envelope(envelope):
+        # Main play: serialize envelope with enhanced scale/melody summary extraction
+        analysis_dict = envelope.to_dict()
+
+        # Victory lap: add convenient summary fields for scale/melody
+        summary_fields = {}
+        if envelope.primary:
+            if (
+                hasattr(envelope.primary, "scale_summary")
+                and envelope.primary.scale_summary
+            ):
+                summary_fields["scale_analysis"] = {
+                    "mode": envelope.primary.scale_summary.detected_mode,
+                    "parent_key": envelope.primary.scale_summary.parent_key,
+                    "characteristics": envelope.primary.scale_summary.characteristic_notes,
+                    "notes": envelope.primary.scale_summary.notes,
+                }
+            if (
+                hasattr(envelope.primary, "melody_summary")
+                and envelope.primary.melody_summary
+            ):
+                summary_fields["melody_analysis"] = {
+                    "contour": envelope.primary.melody_summary.contour,
+                    "range_semitones": envelope.primary.melody_summary.range_semitones,
+                    "characteristics": envelope.primary.melody_summary.melodic_characteristics,
+                    "leading_tone_resolutions": envelope.primary.melody_summary.leading_tone_resolutions,
+                }
+
         return {
             "summary": summarize_envelope(envelope, include_raw=False),
-            "analysis": envelope.to_dict(),
+            "analysis": analysis_dict,
+            "enhanced_summaries": summary_fields,  # NEW: convenient access to scale/melody data
         }
 
     def _lookup_glossary(term: str) -> Optional[Dict[str, Any]]:
@@ -1141,7 +1259,7 @@ def main() -> None:
     except ValueError as exc:
         parser.error(str(exc))
 
-    print(summarize_envelope(envelope))
+    print(summarize_envelope(envelope, include_raw=False))
 
 
 if __name__ == "__main__":

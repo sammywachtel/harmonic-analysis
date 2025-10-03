@@ -11,11 +11,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from harmonic_analysis.dto import (
-    AnalysisEnvelope,
-    AnalysisSummary,
-    AnalysisType,
-)
+from harmonic_analysis.dto import AnalysisEnvelope, AnalysisSummary, AnalysisType
 
 from ..core.pattern_engine.aggregator import Aggregator
 from ..core.pattern_engine.calibration import CalibrationMapping, Calibrator
@@ -23,6 +19,7 @@ from ..core.pattern_engine.pattern_engine import AnalysisContext, PatternEngine
 from ..core.pattern_engine.pattern_loader import PatternLoader
 from ..core.pattern_engine.plugin_registry import PluginRegistry
 from ..core.pattern_engine.token_converter import romanize_chord
+from ..core.telemetry import get_telemetry_collector
 from ..core.utils.music_theory_constants import canonicalize_key_signature
 
 logger = logging.getLogger(__name__)
@@ -76,6 +73,9 @@ class UnifiedPatternService:
         # Modern pattern engine calibration (quality-gated)
         self.calibrator = Calibrator() if auto_calibrate else None
         self.calibration_mapping: Optional[CalibrationMapping] = None
+
+        # Initialize telemetry
+        self.telemetry = get_telemetry_collector()
 
         # Initialize calibration if enabled
         if self.calibrator:
@@ -180,6 +180,23 @@ class UnifiedPatternService:
         Returns:
             AnalysisEnvelope with primary and alternative analyses
         """
+        import time
+
+        start_time = time.perf_counter()
+
+        # Opening move: start telemetry session
+        context_placeholder = type(
+            "obj",
+            (object,),
+            {
+                "chords": chords,
+                "melody": melody,
+                "scales": [notes] if notes else [],
+                "roman_numerals": romans,
+            },
+        )()
+        session_id = self.telemetry.log_analysis_start(context_placeholder)
+
         # Opening move: validate input exclusivity
         input_count = sum(1 for x in [chords, romans, notes, melody] if x is not None)
         if input_count > 1:
@@ -187,6 +204,11 @@ class UnifiedPatternService:
                 "Cannot provide multiple input types - "
                 "choose one: chords, romans, notes, or melody"
             )
+
+        # Initialize data containers for scale/melody summary enhancement
+        scale_analysis_data: Optional[Dict[str, Any]] = None
+        scale_context_data: Optional[Dict[str, Any]] = None
+        melody_analysis_data: Optional[Dict[str, Any]] = None
 
         # Big play: handle scale notes input using our new normalize_scale_input
         if notes:
@@ -198,6 +220,7 @@ class UnifiedPatternService:
 
             try:
                 scale_data = normalize_scale_input(notes, key_hint)
+                scale_analysis_data = scale_data  # Store for summary enhancement
 
                 if not scale_data["is_valid"]:
                     error_msg = "; ".join(scale_data["validation_errors"])
@@ -218,43 +241,64 @@ class UnifiedPatternService:
                     f"(degrees: {scale_degrees}, mode: {detected_mode})"
                 )
 
-                # Store scale analysis data for pattern engine
-                scale_analysis_data = {
+                # Store scale context data for pattern engine
+                scale_context_data = {
                     "notes": canonical_notes,
                     "degrees": scale_degrees,
                     "mode": detected_mode,
                     "intervals": scale_data["intervals"],
                 }
+                # Keep full scale_data for summary enhancement
 
             except Exception as e:
                 logger.error(f"❌ Scale analysis failed: {e}")
                 raise ValueError(f"Scale analysis failed: {e}")
 
-        # Big play: handle melody input using existing melody analysis
+        # Big play: handle melody input using our new normalize_melody_input
         elif melody:
             if not key_hint:
                 raise ValueError("Melody analysis requires key_hint parameter")
 
-            # Main play: analyze melody using existing API
-            from ..api.analysis import analyze_melody
+            # Main play: normalize and validate melody input
+            from ..core.pattern_engine.token_converter import normalize_melody_input
 
             try:
-                melody_result = await analyze_melody(melody, key=key_hint)
+                melody_data = normalize_melody_input(melody, key_hint)
+                melody_analysis_data = melody_data  # Store for summary enhancement
 
-                logger.debug(
-                    f"🎵 Processed melody: {melody} → "
-                    f"tonic: {melody_result.suggested_tonic}, "
-                    f"confidence: {melody_result.confidence}"
-                )
+                if not melody_data["is_valid"]:
+                    error_msg = "; ".join(melody_data["validation_errors"])
+                    logger.warning(f"⚠️ Melody validation issues: {error_msg}")
+                    # Continue with fallback - empty melody for degradation
+                    melody_context_data = {
+                        "notes": melody_data["canonical_notes"],
+                        "degrees": [],
+                        "intervals": [],
+                        "contour": [],
+                    }
+                    # Update analysis data for summary enhancement
+                    melody_analysis_data = melody_context_data
+                else:
+                    # Victory lap: extract normalized data for analysis context
+                    canonical_notes = melody_data["canonical_notes"]
+                    note_degrees = melody_data["note_degrees"]
+                    intervals = melody_data["intervals"]
+                    contour = melody_data["contour"]
 
-                # Store melody analysis data for pattern engine
-                melody_analysis_data = {
-                    "notes": melody_result.notes,
-                    "suggested_tonic": melody_result.suggested_tonic,
-                    "confidence": melody_result.confidence,
-                    "modal_labels": melody_result.modal_labels,
-                    "classification": melody_result.classification,
-                }
+                    logger.debug(
+                        f"🎵 Processed melody: {melody} → {canonical_notes} "
+                        f"(degrees: {note_degrees}, intervals: {intervals})"
+                    )
+
+                    # Store melody analysis data for pattern engine
+                    melody_context_data = {
+                        "notes": canonical_notes,
+                        "degrees": note_degrees,
+                        "intervals": intervals,
+                        "contour": contour,
+                    }
+                    # Update analysis data for summary enhancement
+                    melody_analysis_data = melody_context_data
 
             except Exception as e:
                 logger.error(f"❌ Melody analysis failed: {e}")
@@ -343,21 +387,21 @@ class UnifiedPatternService:
 
         # Big play: prepare scale data for context
         scales_data = []
-        if notes:
-            scales_data = [scale_analysis_data]
+        if notes and scale_analysis_data:
+            scales_data = [scale_context_data]
             logger.debug("🎼 Including scale data in analysis context")
 
         # Big play: prepare melody data for context
-        melody_data = []
-        if melody:
-            melody_data = [melody_analysis_data]
+        melody_context_list = []
+        if melody_analysis_data:
+            melody_context_list = [melody_analysis_data]
             logger.debug("🎵 Including melody data in analysis context")
 
         context = AnalysisContext(
             key=inferred_key or "",
             chords=chords or [],  # Empty list for scale-only analysis
             roman_numerals=roman_numerals,
-            melody=melody_data,
+            melody=melody_context_list,
             scales=scales_data,
             metadata=metadata,
             sections=sections,
@@ -465,6 +509,43 @@ class UnifiedPatternService:
                 )
             except Exception as e:
                 logger.warning(f"⚠️ Quality-gated calibration failed: {e}")
+
+        # Final enhancement: populate scale/melody summaries if available
+        if envelope.primary:
+            envelope.primary = self._enhance_summary_with_scale_melody(
+                envelope.primary, scale_analysis_data, melody_analysis_data
+            )
+
+        # Victory lap: log telemetry for completed analysis
+        end_time = time.perf_counter()
+        analysis_time_ms = (end_time - start_time) * 1000
+
+        # Log scale/melody summary generation
+        if envelope.primary:
+            if (
+                hasattr(envelope.primary, "scale_summary")
+                and envelope.primary.scale_summary
+            ):
+                self.telemetry.log_scale_summary_generation(
+                    session_id, envelope.primary.scale_summary
+                )
+            if (
+                hasattr(envelope.primary, "melody_summary")
+                and envelope.primary.melody_summary
+            ):
+                self.telemetry.log_melody_summary_generation(
+                    session_id, envelope.primary.melody_summary
+                )
+
+            # Log confidence scores
+            self.telemetry.log_confidence_scores(session_id, envelope.primary)
+
+        # Log evidence generation
+        if envelope.evidence:
+            self.telemetry.log_evidence_generation(session_id, envelope.evidence)
+
+        # Log completion
+        self.telemetry.log_analysis_complete(session_id, analysis_time_ms, envelope)
 
         return envelope
 
@@ -1342,3 +1423,177 @@ class UnifiedPatternService:
         current_index = note_to_index.get(note.upper(), 0)
         new_index = (current_index + semitones) % 12
         return notes[new_index]
+
+    def _enhance_summary_with_scale_melody(
+        self,
+        summary: AnalysisSummary,
+        scale_data: Optional[Dict[str, Any]] = None,
+        melody_data: Optional[Dict[str, Any]] = None,
+    ) -> AnalysisSummary:
+        """
+        Enhance AnalysisSummary with scale and melody summaries when available.
+
+        Args:
+            summary: Original analysis summary
+            scale_data: Scale analysis data from normalize_scale_input
+            melody_data: Melody analysis data from normalize_melody_input
+
+        Returns:
+            Enhanced summary with scale_summary and melody_summary populated
+        """
+        from harmonic_analysis.dto import MelodySummaryDTO, ScaleSummaryDTO
+
+        # Battle-hardened defense: avoid mutation, create new summary
+        enhanced_summary = AnalysisSummary(
+            type=summary.type,
+            roman_numerals=summary.roman_numerals,
+            confidence=summary.confidence,
+            key_signature=summary.key_signature,
+            mode=summary.mode,
+            reasoning=summary.reasoning,
+            functional_confidence=summary.functional_confidence,
+            modal_confidence=summary.modal_confidence,
+            chromatic_confidence=summary.chromatic_confidence,
+            terms=summary.terms,
+            patterns=summary.patterns,
+            chromatic_elements=summary.chromatic_elements,
+            chromatic_summary=summary.chromatic_summary,
+            chords=summary.chords,
+            modal_characteristics=summary.modal_characteristics,
+            modal_evidence=summary.modal_evidence,
+            sections=summary.sections,
+            terminal_cadences=summary.terminal_cadences,
+            final_cadence=summary.final_cadence,
+        )
+
+        # Main play: populate scale summary if scale data available
+        if scale_data and scale_data.get("is_valid"):
+            # Extract mode and parent key from key_info structure
+            key_info = scale_data.get("key_info", {})
+            detected_mode = scale_data.get("detected_mode") or key_info.get("mode")
+
+            enhanced_summary.scale_summary = ScaleSummaryDTO(
+                detected_mode=detected_mode,
+                parent_key=key_info.get("parent_key"),
+                degrees=scale_data.get("scale_degrees", []),
+                characteristic_notes=self._extract_characteristic_notes(scale_data),
+                notes=scale_data.get("canonical_notes", []),
+            )
+
+        # Follow-up play: populate melody summary if melody data available
+        if melody_data and melody_data.get("notes"):
+            enhanced_summary.melody_summary = MelodySummaryDTO(
+                intervals=melody_data.get("intervals", []),
+                contour=self._determine_melodic_contour(
+                    melody_data.get("intervals", [])
+                ),
+                range_semitones=self._calculate_melodic_range(
+                    melody_data.get("intervals", [])
+                ),
+                leading_tone_resolutions=self._count_leading_tone_resolutions(
+                    melody_data
+                ),
+                melodic_characteristics=self._extract_melodic_characteristics(
+                    melody_data
+                ),
+            )
+
+        return enhanced_summary
+
+    def _extract_characteristic_notes(self, scale_data: Dict[str, Any]) -> List[str]:
+        """Extract characteristic intervallic features from scale data."""
+        characteristics = []
+        # Get mode from multiple possible sources
+        key_info = scale_data.get("key_info", {})
+        mode = (
+            scale_data.get("detected_mode")
+            or key_info.get("mode")
+            or scale_data.get("mode", "")
+        ).lower()
+
+        # Victory lap: map mode-specific characteristic intervals
+        if "dorian" in mode:
+            characteristics.append("♭3")
+            characteristics.append("♮6")
+        elif "phrygian" in mode:
+            characteristics.append("♭2")
+            characteristics.append("♭3")
+        elif "mixolydian" in mode:
+            characteristics.append("♭7")
+        elif "lydian" in mode:
+            characteristics.append("♯4")
+        elif "aeolian" in mode:
+            characteristics.append("♭3")
+            characteristics.append("♭6")
+            characteristics.append("♭7")
+        elif "locrian" in mode:
+            characteristics.append("♭2")
+            characteristics.append("♭5")
+
+        return characteristics
+
+    def _determine_melodic_contour(self, intervals: List[int]) -> str:
+        """Analyze melodic contour from interval sequence."""
+        if not intervals:
+            return "static"
+
+        positive_count = sum(1 for i in intervals if i > 0)
+        negative_count = sum(1 for i in intervals if i < 0)
+
+        if positive_count > negative_count * 2:
+            return "ascending"
+        elif negative_count > positive_count * 2:
+            return "descending"
+        elif abs(positive_count - negative_count) <= 1:
+            return "wave"
+        else:
+            return "arch" if positive_count > negative_count else "valley"
+
+    def _calculate_melodic_range(self, intervals: List[int]) -> int:
+        """Calculate total melodic range in semitones."""
+        if not intervals:
+            return 0
+
+        # Track cumulative position and find min/max
+        position = 0
+        min_pos = 0
+        max_pos = 0
+
+        for interval in intervals:
+            position += interval
+            min_pos = min(min_pos, position)
+            max_pos = max(max_pos, position)
+
+        return max_pos - min_pos
+
+    def _count_leading_tone_resolutions(self, melody_data: Dict[str, Any]) -> int:
+        """Count semitone upward resolutions (leading tone patterns)."""
+        intervals = melody_data.get("intervals", [])
+        return sum(1 for interval in intervals if interval == 1)
+
+    def _extract_melodic_characteristics(
+        self, melody_data: Dict[str, Any]
+    ) -> List[str]:
+        """Extract melodic characteristics from analysis data."""
+        characteristics: List[str] = []
+        intervals = melody_data.get("intervals", [])
+
+        if not intervals:
+            return characteristics
+
+        # Stepwise motion analysis
+        stepwise_count = sum(1 for i in intervals if abs(i) <= 2)
+        if stepwise_count / len(intervals) > 0.7:
+            characteristics.append("stepwise motion")
+
+        # Leap emphasis analysis
+        leap_count = sum(1 for i in intervals if abs(i) >= 3)
+        if leap_count / len(intervals) > 0.3:
+            characteristics.append("leap emphasis")
+
+        # Chromatic motion analysis
+        chromatic_count = sum(1 for i in intervals if abs(i) == 1)
+        if chromatic_count / len(intervals) > 0.4:
+            characteristics.append("chromatic motion")
+
+        return characteristics

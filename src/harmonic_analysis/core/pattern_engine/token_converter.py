@@ -949,14 +949,12 @@ def normalize_scale_input(notes: List[str], key_hint: str) -> dict:
     # Detect mode by comparing step interval pattern
     detected_mode = _detect_mode_from_intervals(step_intervals)
 
-    # Calculate scale degrees relative to the key hint
+    # Calculate scale degrees relative to the key hint (FIXED for diatonic mapping)
     key_tonic = _extract_key_tonic(key_info["key"])
     key_pc = NOTE_TO_PITCH_CLASS.get(key_tonic, 0)
 
-    scale_degrees = []
-    for pc in note_pitch_classes:
-        degree = ((pc - key_pc) % 12) + 1  # 1-based scale degrees
-        scale_degrees.append(degree)
+    # Big play: map to proper diatonic degrees (1-7) instead of chromatic (1-12)
+    scale_degrees = _calculate_diatonic_degrees(note_pitch_classes, key_pc, key_info)
 
     # Validate against expected scale for the key
     is_valid = _validate_scale_against_key(step_intervals, key_info, detected_mode)
@@ -1103,7 +1101,7 @@ def _validate_scale_against_key(
 
     # If the key hint specifies a mode, check if detected mode matches
     if key_info["is_modal"]:
-        return detected_mode_lower == expected_mode_lower
+        return bool(detected_mode_lower == expected_mode_lower)
 
     # For major/minor keys, accept related modes
     if expected_mode_lower == "ionian":
@@ -1116,3 +1114,218 @@ def _validate_scale_against_key(
         return detected_mode_lower in minor_modes
 
     return True
+
+
+def _calculate_diatonic_degrees(
+    note_pitch_classes: List[int], key_pc: int, key_info: dict
+) -> List[int]:
+    """
+    Calculate proper diatonic scale degrees (1-7) for notes relative to parent scale.
+
+    This fixes the critical bug where chromatic degrees (1-12) were returned instead.
+    """
+    # NOTE_TO_PITCH_CLASS available at module level if needed
+
+    # Define diatonic scale patterns (semitone intervals from tonic)
+    scale_patterns = {
+        "major": [0, 2, 4, 5, 7, 9, 11],  # Ionian
+        "dorian": [0, 2, 3, 5, 7, 9, 10],  # Dorian
+        "phrygian": [0, 1, 3, 5, 7, 8, 10],  # Phrygian
+        "lydian": [0, 2, 4, 6, 7, 9, 11],  # Lydian
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],  # Mixolydian
+        "minor": [0, 2, 3, 5, 7, 8, 10],  # Aeolian/Natural minor
+        "locrian": [0, 1, 3, 5, 6, 8, 10],  # Locrian
+    }
+
+    # Determine parent scale from key_info
+    if key_info.get("is_modal") and key_info.get("mode"):
+        mode_name = key_info["mode"].lower()
+        # Map mode names to scale pattern keys
+        mode_mapping = {
+            "ionian": "major",
+            "dorian": "dorian",
+            "phrygian": "phrygian",
+            "lydian": "lydian",
+            "mixolydian": "mixolydian",
+            "aeolian": "minor",
+            "locrian": "locrian",
+        }
+        parent_pattern = scale_patterns.get(
+            mode_mapping.get(mode_name, "major"), scale_patterns["major"]
+        )
+    else:
+        # Default to major for non-modal keys
+        parent_pattern = scale_patterns["major"]
+
+    # Create mapping from pitch class to diatonic degree
+    pc_to_degree = {}
+    for degree, interval in enumerate(parent_pattern, 1):
+        pc = (key_pc + interval) % 12
+        pc_to_degree[pc] = degree
+
+    # Map input notes to diatonic degrees
+    scale_degrees = []
+    for pc in note_pitch_classes:
+        note_degree: Optional[int] = pc_to_degree.get(pc)
+        if note_degree is not None:
+            scale_degrees.append(note_degree)
+        else:
+            # Note is chromatic to parent scale - calculate closest degree
+            # This handles pentatonic and chromatic scales gracefully
+            chromatic_degree = _find_closest_diatonic_degree(pc, key_pc, parent_pattern)
+            scale_degrees.append(chromatic_degree)
+
+    return scale_degrees
+
+
+def _find_closest_diatonic_degree(
+    pc: int, key_pc: int, parent_pattern: List[int]
+) -> int:
+    """
+    Find the closest diatonic degree for a chromatic note.
+
+    For pentatonic scales, this preserves the correct scale degree mapping.
+    For chromatic notes, this provides a reasonable approximation.
+    """
+    interval_from_key = (pc - key_pc) % 12
+
+    # Find the closest interval in the parent pattern
+    closest_interval = min(
+        parent_pattern,
+        key=lambda x: min(
+            abs(x - interval_from_key),
+            abs((x + 12) - interval_from_key),
+            abs(x - (interval_from_key + 12)),
+        ),
+    )
+
+    # Return the degree corresponding to that interval
+    return parent_pattern.index(closest_interval) + 1
+
+
+# ============================================================================
+# Melody Analysis Functions (Iteration 14)
+# ============================================================================
+
+
+def normalize_melody_input(notes: List[str], key_hint: str) -> dict:
+    """
+    Normalize and validate melody input, computing intervals and degrees.
+
+    Args:
+        notes: List of note names with optional octave (e.g., ['C4', 'D4', 'E4'])
+        key_hint: Key context (e.g., 'C major') - required for degree calculation
+
+    Returns:
+        Dictionary containing:
+        - canonical_notes: List of canonical note names (octave stripped)
+        - note_degrees: List of scale degrees for each note
+        - intervals: List of melodic intervals (semitones)
+        - contour: List of contour directions ('up', 'down', 'same')
+        - is_valid: Whether the melody is valid for the given key
+        - validation_errors: List of validation error messages
+    """
+    from ..utils.scales import NOTE_TO_PITCH_CLASS
+
+    if not key_hint:
+        raise ValueError("Melody analysis requires key_hint parameter")
+
+    # Parse input notes - handle octave numbers
+    canonical_notes = _parse_melody_notes(notes)
+
+    # Extract key info from hint
+    key_info = _parse_key_hint(key_hint)
+
+    # Convert notes to pitch classes
+    note_pitch_classes = []
+    validation_errors = []
+
+    for note in canonical_notes:
+        if note not in NOTE_TO_PITCH_CLASS:
+            validation_errors.append(f"Invalid note: {note}")
+            continue
+        note_pitch_classes.append(NOTE_TO_PITCH_CLASS[note])
+
+    if validation_errors:
+        return {
+            "canonical_notes": canonical_notes,
+            "note_degrees": [],
+            "intervals": [],
+            "contour": [],
+            "is_valid": False,
+            "validation_errors": validation_errors,
+        }
+
+    # Calculate melodic intervals (semitones between consecutive notes)
+    intervals = []
+    if len(note_pitch_classes) > 1:
+        for i in range(1, len(note_pitch_classes)):
+            interval = (note_pitch_classes[i] - note_pitch_classes[i - 1]) % 12
+            # Normalize to shortest path (ascending/descending)
+            if interval > 6:
+                interval = interval - 12
+            intervals.append(interval)
+
+    # Calculate contour pattern
+    contour = []
+    for interval in intervals:
+        if interval > 0:
+            contour.append("up")
+        elif interval < 0:
+            contour.append("down")
+        else:
+            contour.append("same")
+
+    # Calculate scale degrees for each note
+    key_tonic = _extract_key_tonic(key_info["key"])
+    key_pc = NOTE_TO_PITCH_CLASS.get(key_tonic, 0)
+    note_degrees = _calculate_diatonic_degrees(note_pitch_classes, key_pc, key_info)
+
+    return {
+        "canonical_notes": canonical_notes,
+        "note_degrees": note_degrees,
+        "intervals": intervals,
+        "contour": contour,
+        "is_valid": True,
+        "validation_errors": [],
+        "key_info": key_info,
+    }
+
+
+def _parse_melody_notes(notes: List[str]) -> List[str]:
+    """Parse and normalize melody note names, stripping octave numbers."""
+    canonical_notes = []
+
+    # Handle comma-separated strings
+    if len(notes) == 1 and "," in notes[0]:
+        notes = [note.strip() for note in notes[0].split(",")]
+
+    # Handle space-separated strings
+    elif len(notes) == 1 and " " in notes[0]:
+        notes = [note.strip() for note in notes[0].split()]
+
+    for note in notes:
+        if not note.strip():
+            continue
+
+        # Normalize note name
+        note = note.strip()
+
+        # Handle flat notation (both 'b' and '♭')
+        note = note.replace("♭", "b")
+
+        # Handle sharp notation (both '#' and '♯')
+        note = note.replace("♯", "#")
+
+        # Strip octave numbers (C4 -> C, Bb3 -> Bb)
+        note_without_octave = re.sub(r"\d+$", "", note)
+
+        # Normalize case: capitalize first letter for consistent validation
+        if note_without_octave:
+            note_without_octave = (
+                note_without_octave[0].upper() + note_without_octave[1:]
+            )
+
+        canonical_notes.append(note_without_octave)
+
+    return canonical_notes
