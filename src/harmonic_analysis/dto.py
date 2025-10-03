@@ -147,6 +147,40 @@ class ChromaticSummaryDTO:
 
 
 @dataclass
+class ScaleSummaryDTO:
+    """Summary of scale analysis findings."""
+
+    detected_mode: Optional[str] = None  # "Dorian", "Phrygian", "Ionian", etc.
+    parent_key: Optional[str] = None  # "C major", "D minor", etc.
+    degrees: List[int] = field(
+        default_factory=list
+    )  # Scale degrees [1, 2, 3, 4, 5, 6, 7]
+    characteristic_notes: List[str] = field(
+        default_factory=list
+    )  # ["♭7", "♭3"] for notable intervals
+    notes: List[str] = field(
+        default_factory=list
+    )  # Actual note names ["C", "D", "E♭", ...]
+
+
+@dataclass
+class MelodySummaryDTO:
+    """Summary of melody analysis findings."""
+
+    intervals: List[int] = field(
+        default_factory=list
+    )  # Semitone intervals between notes
+    contour: Optional[str] = None  # "ascending", "descending", "arch", "wave"
+    range_semitones: Optional[int] = None  # Total melodic range in semitones
+    leading_tone_resolutions: int = 0  # Count of leading tone → tonic resolutions
+    suspensions: int = 0  # Count of suspension patterns
+    chromatic_notes: List[str] = field(default_factory=list)  # Non-diatonic notes
+    melodic_characteristics: List[str] = field(
+        default_factory=list
+    )  # ["stepwise motion", "leap emphasis"]
+
+
+@dataclass
 class EvidenceDTO:
     """Arbitration/tracing evidence for why an analysis was chosen."""
 
@@ -201,6 +235,10 @@ class AnalysisSummary:
     modal_evidence: List[Any] = field(
         default_factory=list
     )  # List[ModalEvidence] from analyzer
+
+    # Scale and melody summaries (populated when scale/melody analysis is performed)
+    scale_summary: Optional[ScaleSummaryDTO] = None
+    melody_summary: Optional[MelodySummaryDTO] = None
 
     # NEW: Section-aware fields (only populated when sections are supplied)
     sections: List[SectionDTO] = field(default_factory=list)
@@ -338,6 +376,16 @@ class AnalysisSummary:
             chords=[_fc(x) for x in d.get("chords", [])],
             modal_characteristics=list(d.get("modal_characteristics", [])),
             modal_evidence=list(d.get("modal_evidence", [])),
+            scale_summary=(
+                ScaleSummaryDTO(**d["scale_summary"])
+                if d.get("scale_summary")
+                else None
+            ),
+            melody_summary=(
+                MelodySummaryDTO(**d["melody_summary"])
+                if d.get("melody_summary")
+                else None
+            ),
             sections=[
                 SectionDTO(**x) if isinstance(x, dict) else x
                 for x in d.get("sections", [])

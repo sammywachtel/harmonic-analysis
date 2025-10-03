@@ -262,26 +262,35 @@ async def analyze_my_progression():
 asyncio.run(analyze_my_progression())
 ```
 
-### Analyzing Scales
+### Analyzing Scales with Enhanced Summaries (NEW!)
 
-When you give the library a set of notes, it tells you what scales contain those notes:
+The unified pattern service provides comprehensive scale analysis with mode detection and characteristic intervals:
 
 ```python
-from harmonic_analysis import analyze_scale
+from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
 
-async def what_scale_is_this():
-    # The notes of D Dorian
-    result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'], key='C major')
+async def analyze_modal_scales():
+    service = UnifiedPatternService()
 
-    print(result.parent_scales)
-    # Output: ['C major', 'F major']
-    # (D Dorian uses the notes of C major but centers on D)
+    # Dorian scale analysis with rich summary data
+    result = await service.analyze_with_patterns_async(
+        notes=['D', 'E', 'F', 'G', 'A', 'B', 'C'],
+        key_hint='D dorian'  # Required for scale analysis
+    )
 
-    print(result.modal_labels)
-    # Output: {'D': 'D Dorian', 'G': 'G Mixolydian', ...}
-    # (Shows what mode each note would create as a tonic)
+    # Access enhanced scale summary (NEW in Iteration 15!)
+    if result.primary.scale_summary:
+        scale_summary = result.primary.scale_summary
+        print(f"Detected Mode: {scale_summary.detected_mode}")           # "Dorian"
+        print(f"Parent Key: {scale_summary.parent_key}")                 # "C major"
+        print(f"Characteristic Notes: {scale_summary.characteristic_notes}")  # ["♭3", "♮6"]
+        print(f"Scale Notes: {' - '.join(scale_summary.notes)}")         # "D - E - F - G - A - B - C"
 
-asyncio.run(what_scale_is_this())
+    # Enhanced reasoning explains the mode
+    print(f"Analysis: {result.primary.reasoning}")
+    # "Detected Dorian scale with characteristic ♭3 and ♮6 intervals"
+
+asyncio.run(analyze_modal_scales())
 ```
 
 ### Analyzing Melodies
@@ -289,22 +298,34 @@ asyncio.run(what_scale_is_this())
 Melodies are special - the library tries to figure out what note feels like "home":
 
 ```python
-from harmonic_analysis import analyze_melody
+from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
 
 async def analyze_my_melody():
+    service = UnifiedPatternService()
+
     # A melody that emphasizes D within C major scale
-    melody = ['D', 'E', 'F', 'G', 'A', 'C', 'B', 'A', 'G', 'F', 'E', 'D']
-    result = await analyze_melody(melody)
+    result = await service.analyze_with_patterns_async(
+        melody=['D4', 'E4', 'F4', 'G4', 'A4', 'C5', 'B4', 'A4', 'G4', 'F4', 'E4', 'D4'],
+        key_hint='D dorian',  # Required for melody analysis
+        profile='classical'
+    )
 
-    print(f"Suggested tonic: {result.suggested_tonic}")
-    # Output: "Suggested tonic: D"
-    # (The melody centers around D)
+    print(f"Analysis type: {result.primary.type}")
+    # Output: "Analysis type: AnalysisType.MODAL"
 
-    print(f"Confidence: {result.confidence:.0%}")
+    print(f"Key signature: {result.primary.key_signature}")
+    # Output: "Key signature: D dorian"
+
+    print(f"Confidence: {result.primary.confidence:.0%}")
     # Output: "Confidence: 78%"
 
-    print(f"This creates: {result.modal_labels.get('D')}")
-    # Output: "This creates: D Dorian"
+    # Access rich melody summary (NEW!)
+    if result.primary.melody_summary:
+        melody_summary = result.primary.melody_summary
+        print(f"Melodic contour: {melody_summary.contour}")           # "arch"
+        print(f"Range: {melody_summary.range_semitones} semitones")   # 14
+        print(f"Characteristics: {melody_summary.melodic_characteristics}")  # ["stepwise motion"]
+        print(f"Leading tone resolutions: {melody_summary.leading_tone_resolutions}")  # 2
 
 asyncio.run(analyze_my_melody())
 ```
@@ -724,18 +745,37 @@ result.primary_analysis.modal_characteristics  # Character descriptions
 ### For Scales and Melodies
 
 ```python
-# Scale analysis tells you what scales contain your notes
-scale_result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'], key='C major')
+from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
 
-scale_result.parent_scales     # ['C major', 'F major']
-scale_result.modal_labels      # {'D': 'D Dorian', 'G': 'G Mixolydian', ...}
-scale_result.classification    # 'diatonic', 'modal_borrowing', or 'modal_candidate'
+service = UnifiedPatternService()
 
-# Melody analysis adds tonic detection
-melody_result = await analyze_melody(['C', 'D', 'E', 'G', 'E', 'D', 'C'], key='C major')
+# Scale analysis with enhanced modal detection
+scale_result = await service.analyze_with_patterns_async(
+    notes=['D', 'E', 'F', 'G', 'A', 'B', 'C'],
+    key_hint='D dorian',  # Required for scale analysis
+    profile='classical'
+)
 
-melody_result.suggested_tonic  # 'C' - what note feels like home
-melody_result.confidence       # 0.85 - how sure about the tonic
+# Access rich scale summary (NEW!)
+if scale_result.primary.scale_summary:
+    scale_summary = scale_result.primary.scale_summary
+    print(f"Detected mode: {scale_summary.detected_mode}")           # "Dorian"
+    print(f"Parent key: {scale_summary.parent_key}")                 # "C major"
+    print(f"Characteristic notes: {scale_summary.characteristic_notes}")  # ["♭3", "♮6"]
+
+# Melody analysis with contour detection
+melody_result = await service.analyze_with_patterns_async(
+    melody=['C4', 'D4', 'E4', 'G4', 'E4', 'D4', 'C4'],
+    key_hint='C major',  # Required for melody analysis
+    profile='classical'
+)
+
+# Access rich melody summary (NEW!)
+if melody_result.primary.melody_summary:
+    melody_summary = melody_result.primary.melody_summary
+    print(f"Melodic contour: {melody_summary.contour}")             # "arch"
+    print(f"Range: {melody_summary.range_semitones} semitones")     # 7
+    print(f"Characteristics: {melody_summary.melodic_characteristics}")  # ["stepwise motion"]
 ```
 
 ### When You Get `suggested_tonic` (and When You Don't)
@@ -1316,10 +1356,10 @@ The library shows you the most likely interpretations with confidence scores.
 
 ### "What's the difference between a scale and a melody?"
 
-- **Scale**: `analyze_scale_melody(notes, melody=False)` - A collection of notes (unordered, no rhythm)
-    - Returns: What scales contain these notes
-- **Melody**: `analyze_scale_melody(notes, melody=True)` - A sequence of notes (ordered, implies rhythm)
-    - Returns: Same as scale PLUS suggested tonic and confidence
+- **Scale**: `notes=['C', 'D', 'E', 'F', 'G', 'A', 'B']` - A collection of notes (unordered, no rhythm)
+    - Returns: Scale summary with mode detection, parent key, and characteristic intervals
+- **Melody**: `melody=['C4', 'D4', 'E4', 'F4', 'G4']` - A sequence of notes (ordered, implies rhythm/contour)
+    - Returns: Melody summary with contour analysis, range, intervals, and melodic characteristics
 
 ### "How accurate is the confidence score?"
 

@@ -144,6 +144,109 @@ for notes, key_hint in modal_scales:
 - **Validation**: Comprehensive error handling for invalid scales or mismatched keys
 - **Pattern Integration**: Uses the same unified pattern engine as chord analysis
 
+### Enhanced Scale Analysis with Summaries (NEW in Iteration 15)
+
+The unified pattern service now provides rich scale summary data with comprehensive modal analysis:
+
+```python
+from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
+
+service = UnifiedPatternService()
+
+# Enhanced Dorian scale analysis with detailed summary
+result = await service.analyze_with_patterns_async(
+    notes=['C', 'D', 'E♭', 'F', 'G', 'A', 'B♭'],
+    key_hint='C dorian'
+)
+
+# Access rich scale summary (NEW!)
+if result.primary.scale_summary:
+    scale_summary = result.primary.scale_summary
+
+    print(f"Detected Mode: {scale_summary.detected_mode}")           # "Dorian"
+    print(f"Parent Key: {scale_summary.parent_key}")                 # "C major"
+    print(f"Characteristic Notes: {scale_summary.characteristic_notes}")  # ["♭3", "♮6"]
+    print(f"Scale Notes: {' - '.join(scale_summary.notes)}")         # "C - D - Eb - F - G - A - Bb"
+    print(f"Scale Degrees: {scale_summary.degrees}")                 # [1, 2, 3, 4, 5, 6, 7]
+
+# Enhanced reasoning includes scale information
+print(f"Enhanced Reasoning: {result.primary.reasoning}")
+# "Detected Dorian scale with characteristic ♭3 and ♮6 intervals"
+```
+
+**Scale Summary Features:**
+- **Mode Detection**: Automatic identification of Ionian, Dorian, Phrygian, Lydian, Mixolydian, Aeolian, Locrian
+- **Characteristic Intervals**: Identifies defining intervals (♭2, ♭3, ♯4, ♭6, ♭7) for each mode
+- **Parent Key Mapping**: Shows relationship between modal and parent major keys
+- **Normalized Notation**: Consistent enharmonic spelling and degree numbering
+- **Full Serialization**: JSON-compatible for API responses and data storage
+
+### Melody Analysis with Contour Detection (NEW in Iteration 15)
+
+Comprehensive melodic analysis with contour, range, and pattern detection:
+
+```python
+# Ascending melody analysis
+result = await service.analyze_with_patterns_async(
+    melody=['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'],
+    key_hint='C major'
+)
+
+# Access rich melody summary (NEW!)
+if result.primary.melody_summary:
+    melody_summary = result.primary.melody_summary
+
+    print(f"Melodic Contour: {melody_summary.contour}")                    # "ascending"
+    print(f"Range: {melody_summary.range_semitones} semitones")            # 12
+    print(f"Intervals: {melody_summary.intervals}")                        # [2, 2, 1, 2, 2, 2, 1]
+    print(f"Leading Tone Resolutions: {melody_summary.leading_tone_resolutions}")  # 2
+    print(f"Characteristics: {melody_summary.melodic_characteristics}")    # ["stepwise motion"]
+
+# Complex melody with leaps and chromatic motion
+result = await service.analyze_with_patterns_async(
+    melody=['C4', 'A4', 'F4', 'D#4', 'C4'],
+    key_hint='C major'
+)
+
+if result.primary.melody_summary:
+    melody_summary = result.primary.melody_summary
+    print(f"Contour: {melody_summary.contour}")                 # "descending" or "arch"
+    print(f"Characteristics: {melody_summary.melodic_characteristics}")
+    # ["leap emphasis", "chromatic motion"]
+    print(f"Chromatic Notes: {melody_summary.chromatic_notes}") # ["D#"]
+```
+
+**Melody Analysis Features:**
+- **Contour Detection**: Identifies ascending, descending, arch, wave, and mixed patterns
+- **Range Calculation**: Total melodic span in semitones
+- **Interval Analysis**: Precise semitone intervals between consecutive notes
+- **Pattern Recognition**: Leading tone resolutions, suspensions, and harmonic patterns
+- **Chromatic Analysis**: Identifies non-diatonic notes and chromatic motion
+- **Characteristic Classification**: Stepwise motion, leap emphasis, scalar passages
+
+### Combined Harmonic and Melodic Analysis
+
+```python
+# Comprehensive analysis with chord progression and melody
+result = await service.analyze_with_patterns_async(
+    chords=['C', 'Am', 'F', 'G'],
+    melody=['C4', 'E4', 'F4', 'G4'],
+    key_hint='C major'
+)
+
+# Access both harmonic and melodic insights
+print(f"Harmonic Analysis: {' - '.join(result.primary.roman_numerals)}")  # "I - vi - IV - V"
+print(f"Confidence: {result.primary.confidence:.3f}")
+
+if result.primary.melody_summary:
+    print(f"Melodic Contour: {result.primary.melody_summary.contour}")     # "ascending"
+    print(f"Melodic Range: {result.primary.melody_summary.range_semitones} semitones")  # 7
+
+# Enhanced reasoning combines harmonic and melodic analysis
+print(f"Complete Reasoning: {result.primary.reasoning}")
+# "I-vi-IV-V progression with ascending melodic contour and stepwise motion"
+```
+
 ### Roman Numeral Analysis (NEW in Iteration 11)
 
 Direct roman numeral input is now supported with automatic chord conversion:
