@@ -6,11 +6,10 @@ while using the new unified pattern engine under the hood.
 """
 
 import pytest
-from typing import List
 
-from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 from harmonic_analysis.dto import AnalysisEnvelope, AnalysisType
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
 
 
 class TestUnifiedPatternServiceCompatibility:

@@ -1,177 +1,199 @@
-# Adaptive Quality Gate Configuration
-# This file controls which quality checks run for your project
-# Automatically generated based on detected project structure
+# Adaptive Quality Gate Configuration with Graduated Enforcement
+# This configuration adapts to your project structure and supports graduated quality gate phases
 
-# Project Information (auto-detected)
-project:
-  type: "backend-python" # fullstack, frontend-typescript, backend-python, etc.
-  name: "harmonic-analysis" # Derived from package.json or directory name
-  # Auto-detected paths and technologies
-  structure:
-    has_frontend: false
-    has_backend: true
-    has_typescript: true
-    has_python: true
-    has_tests: true
-    frontend_path: ""
-    backend_path: "."
-  # Detected frameworks and tools
-  technologies:
-    languages: ["typescript", "javascript", "python"]
-    frameworks: []
-# Quality Gate Configuration (user-customizable)
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# QUALITY GATE PHASES (Graduated Enforcement System)
+# ═══════════════════════════════════════════════════════════════════════════════════════
 quality_gates:
-  # Current phase (0=Baseline, 1=Changed-only, 2=Ratchet, 3=Strict)
-  current_phase: 1
-  # Auto-progression settings
-  auto_progression:
-    enabled: false # Set to true for automatic phase advancement
-    timeline_weeks: [1, 2, 4] # Weeks to spend in each phase
-  # Phase-specific settings
+  # Current phase determines enforcement level
+  current_phase: 2 # 0=Baseline, 1=Changed-only, 2=Ratchet, 3=Strict
+  recommended_phase: 0 # Auto-calculated based on project analysis
+  auto_progression: false # Automatic phase advancement (typically false)
+  last_updated: "2025-09-29 22:57:20"
+  # Phase-specific behaviors
   phases:
-    # Phase 0: Baseline & Stabilization
-    phase_0:
-      description: "Establish baseline, prevent regressions"
+    phase_0: # Baseline & Stabilization
       enforce_baseline: true
       allow_legacy_issues: true
       block_regressions: true
-      mandatory_hooks: true
-    # Phase 1: Changed-Code-Only Enforcement
-    phase_1:
-      description: "Strict enforcement for new/modified code only"
+      pre_commit_mandatory: true
+    phase_1: # Changed-Code-Only Enforcement
       changed_files_only: true
       new_code_strict: true
       legacy_warnings: true
-      typing_new_files: true
-    # Phase 2: Ratchet & Expand Scope
-    phase_2:
-      description: "Progressive improvement with ratcheting"
-      coverage_ratchet: true
+      gradual_typing: true
+    phase_2: # Repository-Wide + Ratcheting
       repo_wide_enforcement: true
-      tighten_rules: true
+      coverage_ratchet: true
+      progressive_rules: true
       module_campaigns: true
-    # Phase 3: Normalize & Harden
-    phase_3:
-      description: "Full strict enforcement"
+    phase_3: # Full Strict Enforcement
       all_gates_blocking: true
       no_bypasses: true
-      full_enforcement: true
       branch_protection: true
-# Tool Configuration (automatically enabled based on detected languages)
+      maximum_strictness: true
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# PROJECT STRUCTURE (Auto-detected, user-customizable)
+# ═══════════════════════════════════════════════════════════════════════════════════════
+project:
+  type: "backend-python"
+  name: "harmonic-analysis"
+  structure:
+    has_frontend: false
+    has_backend: true
+    has_python: true
+    has_typescript: true
+    has_javascript: true
+    has_tests: true
+    frontend_path: ""
+    backend_path: "."
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# TOOL CONFIGURATION (Adaptive to project structure and phase)
+# ═══════════════════════════════════════════════════════════════════════════════════════
 tools:
-  # Frontend Tools (enabled if frontend detected)
+  # Frontend tools (enabled if frontend detected)
   frontend:
     enabled: false
     eslint:
-      enabled: auto # auto, true, false
-      config: "/eslint.config.js"
+      enabled: false
       auto_fix: true
+      phase_0_enforce: false # Only if already zero errors
+      phase_1_enforce: true # Strict for changed files
+      phase_2_enforce: true # Repository-wide
+      phase_3_enforce: true # Maximum strictness
     typescript:
       enabled: true
       strict_mode: false # Enable in Phase 2+
-      config: "/tsconfig.json"
-    testing:
-      unit_tests: true
-      e2e_tests: auto # auto-enable if frontend detected
-      coverage_threshold: 80 # Percentage
-  # Backend Tools (enabled if backend detected)
+      phase_0_enforce: false # Only if already zero errors
+      phase_1_enforce: true # New files only
+      phase_2_enforce: true # Repository-wide
+      phase_3_enforce: true # Maximum strictness
+  # Backend tools (enabled if Python detected)
   backend:
     enabled: true
     python:
-      enabled: true
       black:
         enabled: true
+        auto_fix: true
         line_length: 88
       isort:
         enabled: true
+        auto_fix: true
         profile: "black"
       flake8:
         enabled: true
         max_line_length: 88
+        extend_ignore: ["E203", "W503"]
       mypy:
-        enabled: false # Enable gradually in Phase 1+
-        strict_mode: false
-    testing:
-      unit_tests: true
-      integration_tests: auto
-      coverage_threshold: 80
-  # Security Tools
+        enabled: false # Start disabled, enable in Phase 1+
+        phase_0_enforce: false # Disabled initially
+        phase_1_enforce: true # New/changed files only
+        phase_2_enforce: true # Repository-wide
+        phase_3_enforce: true # Maximum strictness
+        ignore_missing_imports: true
+  # Security tools
   security:
     enabled: true
-    dependency_scanning: true # npm audit, pip-audit
-    secret_detection: true # detect-secrets
-    vulnerability_scanning: auto # Enable in Phase 2+
-  # Quality Assurance
+    vulnerability_scanning: true
+    secret_detection: true
+    dependency_scanning: true
+  # Quality tooling integration
   quality:
     pre_commit_hooks: true
-    commit_msg_validation: false # Enable for conventional commits
-    performance_budgets: false
-    anti_pattern_detection: false # Enable in Phase 3+
-# Testing Configuration
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# TESTING CONFIGURATION (Phase-dependent requirements)
+# ═══════════════════════════════════════════════════════════════════════════════════════
 testing:
-  # Unit Testing
   unit:
     enabled: true
-    coverage_required: false # Enforce in Phase 2+
-    parallel_execution: true
-  # Integration Testing
+    coverage_required: false # Enable in Phase 2+
+    coverage_threshold: 0.8 # Target coverage for Phase 2+
   integration:
-    enabled: auto # Auto-enable for fullstack projects
-    api_testing: true
-    browser_testing: false
-  # End-to-End Testing
+    enabled: auto # Auto-enable if detected
+    required_for_phase_3: true # Must have integration tests for Phase 3
   e2e:
-    enabled: auto # Auto-enable if frontend detected
-    browsers: ["chromium"] # chromium, firefox, webkit
-    mobile_testing: false
-    accessibility_testing: false
-# Coverage and Metrics
+    enabled: false
+    required_for_phase_3: true # Must have E2E tests for Phase 3
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# METRICS & RATCHETING (Phase 2+ features)
+# ═══════════════════════════════════════════════════════════════════════════════════════
 metrics:
-  # Coverage Tracking
   coverage:
-    enabled: true
-    ratchet_enabled: false # Enable in Phase 2
-    target_improvement: 2 # Percentage increase per sprint
-    minimum_threshold: 70
-  # Quality Metrics
-  quality_score:
-    enabled: false # Enable for tracking progress
-    components:
-      - linting_compliance
-      - type_coverage
-      - test_coverage
-      - security_score
-  # Performance Metrics
-  performance:
-    build_time_budget: 300 # Seconds
-    bundle_size_budget: 1024 # KB (frontend)
-    startup_time_budget: 5 # Seconds (backend)
-# Notification and Reporting
-notifications:
-  # Quality Gate Status
-  status_reporting: false
-  phase_transitions: false
-  regression_alerts: true
-  # Integration Options
-  slack_webhook: "" # Optional Slack integration
-  github_status_checks: true
-# Advanced Features (for specialized projects)
-specialized:
-  # Music/Audio Applications
-  midi_support: false
-  audio_testing: false
-  # Data Science Projects
-  notebook_testing: false
-  data_validation: false
-  # Machine Learning Projects
-  model_testing: false
-  experiment_tracking: false
-# Emergency and Maintenance
-emergency:
-  # Bypass Options (use sparingly)
-  hotfix_bypass_allowed: true # Allow --no-verify in emergencies
-  bypass_requires_justification: true
-  bypass_followup_required: true
-  # Maintenance Windows
-  maintenance_mode: false # Temporarily disable quality gates
-  tool_updates_allowed: true # Allow tool version updates
+    ratchet_enabled: false # Enable in Phase 2+
+    baseline_coverage: 0.0 # Established during baseline
+    improvement_threshold: 0.02 # Must improve by 2% per phase
+  quality_debt:
+    track_typing_coverage: true
+    track_test_coverage: true
+    track_lint_errors: true
+    improvement_tracking: true
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# PHASE REQUIREMENTS (Auto-calculated thresholds for advancement)
+# ═══════════════════════════════════════════════════════════════════════════════════════
+phase_requirements:
+  phase_1:
+    typing_coverage: 0.3 # 30% of files must have type hints
+    test_coverage: 0.6 # 60% test coverage required
+    lint_error_count: 0 # Zero lint errors for changed files
+    security_issues: 0 # Zero security issues
+  phase_2:
+    typing_coverage: 0.7 # 70% of files must have type hints
+    test_coverage: 0.8 # 80% test coverage required
+    lint_error_count: 0 # Zero lint errors repository-wide
+    security_issues: 0 # Zero security issues
+    has_integration_tests: true # Must have integration tests
+  phase_3:
+    typing_coverage: 0.95 # 95% of files must have type hints
+    test_coverage: 0.9 # 90% test coverage required
+    lint_error_count: 0 # Zero lint errors (maximum strictness)
+    security_issues: 0 # Zero security issues
+    has_e2e_tests: true # Must have end-to-end tests
+    all_tools_strict: true # All quality tools in strict mode
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# BASELINE TRACKING (Phase 0 foundation)
+# ═══════════════════════════════════════════════════════════════════════════════════════
+baseline:
+  established_date: "2025-09-29 22:57:20"
+  initial_metrics:
+    total_files: 0
+    typed_files: 0
+    test_coverage: 0.0
+    lint_errors: 0
+    security_issues: 0
+    frontend_errors:
+      eslint: 0
+      typescript: 0
+    backend_errors:
+      flake8: 0
+      black: 0
+      isort: 0
+      mypy: 0
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# ADVANCED FEATURES (Optional enhancements)
+# ═══════════════════════════════════════════════════════════════════════════════════════
+advanced:
+  # Smart phase recommendations
+  phase_analysis:
+    auto_recommend: true # Automatically suggest optimal starting phase
+    consider_team_size: true # Factor in team size for phase recommendations
+    consider_timeline: true # Factor in project timeline
+  # Integration features
+  ide_integration:
+    vscode_settings: true # Generate VS Code settings
+    pre_commit_hooks: true # Generate pre-commit configuration
+    ci_workflows: true # Generate CI/CD workflows
+  # Monitoring and reporting
+  quality_reporting:
+    generate_reports: true # Generate quality reports
+    track_improvements: true # Track quality improvements over time
+    phase_progression_metrics: true # Track phase progression success
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# CUSTOMIZATION (User overrides)
+# ═══════════════════════════════════════════════════════════════════════════════════════
+# Users can override any auto-detected settings here
+# Example:
+# custom:
+#   force_phase: 1              # Force specific phase regardless of analysis
+#   disable_tools: ["mypy"]     # Disable specific tools
+#   custom_thresholds:
+#     coverage: 0.85            # Custom coverage threshold

@@ -10,7 +10,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
 
 from harmonic_analysis.analysis_types import EvidenceType
 from harmonic_analysis.dto import (
@@ -70,7 +70,7 @@ class AnalysisContext:
     sections: List[SectionDTO] = field(default_factory=list)
     """Annotated sections provided by the caller (optional)."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate key-context requirements after initialization."""
         from ..validation_errors import validate_key_for_romans
 
@@ -268,15 +268,19 @@ class PatternEngine:
         Returns:
             True if pattern should be evaluated
         """
-        # Check scope requirements
+        # Check scope requirements - pattern applies if ALL scopes satisfied
         scope = pattern.get("scope", ["harmonic"])
-        if "harmonic" in scope and not context.chords:
-            return False
-        if "melodic" in scope and not context.melody:
-            return False
-        if "scale" in scope and not context.scales:
-            return False
 
+        # Main play: check each required scope
+        for required_scope in scope:
+            if required_scope == "harmonic" and not context.chords:
+                return False
+            elif required_scope == "melodic" and not context.melody:
+                return False
+            elif required_scope == "scale" and not context.scales:
+                return False
+
+        # Victory lap: pattern applies if ALL required scopes are satisfied
         return True
 
     def _find_pattern_matches(
@@ -355,6 +359,15 @@ class PatternEngine:
             scale_degrees = matchers["scale_degrees"]
             window = matchers.get("window", {})
             constraints = matchers.get("constraints", {})
+
+            # Big play: check mode matcher field for scale patterns
+            required_mode = matchers.get("mode")
+            if required_mode and not self._check_mode_constraint(
+                context, required_mode
+            ):
+                # Skip this pattern if mode doesn't match - return empty matches
+                return []
+
             # Extract scale degrees from melody and context
             context_scale_degrees = self._extract_scale_degrees(context)
             matches.extend(
@@ -370,40 +383,57 @@ class PatternEngine:
 
         return matches
 
-    def _extract_melodic_intervals(self, melody: List[str]) -> List[int]:
+    def _extract_melodic_intervals(self, melody: List[Any]) -> List[int]:
         """
         Extract semitone intervals from melody.
 
         Args:
-            melody: List of note names or MIDI numbers
+            melody: List of melody analysis data (normalized format)
 
         Returns:
             List of semitone intervals between consecutive notes
         """
-        if len(melody) < 2:
+        # Opening move: handle new normalized melody format
+        if not melody:
             return []
 
-        intervals = []
-        for i in range(len(melody) - 1):
-            try:
-                # Convert notes to semitone offsets
-                curr_semitone = self._note_to_semitone(melody[i])
-                next_semitone = self._note_to_semitone(melody[i + 1])
+        # Big play: extract intervals from normalized melody data
+        first_melody = melody[0] if isinstance(melody, list) else melody
+        if isinstance(first_melody, dict) and "intervals" in first_melody:
+            # Victory lap: use pre-computed intervals from normalize_melody_input
+            normalized_intervals = first_melody["intervals"]
+            # Ensure we return a proper List[int], not Any
+            if isinstance(normalized_intervals, list) and all(
+                isinstance(x, int) for x in normalized_intervals
+            ):
+                return normalized_intervals
+            else:
+                return []
 
-                # Calculate interval (shortest path on circle of fifths)
-                raw_interval = next_semitone - curr_semitone
-                # Normalize to [-6, +6] range for enharmonic equivalence
-                while raw_interval > 6:
-                    raw_interval -= 12
-                while raw_interval < -6:
-                    raw_interval += 12
+        # Fallback: legacy format handling for backward compatibility
+        if isinstance(melody, list) and len(melody) > 1:
+            legacy_intervals: List[int] = []
+            for i in range(len(melody) - 1):
+                try:
+                    # Convert notes to semitone offsets
+                    curr_semitone = self._note_to_semitone(melody[i])
+                    next_semitone = self._note_to_semitone(melody[i + 1])
 
-                intervals.append(raw_interval)
-            except (ValueError, TypeError):
-                # Skip invalid notes
-                continue
+                    # Calculate interval (shortest path on circle of fifths)
+                    raw_interval = next_semitone - curr_semitone
+                    # Normalize to [-6, +6] range for enharmonic equivalence
+                    while raw_interval > 6:
+                        raw_interval -= 12
+                    while raw_interval < -6:
+                        raw_interval += 12
 
-        return intervals
+                    legacy_intervals.append(raw_interval)
+                except (ValueError, TypeError):
+                    # Skip invalid notes
+                    continue
+            return legacy_intervals
+
+        return []
 
     def _extract_scale_degrees(self, context: AnalysisContext) -> List[int]:
         """
@@ -419,20 +449,37 @@ class PatternEngine:
 
         # Opening move: use explicit scale list if provided (maintain order)
         if context.scales:
-            scale_degrees.extend(list(range(1, len(context.scales) + 1)))
+            for scale_entry in context.scales:
+                if isinstance(scale_entry, dict) and "degrees" in scale_entry:
+                    # Extract actual scale degrees from scale analysis data
+                    scale_degrees.extend(scale_entry["degrees"])
+                else:
+                    # Fallback for simple scale lists (legacy compatibility)
+                    scale_degrees.extend(list(range(1, len(context.scales) + 1)))
 
         # Extract from melody relative to key/mode if available
         if context.melody and context.key:
             try:
-                tonic_semitone = self._key_to_tonic_semitone(context.key)
-                mode = self._extract_mode_from_key(context.key)
-                interval_map = self._mode_interval_map(mode)
-                for note in context.melody:
-                    note_semitone = self._note_to_semitone(note)
-                    diff = (note_semitone - tonic_semitone) % 12
-                    degree = interval_map.get(diff)
-                    if degree:
-                        scale_degrees.append(degree)
+                # Big play: use normalized melody data if available
+                first_melody = (
+                    context.melody[0]
+                    if isinstance(context.melody, list)
+                    else context.melody
+                )
+                if isinstance(first_melody, dict) and "degrees" in first_melody:
+                    # Victory lap: use pre-computed degrees from normalize_melody_input
+                    scale_degrees.extend(first_melody["degrees"])
+                else:
+                    # Fallback: legacy melody degree calculation
+                    tonic_semitone = self._key_to_tonic_semitone(context.key)
+                    mode = self._extract_mode_from_key(context.key)
+                    interval_map = self._mode_interval_map(mode)
+                    for note in context.melody:
+                        note_semitone = self._note_to_semitone(note)
+                        diff = (note_semitone - tonic_semitone) % 12
+                        degree = interval_map.get(diff)
+                        if degree:
+                            scale_degrees.append(degree)
             except (ValueError, TypeError):
                 pass
 
@@ -468,7 +515,7 @@ class PatternEngine:
 
         return base_modes.get(mode, base_modes["major"])
 
-    def _note_to_semitone(self, note: str) -> int:
+    def _note_to_semitone(self, note: Union[str, int, float]) -> int:
         """Convert note name to semitone offset from C."""
         if isinstance(note, (int, float)):
             return int(note) % 12
@@ -604,7 +651,7 @@ class PatternEngine:
         Returns:
             List of (start, end) indices where pattern matches
         """
-        matches = []
+        matches: List[Tuple[int, int]] = []
         pattern_len = len(pattern_seq)
         context_len = len(context_seq)
 
@@ -775,7 +822,7 @@ class PatternEngine:
         patterns = self._patterns.get("patterns", [])
         for pattern in patterns:
             if pattern.get("id") == pattern_id:
-                return pattern
+                return dict(pattern)  # Ensure Dict[str, Any] type
         return None
 
     def _get_pattern_display_name(
@@ -793,7 +840,7 @@ class PatternEngine:
             Display name string
         """
         if pattern_def:
-            full_name = pattern_def.get("name", "")
+            full_name = str(pattern_def.get("name", ""))
             metadata = pattern_def.get("metadata", {})
             aliases = metadata.get("aliases", [])
 
@@ -804,7 +851,7 @@ class PatternEngine:
 
             # Time to tackle the tricky bit: use first alias if available
             if aliases and len(aliases) > 0:
-                return aliases[0]
+                return str(aliases[0])
 
             # Fallback: use the pattern's "name" field if available
             if full_name:
@@ -910,7 +957,9 @@ class PatternEngine:
 
         return None
 
-    def _classify_cadence_role(self, pattern_id: str, tags: Set[str]) -> Optional[str]:
+    def _classify_cadence_role(
+        self, pattern_id: str, tags: Set[str]
+    ) -> Optional[Literal["final", "section-final", "internal"]]:
         """Heuristic classification of cadence role for a detected pattern."""
 
         lower_id = pattern_id.lower()
@@ -936,6 +985,7 @@ class PatternEngine:
             List of chromatic element DTOs
         """
         from collections import defaultdict
+
         from harmonic_analysis.dto import ChromaticElementDTO, ChromaticSummaryDTO
 
         chromatic_elements: List[ChromaticElementDTO] = []
@@ -1153,7 +1203,7 @@ class PatternEngine:
                 terms["analysis_method"]["tooltip"] = method_definition
         if self._glossary:
             # Collect all feature keys from evidences
-            feature_keys = set()
+            feature_keys: set[str] = set()
             for evidence in evidences:
                 feature_keys.update(evidence.features.keys())
 
@@ -1228,6 +1278,9 @@ class PatternEngine:
                 if "mixolydian" in (mode_label or "").lower():
                     reasoning_parts.append("Mixolydian coloration")
 
+        # Enhanced reasoning: add scale and melody narratives when available
+        self._add_scale_melody_reasoning(context, reasoning_parts, evidences)
+
         reasoning_text = (
             "; ".join(reasoning_parts)
             if reasoning_parts
@@ -1239,29 +1292,28 @@ class PatternEngine:
         modal_characteristics = []
 
         for evidence in evidences:
-            pattern_def = evidence.pattern_id
+            pattern_id = evidence.pattern_id
             # Check if evidence contributes to modal analysis track
             has_modal_weight = (
                 "modal" in evidence.track_weights
                 and evidence.track_weights["modal"] > 0.0
             )
-            if has_modal_weight or "modal" in pattern_def.lower():
+            if has_modal_weight or "modal" in pattern_id.lower():
                 # Create modal evidence based on pattern characteristics
                 evidence_type = (
                     EvidenceType.STRUCTURAL
                 )  # Default to structural for modal patterns
                 strength = evidence.raw_score  # Use raw_score instead of confidence
-                description = f"Modal pattern: {pattern_def}"
+                description = f"Modal pattern: {pattern_id}"
 
                 # Enhance evidence type based on pattern characteristics
-                if "cadence" in pattern_def.lower():
+                if "cadence" in pattern_id.lower():
                     evidence_type = EvidenceType.CADENTIAL
                 elif any(
-                    token in pattern_def.lower()
-                    for token in ["bvii", "bii", "bv", "iv"]
+                    token in pattern_id.lower() for token in ["bvii", "bii", "bv", "iv"]
                 ):
                     evidence_type = EvidenceType.INTERVALLIC
-                    description = f"Modal intervallic pattern: {pattern_def}"
+                    description = f"Modal intervallic pattern: {pattern_id}"
 
                 modal_evidence.append(
                     ModalEvidenceRecord(
@@ -1271,17 +1323,17 @@ class PatternEngine:
 
                 # Iteration 9B: Collect modal characteristics regardless of primary type
                 # Extract descriptive characteristic from pattern name/id
-                if "mixolydian" in pattern_def.lower():
+                if "mixolydian" in pattern_id.lower():
                     modal_characteristics.append("Mixolydian ♭VII")
-                elif "dorian" in pattern_def.lower():
+                elif "dorian" in pattern_id.lower():
                     modal_characteristics.append("Dorian natural VI")
-                elif "phrygian" in pattern_def.lower():
+                elif "phrygian" in pattern_id.lower():
                     modal_characteristics.append("Phrygian ♭II")
-                elif "lydian" in pattern_def.lower():
+                elif "lydian" in pattern_id.lower():
                     modal_characteristics.append("Lydian ♯IV")
-                elif "locrian" in pattern_def.lower():
+                elif "locrian" in pattern_id.lower():
                     modal_characteristics.append("Locrian ♭V")
-                elif "aeolian" in pattern_def.lower():
+                elif "aeolian" in pattern_id.lower():
                     modal_characteristics.append("Natural minor v")
 
         # Also add evidence for detected modal signatures in roman numerals
@@ -1439,3 +1491,184 @@ class PatternEngine:
             )
             dtos.append(dto)
         return dtos
+
+    def _check_mode_constraint(
+        self, context: AnalysisContext, required_mode: str
+    ) -> bool:
+        """
+        Check if the analysis context matches the required mode.
+
+        Args:
+            context: Analysis context containing scale and key information
+            required_mode: Expected mode name (e.g., "dorian", "phrygian")
+
+        Returns:
+            True if context matches the required mode
+        """
+        # Opening move: extract mode from scale data if available
+        if context.scales:
+            for scale_entry in context.scales:
+                if isinstance(scale_entry, dict) and "mode" in scale_entry:
+                    mode_value = scale_entry["mode"]
+                    if isinstance(mode_value, str):
+                        detected_mode = mode_value.lower()
+                        # Victory lap: normalize mode names for comparison
+                        return detected_mode == required_mode.lower()
+
+        # Big play: extract mode from key signature
+        if context.key:
+            key_parts = context.key.lower().split()
+            if len(key_parts) >= 2:
+                key_mode = key_parts[1]
+                # Handle standard mode mappings
+                mode_mappings = {
+                    "major": "ionian",
+                    "minor": "aeolian",
+                    "ionian": "ionian",
+                    "dorian": "dorian",
+                    "phrygian": "phrygian",
+                    "lydian": "lydian",
+                    "mixolydian": "mixolydian",
+                    "aeolian": "aeolian",
+                    "locrian": "locrian",
+                }
+                detected_mode = mode_mappings.get(key_mode, key_mode)
+                return detected_mode == required_mode.lower()
+
+        # Fallback: no mode information available
+        return False
+
+    def _add_scale_melody_reasoning(
+        self,
+        context: AnalysisContext,
+        reasoning_parts: List[str],
+        evidences: List[Evidence],
+    ) -> None:
+        """
+        Add scale and melody narratives when evidence is available.
+
+        Args:
+            context: Analysis context containing scale and melody data
+            reasoning_parts: List to append scale/melody reasoning to
+            evidences: Pattern evidences that may contain scale/melody patterns
+        """
+        # Opening move: check for scale evidence and patterns
+        scale_reasoning = self._build_scale_reasoning(context, evidences)
+        if scale_reasoning:
+            reasoning_parts.extend(scale_reasoning)
+
+        # Follow-up play: check for melody evidence and patterns
+        melody_reasoning = self._build_melody_reasoning(context, evidences)
+        if melody_reasoning:
+            reasoning_parts.extend(melody_reasoning)
+
+    def _build_scale_reasoning(
+        self, context: AnalysisContext, evidences: List[Evidence]
+    ) -> List[str]:
+        """Build reasoning text for scale evidence."""
+        scale_parts = []
+
+        # Check for scale data in context
+        if context.scales and len(context.scales) > 0:
+            scale_data = context.scales[0]  # Take first scale for reasoning
+
+            # Main play: handle both processed scale data (dict) and raw note lists
+            if isinstance(scale_data, dict):
+                # Processed scale data from normalize_scale_input
+                detected_mode = scale_data.get("mode")
+                if detected_mode and detected_mode.lower() != "ionian":
+                    # Don't mention Ionian (major) as it's the default
+                    scale_parts.append(f"Detected {detected_mode} scale")
+            elif isinstance(scale_data, list):
+                # Raw note list - basic acknowledgment
+                scale_parts.append(f"Analyzed scale with {len(scale_data)} notes")
+
+        # Check for scale-specific pattern evidence
+        scale_evidence = [e for e in evidences if "scale" in e.pattern_id.lower()]
+        if scale_evidence:
+            # Find highest confidence scale pattern
+            best_scale_evidence = max(scale_evidence, key=lambda e: e.raw_score)
+            if "dorian" in best_scale_evidence.pattern_id.lower():
+                scale_parts.append("characteristic ♭7 scale degree")
+            elif "phrygian" in best_scale_evidence.pattern_id.lower():
+                scale_parts.append("characteristic ♭2 scale degree")
+            elif "mixolydian" in best_scale_evidence.pattern_id.lower():
+                scale_parts.append("characteristic ♭7 scale degree")
+            elif "lydian" in best_scale_evidence.pattern_id.lower():
+                scale_parts.append("characteristic ♯4 scale degree")
+
+        return scale_parts
+
+    def _build_melody_reasoning(
+        self, context: AnalysisContext, evidences: List[Evidence]
+    ) -> List[str]:
+        """Build reasoning text for melody evidence."""
+        melody_parts = []
+
+        # Check for melody data in context
+        if context.melody and len(context.melody) > 0:
+            melody_data = context.melody[0]  # Take first melody for reasoning
+
+            # Main play: handle both processed melody data (dict) and raw note strings
+            if isinstance(melody_data, dict):
+                # Processed melody data from normalize_melody_input
+                contour = melody_data.get("contour", [])
+            elif isinstance(melody_data, str):
+                # Raw melody note string - basic acknowledgment
+                melody_parts.append(f"melodic line with {len(context.melody)} notes")
+                return melody_parts
+            else:
+                # Unknown format
+                return melody_parts
+
+            # Extract contour information
+            if contour:
+                if isinstance(contour, list):
+                    # Determine overall contour from direction list
+                    if len(contour) > 0:
+                        up_count = sum(1 for c in contour if c == "up")
+                        down_count = sum(1 for c in contour if c == "down")
+                        if up_count > down_count * 2:
+                            contour_str = "ascending"
+                        elif down_count > up_count * 2:
+                            contour_str = "descending"
+                        else:
+                            contour_str = "mixed"
+                        melody_parts.append(f"{contour_str} melodic contour")
+                else:
+                    contour_str = str(contour)
+                    if contour_str and contour_str.lower() != "static":
+                        melody_parts.append(f"{contour_str} melodic contour")
+
+            # Extract intervals for specific patterns
+            intervals = melody_data.get("intervals", [])
+            if intervals:
+                # Look for leading tone resolutions (semitone upward)
+                leading_tones = sum(1 for i in intervals if i == 1)
+                if leading_tones >= 2:
+                    melody_parts.append("multiple leading-tone resolutions")
+                elif leading_tones == 1:
+                    melody_parts.append("leading-tone resolution")
+
+                # Look for stepwise motion
+                stepwise_count = sum(1 for i in intervals if abs(i) <= 2)
+                if len(intervals) > 0 and stepwise_count / len(intervals) > 0.7:
+                    melody_parts.append("predominantly stepwise motion")
+
+        # Check for melody-specific pattern evidence
+        melody_evidence = [
+            e
+            for e in evidences
+            if "melodic" in e.pattern_id.lower() or "melody" in e.pattern_id.lower()
+        ]
+        if melody_evidence:
+            # Add specific melodic pattern insights
+            for evidence in melody_evidence[:2]:  # Top 2 melodic patterns
+                if "suspension" in evidence.pattern_id.lower():
+                    melody_parts.append("suspension patterns")
+                elif "sequence" in evidence.pattern_id.lower():
+                    melody_parts.append("melodic sequence")
+                elif "leap" in evidence.pattern_id.lower():
+                    melody_parts.append("melodic leaps")
+
+        return melody_parts

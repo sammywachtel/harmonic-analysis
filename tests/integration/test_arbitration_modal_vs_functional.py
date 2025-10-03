@@ -8,7 +8,6 @@ Tests the new evidence-based modal arbitration logic when feature flag is enable
 import pytest
 
 from harmonic_analysis.services.analysis_arbitration_service import (
-    AnalysisArbitrationService,
     ArbitrationPolicy,
 )
 from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService

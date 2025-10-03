@@ -5,12 +5,9 @@ Tests the core sequence matching logic for roman numerals, chord symbols,
 and melodic intervals with windowing and constraint handling.
 """
 
-import pytest
-from typing import List, Tuple
-
 from harmonic_analysis.core.pattern_engine.pattern_engine import (
-    PatternEngine,
     AnalysisContext,
+    PatternEngine,
 )
 
 

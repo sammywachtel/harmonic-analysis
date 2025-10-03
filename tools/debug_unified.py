@@ -16,9 +16,9 @@ Usage:
     python tools/debug_unified.py --test-failure test_vi_IV_I_V "Am F C G"
 """
 
-import sys
 import argparse
 import asyncio
+import sys
 from pathlib import Path
 from typing import List, Optional
 
@@ -28,16 +28,16 @@ sys.path.insert(0, str(project_root / "src"))
 sys.path.insert(0, str(project_root))  # Add project root for tests.utils imports
 
 from tests.utils import (
-    UnifiedDebugger,
+    COMMON_DEBUG_CASES,
+    DebugCase,
     DebugConfig,
+    PatternDebugger,
+    UnifiedDebugger,
     debug_progression,
     debug_test_failure,
-    DebugCase,
-    PatternDebugger,
-    run_debug_case,
     get_case_by_name,
     list_available_cases,
-    COMMON_DEBUG_CASES,
+    run_debug_case,
 )
 
 

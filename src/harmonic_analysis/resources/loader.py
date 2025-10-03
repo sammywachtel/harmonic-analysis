@@ -15,7 +15,7 @@ try:
     from importlib import resources as resources_module
 except ImportError:
     # Python 3.8 fallback
-    import importlib_resources as resources_module  # type: ignore[no-redef]  # noqa: E501
+    import importlib_resources as resources_module  # type: ignore[import-not-found,no-redef]  # noqa: E501
 
 
 def load_json(name: str) -> Dict[str, Any]:

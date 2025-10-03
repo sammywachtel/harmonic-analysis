@@ -71,9 +71,11 @@ if SRC_ROOT.exists() and str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 try:
-    from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
-    from harmonic_analysis.core.pattern_engine.token_converter import romanize_chord
     from harmonic_analysis.core.pattern_engine.pattern_engine import AnalysisContext
+    from harmonic_analysis.core.pattern_engine.token_converter import romanize_chord
+    from harmonic_analysis.services.pattern_analysis_service import (
+        PatternAnalysisService,
+    )
 except ModuleNotFoundError as exc:  # pragma: no cover - defensive import guard
     missing = exc.name or str(exc)
     hint = OPTIONAL_DEP_HINTS.get(missing)
@@ -84,7 +86,6 @@ except ModuleNotFoundError as exc:  # pragma: no cover - defensive import guard
     raise
 
 from harmonic_analysis.api.analysis import analyze_melody, analyze_scale
-
 
 # ---------------------------------------------------------------------------
 # Validation helpers
@@ -146,8 +147,12 @@ def validate_list(kind: str, items: List[str]) -> List[str]:
     return items
 
 
-def validate_exclusive_input(chords_text: Optional[str], romans_text: Optional[str],
-                           melody_text: Optional[str], scales_input: Optional[str]) -> None:
+def validate_exclusive_input(
+    chords_text: Optional[str],
+    romans_text: Optional[str],
+    melody_text: Optional[str],
+    scales_input: Optional[str],
+) -> None:
     """Ensure only one type of musical input is provided."""
     inputs_provided = [
         ("chords", chords_text and chords_text.strip()),
@@ -159,7 +164,9 @@ def validate_exclusive_input(chords_text: Optional[str], romans_text: Optional[s
     provided_types = [name for name, value in inputs_provided if value]
 
     if len(provided_types) == 0:
-        raise ValueError("Please provide at least one type of musical input (chords, romans, melody, or scales).")
+        raise ValueError(
+            "Please provide at least one type of musical input (chords, romans, melody, or scales)."
+        )
 
     if len(provided_types) > 1:
         raise ValueError(
@@ -235,7 +242,9 @@ def format_confidence_badge(confidence: float) -> str:
     return f'<span style="background-color: {color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">{label} ({confidence:.3f})</span>'
 
 
-def generate_code_snippet(chord_symbols: List[str], profile: str, key_hint: Optional[str], envelope) -> str:
+def generate_code_snippet(
+    chord_symbols: List[str], profile: str, key_hint: Optional[str], envelope
+) -> str:
     """Generate Python code snippet to reproduce the analysis."""
 
     # Escape single quotes in inputs for code generation
@@ -245,7 +254,7 @@ def generate_code_snippet(chord_symbols: List[str], profile: str, key_hint: Opti
     key_str = f"'{key_escaped}'" if key_hint else "None"
 
     # Basic async example
-    async_code = f'''from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+    async_code = f"""from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 # Initialize the analysis service
 service = PatternAnalysisService()
@@ -266,10 +275,10 @@ print(f"Mode: {{result.primary.mode}}")
 
 # Access evidence patterns
 for evidence in result.evidence:
-    print(f"Pattern: {{evidence.reason}} (Score: {{evidence.details.raw_score}})")'''
+    print(f"Pattern: {{evidence.reason}} (Score: {{evidence.details.raw_score}})")"""
 
     # Sync wrapper example
-    sync_code = f'''from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+    sync_code = f"""from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 import asyncio
 
 # Initialize the analysis service
@@ -287,10 +296,10 @@ def analyze_progression():
 
 # Run the analysis
 result = analyze_progression()
-print(f"{{result.primary.type.value}} analysis with {{result.primary.confidence:.3f}} confidence")'''
+print(f"{{result.primary.type.value}} analysis with {{result.primary.confidence:.3f}} confidence")"""
 
     # API usage example
-    api_code = f'''import requests
+    api_code = f"""import requests
 import json
 
 # API endpoint
@@ -310,7 +319,7 @@ result = response.json()
 # Display results
 primary = result["primary"]
 print(f"Analysis: {{primary['type']}} ({{primary['confidence']:.3f}})")
-print(f"Roman Numerals: {{' - '.join(primary['roman_numerals'])}}")'''
+print(f"Roman Numerals: {{' - '.join(primary['roman_numerals'])}}")"""
 
     return async_code, sync_code, api_code
 
@@ -329,26 +338,28 @@ def generate_enhanced_evidence_cards(envelope) -> str:
     """
 
     for evidence in envelope.evidence:
-        pattern_family = evidence.reason.split('.')[0] if '.' in evidence.reason else 'general'
+        pattern_family = (
+            evidence.reason.split(".")[0] if "." in evidence.reason else "general"
+        )
 
         # Color coding by pattern family
         family_colors = {
-            'cadence': '#8b5cf6',      # Purple
-            'modal': '#06b6d4',        # Cyan
-            'functional': '#22c55e',   # Green
-            'chromatic': '#f59e0b',    # Amber
-            'general': '#6b7280'       # Gray
+            "cadence": "#8b5cf6",  # Purple
+            "modal": "#06b6d4",  # Cyan
+            "functional": "#22c55e",  # Green
+            "chromatic": "#f59e0b",  # Amber
+            "general": "#6b7280",  # Gray
         }
 
-        color = family_colors.get(pattern_family, family_colors['general'])
-        score = evidence.details.get('raw_score', 0)
-        span = evidence.details.get('span', [])
+        color = family_colors.get(pattern_family, family_colors["general"])
+        score = evidence.details.get("raw_score", 0)
+        span = evidence.details.get("span", [])
 
         # Create chord span display
         chord_span_text = ""
         if span and len(span) >= 2:
             start_idx, end_idx = span[0], span[1]
-            if hasattr(envelope, 'chord_symbols') and envelope.chord_symbols:
+            if hasattr(envelope, "chord_symbols") and envelope.chord_symbols:
                 chords_in_span = envelope.chord_symbols[start_idx:end_idx]
                 chord_span_text = f"Chords {start_idx+1}-{end_idx}: <strong>{' → '.join(chords_in_span)}</strong>"
 
@@ -392,7 +403,7 @@ def generate_enhanced_evidence_cards(envelope) -> str:
 
 def generate_chord_progression_display(envelope) -> str:
     """Generate enhanced chord progression display with music notation styling."""
-    if not hasattr(envelope, 'chord_symbols') or not envelope.chord_symbols:
+    if not hasattr(envelope, "chord_symbols") or not envelope.chord_symbols:
         return ""
 
     primary = envelope.primary
@@ -401,8 +412,8 @@ def generate_chord_progression_display(envelope) -> str:
 
     # Ensure we have matching arrays
     max_length = max(len(chord_symbols), len(romans))
-    chord_symbols_padded = chord_symbols + [''] * (max_length - len(chord_symbols))
-    romans_padded = romans + [''] * (max_length - len(romans))
+    chord_symbols_padded = chord_symbols + [""] * (max_length - len(chord_symbols))
+    romans_padded = romans + [""] * (max_length - len(romans))
 
     html = """
     <div style='margin-top: 1.5rem;'>
@@ -419,26 +430,29 @@ def generate_chord_progression_display(envelope) -> str:
 
         # Determine chord quality color
         chord_colors = {
-            'major': '#22c55e',     # Green for major
-            'minor': '#3b82f6',     # Blue for minor
-            'diminished': '#ef4444', # Red for diminished
-            'augmented': '#f59e0b',  # Amber for augmented
-            'dominant': '#8b5cf6',   # Purple for dominant
-            'default': '#6b7280'     # Gray default
+            "major": "#22c55e",  # Green for major
+            "minor": "#3b82f6",  # Blue for minor
+            "diminished": "#ef4444",  # Red for diminished
+            "augmented": "#f59e0b",  # Amber for augmented
+            "dominant": "#8b5cf6",  # Purple for dominant
+            "default": "#6b7280",  # Gray default
         }
 
         # Simple chord quality detection
-        color = chord_colors['default']
-        if 'm' in chord.lower() and 'maj' not in chord.lower():
-            color = chord_colors['minor']
-        elif any(x in chord for x in ['dim', '°']):
-            color = chord_colors['diminished']
-        elif any(x in chord for x in ['aug', '+']):
-            color = chord_colors['augmented']
-        elif any(x in chord for x in ['7', '9', '11', '13']) and 'maj' not in chord.lower():
-            color = chord_colors['dominant']
+        color = chord_colors["default"]
+        if "m" in chord.lower() and "maj" not in chord.lower():
+            color = chord_colors["minor"]
+        elif any(x in chord for x in ["dim", "°"]):
+            color = chord_colors["diminished"]
+        elif any(x in chord for x in ["aug", "+"]):
+            color = chord_colors["augmented"]
+        elif (
+            any(x in chord for x in ["7", "9", "11", "13"])
+            and "maj" not in chord.lower()
+        ):
+            color = chord_colors["dominant"]
         else:
-            color = chord_colors['major']
+            color = chord_colors["major"]
 
         # Add progression arrow if not first chord
         if i > 0:
@@ -604,9 +618,12 @@ def format_analysis_html(envelope) -> str:
     """
 
     # Main container with modern styling
-    html = modal_js + """
+    html = (
+        modal_js
+        + """
     <div style='font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #334155;'>
     """
+    )
 
     # Primary interpretation section
     html += """
@@ -663,6 +680,46 @@ def format_analysis_html(envelope) -> str:
             </div>
             """
 
+        # Scale Summary (NEW in iteration 14-a)
+        if hasattr(primary, "scale_summary") and primary.scale_summary:
+            scale_summary = primary.scale_summary
+            html += f"""
+            <div style='margin-bottom: 1rem;'>
+                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;'>🎼 Scale Analysis</div>
+                <div style='background: rgba(255,255,255,0.15); padding: 0.75rem; border-radius: 8px;'>
+            """
+            if scale_summary.detected_mode:
+                html += (
+                    f"<div><strong>Mode:</strong> {scale_summary.detected_mode}</div>"
+                )
+            if scale_summary.parent_key:
+                html += f"<div><strong>Parent Key:</strong> {scale_summary.parent_key}</div>"
+            if scale_summary.characteristic_notes:
+                html += f"<div><strong>Characteristics:</strong> {', '.join(scale_summary.characteristic_notes)}</div>"
+            if scale_summary.notes:
+                html += f"<div><strong>Scale Notes:</strong> {' - '.join(scale_summary.notes)}</div>"
+            html += "</div></div>"
+
+        # Melody Summary (NEW in iteration 14-a)
+        if hasattr(primary, "melody_summary") and primary.melody_summary:
+            melody_summary = primary.melody_summary
+            html += f"""
+            <div style='margin-bottom: 1rem;'>
+                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;'>🎵 Melody Analysis</div>
+                <div style='background: rgba(255,255,255,0.15); padding: 0.75rem; border-radius: 8px;'>
+            """
+            if melody_summary.contour:
+                html += f"<div><strong>Contour:</strong> {melody_summary.contour.title()}</div>"
+            if melody_summary.range_semitones is not None:
+                html += f"<div><strong>Range:</strong> {melody_summary.range_semitones} semitones</div>"
+            if melody_summary.leading_tone_resolutions > 0:
+                html += f"<div><strong>Leading Tone Resolutions:</strong> {melody_summary.leading_tone_resolutions}</div>"
+            if melody_summary.melodic_characteristics:
+                html += f"<div><strong>Characteristics:</strong> {', '.join(melody_summary.melodic_characteristics)}</div>"
+            if melody_summary.chromatic_notes:
+                html += f"<div><strong>Chromatic Notes:</strong> {', '.join(melody_summary.chromatic_notes)}</div>"
+            html += "</div></div>"
+
     # Interactive Chord Progression Display (moved outside the primary section to be full-width)
     html += generate_chord_progression_display(envelope)
 
@@ -700,8 +757,12 @@ def format_analysis_html(envelope) -> str:
                     tooltip = ""
 
                 # Create clickable glossary chip with modal trigger
-                escaped_key = key.replace("'", "&#39;").replace('"', '&quot;')
-                escaped_tooltip = tooltip.replace("'", "&#39;").replace('"', '&quot;') if tooltip else ""
+                escaped_key = key.replace("'", "&#39;").replace('"', "&quot;")
+                escaped_tooltip = (
+                    tooltip.replace("'", "&#39;").replace('"', "&quot;")
+                    if tooltip
+                    else ""
+                )
 
                 html += f"""
                 <span class='glossary-chip'
@@ -729,10 +790,14 @@ def format_analysis_html(envelope) -> str:
 
         for idx, alt in enumerate(envelope.alternatives, 1):
             # Create expandable alternative card with details
-            alt_romans = ' - '.join(getattr(alt, 'roman_numerals', [])) if hasattr(alt, 'roman_numerals') and alt.roman_numerals else 'N/A'
-            alt_mode = getattr(alt, 'mode', 'N/A') or 'N/A'
-            alt_key = getattr(alt, 'key_signature', 'N/A') or 'N/A'
-            alt_reasoning = getattr(alt, 'reasoning', '') or ''
+            alt_romans = (
+                " - ".join(getattr(alt, "roman_numerals", []))
+                if hasattr(alt, "roman_numerals") and alt.roman_numerals
+                else "N/A"
+            )
+            alt_mode = getattr(alt, "mode", "N/A") or "N/A"
+            alt_key = getattr(alt, "key_signature", "N/A") or "N/A"
+            alt_reasoning = getattr(alt, "reasoning", "") or ""
 
             html += f"""
             <details style='background: white; border-radius: 8px; border-left: 3px solid #6366f1; overflow: hidden;'>
@@ -759,13 +824,15 @@ def format_analysis_html(envelope) -> str:
     html += generate_enhanced_evidence_cards(envelope)
 
     # Code snippet section
-    if hasattr(envelope, 'chord_symbols') and envelope.chord_symbols:
+    if hasattr(envelope, "chord_symbols") and envelope.chord_symbols:
         # Extract analysis parameters for code generation
         chord_symbols = envelope.chord_symbols
         profile = "classical"  # Default, could be enhanced to detect from analysis
         key_hint = primary.key_signature if primary.key_signature else None
 
-        async_code, sync_code, api_code = generate_code_snippet(chord_symbols, profile, key_hint, envelope)
+        async_code, sync_code, api_code = generate_code_snippet(
+            chord_symbols, profile, key_hint, envelope
+        )
 
         html += f"""
         <div style='margin-top: 1.5rem;'>
@@ -915,6 +982,56 @@ def summarize_envelope(envelope, include_raw: bool = True) -> str:
             lines.append(f"Reasoning      : {primary.reasoning}")
         if primary.roman_numerals:
             lines.append(f"Roman Numerals : {', '.join(primary.roman_numerals)}")
+
+        # Scale Summary (NEW in iteration 14-a)
+        if hasattr(primary, "scale_summary") and primary.scale_summary:
+            scale_summary = primary.scale_summary
+            lines.append("")
+            lines.append("=== Scale Analysis ===")
+            if scale_summary.detected_mode:
+                lines.append(f"Mode           : {scale_summary.detected_mode}")
+            if scale_summary.parent_key:
+                lines.append(f"Parent Key     : {scale_summary.parent_key}")
+            if scale_summary.characteristic_notes:
+                lines.append(
+                    f"Characteristics: {', '.join(scale_summary.characteristic_notes)}"
+                )
+            if scale_summary.notes:
+                lines.append(f"Scale Notes    : {' - '.join(scale_summary.notes)}")
+            if scale_summary.degrees:
+                lines.append(
+                    f"Degrees        : {', '.join(map(str, scale_summary.degrees))}"
+                )
+
+        # Melody Summary (NEW in iteration 14-a)
+        if hasattr(primary, "melody_summary") and primary.melody_summary:
+            melody_summary = primary.melody_summary
+            lines.append("")
+            lines.append("=== Melody Analysis ===")
+            if melody_summary.contour:
+                lines.append(f"Contour        : {melody_summary.contour.title()}")
+            if melody_summary.range_semitones is not None:
+                lines.append(
+                    f"Range          : {melody_summary.range_semitones} semitones"
+                )
+            if melody_summary.intervals:
+                intervals_str = ", ".join(
+                    [f"{'+' if i > 0 else ''}{i}" for i in melody_summary.intervals]
+                )
+                lines.append(f"Intervals      : {intervals_str}")
+            if melody_summary.leading_tone_resolutions > 0:
+                lines.append(
+                    f"Leading Tones  : {melody_summary.leading_tone_resolutions} resolutions"
+                )
+            if melody_summary.melodic_characteristics:
+                lines.append(
+                    f"Characteristics: {', '.join(melody_summary.melodic_characteristics)}"
+                )
+            if melody_summary.chromatic_notes:
+                lines.append(
+                    f"Chromatic Notes: {', '.join(melody_summary.chromatic_notes)}"
+                )
+
         if primary.terms:
             lines.append("")
             lines.append("Glossary Terms:")
@@ -974,7 +1091,7 @@ def summarize_envelope(envelope, include_raw: bool = True) -> str:
             lines.append(f"Envelope type: {type(envelope)}")
             lines.append("Available envelope attributes:")
             for attr in dir(envelope):
-                if not attr.startswith('_'):
+                if not attr.startswith("_"):
                     lines.append(f"  - {attr}: {type(getattr(envelope, attr, None))}")
 
     return "\n".join(lines)
@@ -1050,12 +1167,12 @@ def analyze_progression(
     )
 
 
-async def run_analysis_async(chord_symbols: List[str], profile: str, key_hint: Optional[str]):
+async def run_analysis_async(
+    chord_symbols: List[str], profile: str, key_hint: Optional[str]
+):
     service = get_service()
     return await service.analyze_with_patterns_async(
-        chord_symbols=chord_symbols,
-        profile=profile,
-        key_hint=key_hint
+        chord_symbols=chord_symbols, profile=profile, key_hint=key_hint
     )
 
 
@@ -1140,14 +1257,40 @@ def create_api_app() -> "FastAPI":
         }
 
     def _serialize_envelope(envelope):
+        # Main play: serialize envelope with enhanced scale/melody summary extraction
         try:
             analysis_dict = envelope.to_dict()
         except Exception as e:
             analysis_dict = {"error": f"Serialization failed: {e}"}
 
+        # Victory lap: add convenient summary fields for scale/melody
+        summary_fields = {}
+        if envelope.primary:
+            if (
+                hasattr(envelope.primary, "scale_summary")
+                and envelope.primary.scale_summary
+            ):
+                summary_fields["scale_analysis"] = {
+                    "mode": envelope.primary.scale_summary.detected_mode,
+                    "parent_key": envelope.primary.scale_summary.parent_key,
+                    "characteristics": envelope.primary.scale_summary.characteristic_notes,
+                    "notes": envelope.primary.scale_summary.notes,
+                }
+            if (
+                hasattr(envelope.primary, "melody_summary")
+                and envelope.primary.melody_summary
+            ):
+                summary_fields["melody_analysis"] = {
+                    "contour": envelope.primary.melody_summary.contour,
+                    "range_semitones": envelope.primary.melody_summary.range_semitones,
+                    "characteristics": envelope.primary.melody_summary.melodic_characteristics,
+                    "leading_tone_resolutions": envelope.primary.melody_summary.leading_tone_resolutions,
+                }
+
         return {
             "summary": summarize_envelope(envelope, include_raw=False),
             "analysis": analysis_dict,
+            "enhanced_summaries": summary_fields,  # NEW: convenient access to scale/melody data
         }
 
     def _lookup_glossary(term: str) -> Optional[Dict[str, Any]]:
@@ -1187,15 +1330,19 @@ def create_api_app() -> "FastAPI":
             )
 
             # Validate exclusive input for API
-            validate_exclusive_input(chords_text, romans_text, melody_text,
-                                   scales_input[0] if scales_input else None)
+            validate_exclusive_input(
+                chords_text,
+                romans_text,
+                melody_text,
+                scales_input[0] if scales_input else None,
+            )
 
             # Prioritize chord analysis with new service
             if request.chords:
                 envelope = await service.analyze_with_patterns_async(
                     chord_symbols=request.chords,
                     profile=request.profile or "classical",
-                    key_hint=resolve_key_input(request.key)
+                    key_hint=resolve_key_input(request.key),
                 )
             else:
                 # For non-chord analysis, use legacy pattern temporarily
@@ -1208,7 +1355,9 @@ def create_api_app() -> "FastAPI":
                     scales_input=scales_input,
                 )
                 # TODO: Implement legacy pattern conversion
-                raise HTTPException(status_code=501, detail="Non-chord analysis not yet migrated")
+                raise HTTPException(
+                    status_code=501, detail="Non-chord analysis not yet migrated"
+                )
             return _serialize_envelope(envelope)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
@@ -1568,7 +1717,7 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
                     glossary_search = gr.Textbox(
                         label="Search Glossary Terms",
                         placeholder="Enter a term (e.g., half_cadence, plagal_cadence)",
-                        scale=3
+                        scale=3,
                     )
                     search_btn = gr.Button("Search", variant="secondary", scale=1)
 
@@ -1642,10 +1791,16 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
                 # First try cadence explanation
                 cadence_info = glossary_service.get_cadence_explanation(term)
                 if cadence_info:
-                    definition = cadence_info.get('definition', 'No definition available')
-                    example = cadence_info.get('example_in_C_major', '')
+                    definition = cadence_info.get(
+                        "definition", "No definition available"
+                    )
+                    example = cadence_info.get("example_in_C_major", "")
 
-                    example_html = f"<div style='margin-top: 0.75rem; padding: 0.75rem; background: rgba(79, 70, 229, 0.1); border-radius: 8px;'><strong>Example in C major:</strong> {example}</div>" if example else ""
+                    example_html = (
+                        f"<div style='margin-top: 0.75rem; padding: 0.75rem; background: rgba(79, 70, 229, 0.1); border-radius: 8px;'><strong>Example in C major:</strong> {example}</div>"
+                        if example
+                        else ""
+                    )
 
                     return f"""
                     <div style='background: rgba(255, 255, 255, 0.9); border-radius: 12px; padding: 1.5rem; color: #374151;'>
@@ -1692,9 +1847,7 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
                 """
 
         search_btn.click(
-            search_glossary_term,
-            inputs=[glossary_search],
-            outputs=[glossary_output]
+            search_glossary_term, inputs=[glossary_search], outputs=[glossary_output]
         )
 
         analyze_btn.click(
@@ -1804,7 +1957,9 @@ def main() -> None:
 
         # Validate exclusive input rule
         scales_input_text = args.scale[0] if args.scale else None
-        validate_exclusive_input(args.chords, args.romans, args.melody, scales_input_text)
+        validate_exclusive_input(
+            args.chords, args.romans, args.melody, scales_input_text
+        )
 
         # For now, focus on chord progression analysis with the new service
         if args.chords:
@@ -1828,7 +1983,7 @@ def main() -> None:
     except ValueError as exc:
         parser.error(str(exc))
 
-    print(summarize_envelope(envelope))
+    print(summarize_envelope(envelope, include_raw=False))
 
 
 if __name__ == "__main__":

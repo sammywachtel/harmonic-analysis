@@ -7,17 +7,17 @@ adjudication heuristics, and unified target construction for calibration.
 
 from .corpus_extractor import CorpusExtractor, ExtractionConfig, MusicalContext
 from .pattern_labeler import (
-    PatternLabeler,
     AdjudicationRules,
-    LabeledSample,
-    PatternMatch,
-    LabelSource,
     DifficultyStratum,
+    LabeledSample,
+    LabelSource,
+    PatternLabeler,
+    PatternMatch,
 )
 from .target_builder import (
-    UnifiedTargetBuilder,
     CalibrationBucket,
     TargetStatistics,
+    UnifiedTargetBuilder,
 )
 
 __all__ = [

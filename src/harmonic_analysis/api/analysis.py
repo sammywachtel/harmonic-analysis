@@ -26,7 +26,8 @@ async def analyze_scale(
         Scale analysis result with modal labels and contextual classification
 
     Example:
-        >>> result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'], key='C major')
+        >>> result = await analyze_scale(['D', 'E', 'F', 'G', 'A', 'B', 'C'],
+        ...                               key='C major')
         >>> print(result.modal_labels['D'])
         'D Dorian'
     """

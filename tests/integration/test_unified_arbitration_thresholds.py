@@ -6,10 +6,9 @@ for functional vs modal analysis with the new pattern-based system.
 """
 
 import pytest
-from typing import Dict, Any
 
+from harmonic_analysis.dto import AnalysisType
 from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
-from harmonic_analysis.dto import AnalysisType, AnalysisEnvelope
 
 
 class TestUnifiedArbitrationThresholds:

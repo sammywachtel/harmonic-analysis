@@ -24,7 +24,6 @@ from harmonic_analysis.core.pattern_engine import (
 )
 from harmonic_analysis.dto import AnalysisEnvelope, AnalysisType
 
-
 # --------------- Evidence Tests ---------------
 
 

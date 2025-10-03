@@ -5,19 +5,20 @@ These tests ensure that the library enforces key context requirements for
 roman numerals, scales, and melodies as specified in Iteration 7.
 """
 
-import pytest
 from unittest.mock import patch
 
+import pytest
+
+from harmonic_analysis.api.analysis import analyze_melody, analyze_scale
+from harmonic_analysis.core.pattern_engine.pattern_engine import AnalysisContext
 from harmonic_analysis.core.validation_errors import (
-    MissingKeyError,
-    validate_key_for_romans,
-    validate_key_for_analysis,
+    MISSING_KEY_FOR_MELODY_MSG,
     MISSING_KEY_FOR_ROMANS_MSG,
     MISSING_KEY_FOR_SCALE_MSG,
-    MISSING_KEY_FOR_MELODY_MSG,
+    MissingKeyError,
+    validate_key_for_analysis,
+    validate_key_for_romans,
 )
-from harmonic_analysis.core.pattern_engine.pattern_engine import AnalysisContext
-from harmonic_analysis.api.analysis import analyze_scale, analyze_melody
 
 
 class TestKeyContextValidation:
@@ -56,7 +57,7 @@ class TestKeyContextValidation:
     def test_analysis_context_key_validation(self):
         """Test AnalysisContext validates key requirements for roman numerals."""
         # Valid: empty romans without key
-        ctx = AnalysisContext(
+        AnalysisContext(
             key=None,
             chords=["C", "F", "G"],
             roman_numerals=[],
@@ -66,7 +67,7 @@ class TestKeyContextValidation:
         )
 
         # Valid: romans with key
-        ctx = AnalysisContext(
+        AnalysisContext(
             key="C major",
             chords=["C", "F", "G"],
             roman_numerals=["I", "IV", "V"],
@@ -77,7 +78,7 @@ class TestKeyContextValidation:
 
         # Invalid: romans without key should raise error
         with pytest.raises(MissingKeyError):
-            ctx = AnalysisContext(
+            AnalysisContext(
                 key=None,
                 chords=["C", "F", "G"],
                 roman_numerals=["I", "IV", "V"],

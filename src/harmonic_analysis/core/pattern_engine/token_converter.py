@@ -554,3 +554,778 @@ def romanize_chord(
     romans = tc._generate_roman_numerals([chord_symbol], key_center)
     romans = tc._normalize_minor_subtonic([chord_symbol], romans, key_center)
     return romans[0] if romans else ""
+
+
+def roman_to_chord(roman_numeral: str, key_center: str) -> str:
+    """Convert a Roman numeral to a chord symbol in the given key.
+
+    Args:
+        roman_numeral: Roman numeral (e.g., "vi", "V7", "bVII", "V/V")
+        key_center: Key context (e.g., "C major", "A minor")
+
+    Returns:
+        Chord symbol (e.g., "Am", "G7", "Bb", "D7")
+
+    Examples:
+        >>> roman_to_chord("vi", "C major")
+        "Am"
+        >>> roman_to_chord("V7", "C major")
+        "G7"
+        >>> roman_to_chord("bVII", "C major")
+        "Bb"
+        >>> roman_to_chord("V/V", "C major")
+        "D7"
+    """
+    # Main play: parse the key context to get tonic and mode
+    key_parts = key_center.split()
+    key_root = key_parts[0] if key_parts else "C"
+    is_minor = len(key_parts) > 1 and "minor" in key_parts[1].lower()
+
+    # Get tonic pitch class
+    from ..utils.scales import NOTE_TO_PITCH_CLASS
+
+    key_pc = NOTE_TO_PITCH_CLASS.get(key_root, 0)
+
+    # Handle secondary dominants first (V/V, vii°/V, etc.)
+    if "/" in roman_numeral:
+        return _handle_secondary_roman(roman_numeral, key_center, key_pc, is_minor)
+
+    # Parse the roman numeral components
+    roman_info = _parse_roman_components(roman_numeral)
+
+    # Calculate the chord root pitch class and spelling
+    chord_pc, use_flat = _calculate_chord_pitch_class(roman_info, key_pc, is_minor)
+
+    # Big play: also check key context for better enharmonic spelling
+    key_context_flat = _should_use_flat_in_key_context(chord_pc, key_center)
+    final_use_flat = use_flat or key_context_flat
+
+    chord_root = _get_note_name(chord_pc, final_use_flat)
+
+    # Build the chord symbol
+    chord_symbol = _build_chord_symbol(chord_root, roman_info, is_minor)
+
+    return chord_symbol
+
+
+def _handle_secondary_roman(
+    roman_numeral: str, key_center: str, key_pc: int, is_minor: bool
+) -> str:
+    """Handle secondary dominants and applied chords (V/V, vii°/ii, etc.)."""
+    parts = roman_numeral.split("/")
+    if len(parts) != 2:
+        # Fallback: treat as regular roman if parsing fails
+        return roman_to_chord(parts[0], key_center)
+
+    function_part, target_part = parts
+
+    # Big play: calculate the target chord's root first
+    target_info = _parse_roman_components(target_part)
+    target_pc, _ = _calculate_chord_pitch_class(target_info, key_pc, is_minor)
+
+    # Then calculate the secondary function relative to that target
+    function_info = _parse_roman_components(function_part)
+
+    # Special case: V/x becomes dominant 7th of target
+    if function_info["base_numeral"].upper() == "V":
+        # V/V in C major: target is V (G), so we want the dominant of G (D7)
+        secondary_pc = (target_pc + 7) % 12  # Perfect fifth above target
+        chord_root = _get_note_name(
+            secondary_pc, False
+        )  # Default to sharp for dominants
+        return chord_root + "7"  # Secondary dominants are typically 7th chords
+
+    # For other secondary functions, calculate relative to target
+    # This is a simplified implementation - could be expanded
+    secondary_pc, use_flat = _calculate_chord_pitch_class(
+        function_info, target_pc, False
+    )  # Treat target as major context
+    chord_root = _get_note_name(secondary_pc, use_flat)
+
+    return _build_chord_symbol(chord_root, function_info, False)
+
+
+def _parse_roman_components(roman: str) -> dict:
+    """Parse roman numeral into components for conversion."""
+    # Victory lap: extract all the pieces we need for chord building
+
+    # Handle accidentals (b, #, ♭, ♯)
+    accidental_match = re.match(r"^([b♭#♯]*)", roman)
+    accidentals = accidental_match.group(1) if accidental_match else ""
+
+    # Clean accidentals and extract the core roman
+    clean_roman = re.sub(r"^[b♭#♯]*", "", roman)
+
+    # Extract base roman numeral (I, ii, V, etc.)
+    base_match = re.search(r"([ivxIVX]+)", clean_roman)
+    base_numeral = base_match.group(1) if base_match else "I"
+
+    # Determine if it's major or minor based on case
+    is_major_quality = base_numeral.isupper()
+
+    # Extract figured bass and extensions (6, 7, maj7, etc.)
+    extensions = re.sub(r"[ivxIVX]+", "", clean_roman)
+
+    # Check for diminished/half-diminished
+    is_diminished = "°" in extensions
+    is_half_diminished = "ø" in extensions
+
+    # Check for seventh chords
+    has_seventh = "7" in extensions
+    is_major_seventh = (
+        "maj7" in extensions.lower() or "∆" in extensions or "M7" in extensions
+    )
+
+    # Check for inversions
+    inversion = None
+    if "64" in extensions:
+        inversion = "64"
+    elif "6" in extensions and "64" not in extensions:
+        inversion = "6"
+    elif "43" in extensions:
+        inversion = "43"
+    elif "42" in extensions:
+        inversion = "42"
+    elif "65" in extensions:
+        inversion = "65"
+
+    return {
+        "accidentals": accidentals,
+        "base_numeral": base_numeral,
+        "is_major_quality": is_major_quality,
+        "extensions": extensions,
+        "is_diminished": is_diminished,
+        "is_half_diminished": is_half_diminished,
+        "has_seventh": has_seventh,
+        "is_major_seventh": is_major_seventh,
+        "inversion": inversion,
+    }
+
+
+def _calculate_chord_pitch_class(
+    roman_info: dict, key_pc: int, is_minor_key: bool
+) -> tuple:
+    """Calculate the pitch class and enharmonic spelling of the chord root."""
+    # Time to tackle the tricky bit: roman numerals to scale degrees
+
+    base_numeral = roman_info["base_numeral"].upper()
+
+    # Map roman numerals to scale degrees (0-based semitones from tonic)
+    scale_degrees = {
+        "I": 0,  # Tonic
+        "II": 2,  # Supertonic
+        "III": 4,  # Mediant
+        "IV": 5,  # Subdominant
+        "V": 7,  # Dominant
+        "VI": 9,  # Submediant
+        "VII": 11,  # Leading tone
+    }
+
+    # Get base interval
+    base_interval = scale_degrees.get(base_numeral, 0)
+
+    # Apply accidentals
+    accidentals = roman_info["accidentals"]
+    accidental_offset = 0
+    for acc in accidentals:
+        if acc in ["b", "♭"]:
+            accidental_offset -= 1
+        elif acc in ["#", "♯"]:
+            accidental_offset += 1
+
+    # Special minor key adjustments
+    if is_minor_key:
+        # In minor, naturally flatten III, VI, VII relative to parallel major
+        if base_numeral == "III":
+            base_interval = 3  # ♭III in minor
+        elif base_numeral == "VI":
+            base_interval = 8  # ♭VI in minor
+        elif base_numeral == "VII":
+            base_interval = 10  # ♭VII in minor (natural VII)
+
+    # Calculate final pitch class
+    final_pc = (key_pc + base_interval + accidental_offset) % 12
+
+    # Determine preferred enharmonic spelling
+    use_flat = _should_use_flat_spelling(base_numeral, accidentals, is_minor_key)
+
+    return final_pc, use_flat
+
+
+def _should_use_flat_spelling(
+    base_numeral: str, accidentals: str, is_minor_key: bool
+) -> bool:
+    """Determine if we should use flat spelling instead of sharp."""
+    # Opening move: check if we have a flat accidental in the roman
+    if "b" in accidentals or "♭" in accidentals:
+        return True
+
+    # For certain scale degrees, prefer flat spelling contextually
+    # bVII is almost always Bb in C major, not A#
+    if base_numeral == "VII" and accidentals:
+        return True
+
+    # bII, bIII, bVI are typically flats
+    if base_numeral in ["II", "III", "VI"] and accidentals:
+        return True
+
+    return False
+
+
+def _should_use_flat_in_key_context(pitch_class: int, key_center: str) -> bool:
+    """Determine if a note should use flat spelling based on key context."""
+    # Victory lap: use key signature to determine if flats are more natural
+    from ..utils.scales import KEY_SIGNATURES
+
+    # Get the key signature accidentals
+    key_sig = KEY_SIGNATURES.get(key_center, [])
+
+    # Map pitch classes to potential flat/sharp names
+    flat_names = {1: "Db", 3: "Eb", 6: "Gb", 8: "Ab", 10: "Bb"}
+    sharp_names = {1: "C#", 3: "D#", 6: "F#", 8: "G#", 10: "A#"}
+
+    if pitch_class not in flat_names:
+        return False  # Natural note, no choice needed
+
+    flat_name = flat_names[pitch_class]
+    sharp_name = sharp_names[pitch_class]
+
+    # Check if the flat version appears in the key signature
+    if flat_name in key_sig:
+        return True
+
+    # Check if the sharp version appears in the key signature
+    if sharp_name in key_sig:
+        return False
+
+    # Default preference based on key: flat keys prefer flats, sharp keys prefer sharps
+    flat_keys = [
+        "F major",
+        "Bb major",
+        "Eb major",
+        "Ab major",
+        "Db major",
+        "Gb major",
+        "Cb major",
+        "D minor",
+        "G minor",
+        "C minor",
+        "F minor",
+        "Bb minor",
+        "Eb minor",
+        "Ab minor",
+    ]
+
+    return key_center in flat_keys
+
+
+def _get_note_name(pitch_class: int, use_flat: bool) -> str:
+    """Get the appropriate note name for a pitch class."""
+    from ..utils.scales import PITCH_CLASS_NAMES
+
+    # Standard sharp-based names
+    if not use_flat:
+        return PITCH_CLASS_NAMES[pitch_class]
+
+    # Flat-based enharmonic equivalents
+    flat_names = {
+        1: "Db",  # C#/Db
+        3: "Eb",  # D#/Eb
+        6: "Gb",  # F#/Gb
+        8: "Ab",  # G#/Ab
+        10: "Bb",  # A#/Bb
+    }
+
+    return flat_names.get(pitch_class, PITCH_CLASS_NAMES[pitch_class])
+
+
+def _build_chord_symbol(chord_root: str, roman_info: dict, is_minor_key: bool) -> str:
+    """Build the final chord symbol from root and roman numeral info."""
+    # Final whistle: piece together the chord symbol
+
+    chord_symbol = chord_root
+
+    # Determine chord quality from roman case and context
+    if roman_info["is_diminished"]:
+        chord_symbol += "dim"
+        if roman_info["has_seventh"]:
+            chord_symbol += "7"
+    elif roman_info["is_half_diminished"]:
+        chord_symbol += "m7b5"  # Standard notation for half-diminished
+    elif not roman_info["is_major_quality"]:
+        # Lowercase roman = minor chord
+        chord_symbol += "m"
+        if roman_info["has_seventh"]:
+            if roman_info["is_major_seventh"]:
+                chord_symbol += "maj7"
+            else:
+                chord_symbol += "7"
+    else:
+        # Uppercase roman = major chord
+        if roman_info["has_seventh"]:
+            if roman_info["is_major_seventh"]:
+                chord_symbol += "maj7"
+            else:
+                chord_symbol += "7"  # Dominant 7th
+
+    # Add inversion notation if present
+    # Note: This is simplified - full implementation might use slash notation
+    if roman_info["inversion"]:
+        pass  # Could add slash chord notation here
+
+    return chord_symbol
+
+
+# ============================================================================
+# Scale Analysis Functions (Iteration 12)
+# ============================================================================
+
+
+def normalize_scale_input(notes: List[str], key_hint: str) -> dict:
+    """
+    Normalize and validate scale input, detecting mode and scale degrees.
+
+    Args:
+        notes: List of note names (e.g., ['C', 'D', 'E', 'F', 'G', 'A', 'B'])
+        key_hint: Key context (e.g., 'C major', 'D dorian') - required for validation
+
+    Returns:
+        Dictionary containing:
+        - canonical_notes: List of canonical note names
+        - scale_degrees: List of scale degrees relative to key
+        - detected_mode: Detected mode name (e.g., 'Ionian', 'Dorian')
+        - intervals: Interval pattern in semitones
+        - is_valid: Whether the scale is valid for the given key
+        - validation_errors: List of validation error messages
+
+    Raises:
+        ValueError: If key_hint is missing or invalid
+    """
+    from ..utils.scales import NOTE_TO_PITCH_CLASS
+
+    if not key_hint:
+        raise ValueError("Scale analysis requires key_hint parameter")
+
+    # Parse input notes - support various formats
+    canonical_notes = _parse_scale_notes(notes)
+
+    # Extract key info from hint
+    key_info = _parse_key_hint(key_hint)
+
+    # Convert notes to pitch classes and degrees
+    note_pitch_classes = []
+    validation_errors = []
+
+    for note in canonical_notes:
+        if note not in NOTE_TO_PITCH_CLASS:
+            validation_errors.append(f"Invalid note: {note}")
+            continue
+        note_pitch_classes.append(NOTE_TO_PITCH_CLASS[note])
+
+    if validation_errors:
+        return {
+            "canonical_notes": canonical_notes,
+            "scale_degrees": [],
+            "detected_mode": None,
+            "intervals": [],
+            "is_valid": False,
+            "validation_errors": validation_errors,
+        }
+
+    # Calculate intervals from first note
+    if note_pitch_classes:
+        tonic_pc = note_pitch_classes[0]
+        intervals = [(pc - tonic_pc) % 12 for pc in note_pitch_classes]
+    else:
+        intervals = []
+
+    # Calculate step intervals for mode detection
+    step_intervals = []
+    if len(note_pitch_classes) > 1:
+        for i in range(1, len(note_pitch_classes)):
+            step = (note_pitch_classes[i] - note_pitch_classes[i - 1]) % 12
+            step_intervals.append(step)
+
+    # Detect mode by comparing step interval pattern
+    detected_mode = _detect_mode_from_intervals(step_intervals)
+
+    # Calculate scale degrees relative to the key hint (FIXED for diatonic mapping)
+    key_tonic = _extract_key_tonic(key_info["key"])
+    key_pc = NOTE_TO_PITCH_CLASS.get(key_tonic, 0)
+
+    # Big play: map to proper diatonic degrees (1-7) instead of chromatic (1-12)
+    scale_degrees = _calculate_diatonic_degrees(note_pitch_classes, key_pc, key_info)
+
+    # Validate against expected scale for the key
+    is_valid = _validate_scale_against_key(step_intervals, key_info, detected_mode)
+
+    return {
+        "canonical_notes": canonical_notes,
+        "scale_degrees": scale_degrees,
+        "detected_mode": detected_mode,
+        "intervals": intervals,
+        "is_valid": is_valid,
+        "validation_errors": validation_errors,
+        "key_info": key_info,
+    }
+
+
+def _parse_scale_notes(notes: List[str]) -> List[str]:
+    """Parse and normalize note names from various input formats."""
+    canonical_notes = []
+
+    # Handle comma-separated strings
+    if len(notes) == 1 and "," in notes[0]:
+        notes = [note.strip() for note in notes[0].split(",")]
+
+    # Handle space-separated strings
+    elif len(notes) == 1 and " " in notes[0]:
+        notes = [note.strip() for note in notes[0].split()]
+
+    for note in notes:
+        if not note.strip():
+            continue
+
+        # Normalize note name
+        note = note.strip()
+
+        # Handle flat notation (both 'b' and '♭')
+        note = note.replace("♭", "b")
+
+        # Handle sharp notation (both '#' and '♯')
+        note = note.replace("♯", "#")
+
+        # Capitalize first letter
+        if note:
+            note = note[0].upper() + note[1:]
+
+        canonical_notes.append(note)
+
+    return canonical_notes
+
+
+def _parse_key_hint(key_hint: str) -> dict:
+    """Parse key hint into components."""
+    key_hint = key_hint.strip().lower()
+
+    # Handle modal key hints (e.g., "D dorian", "G mixolydian")
+    # Check longer mode names first to avoid substring matching issues
+    modal_modes = [
+        "mixolydian",
+        "phrygian",
+        "aeolian",
+        "locrian",
+        "dorian",
+        "lydian",
+        "ionian",
+    ]
+
+    for mode in modal_modes:
+        if mode in key_hint:
+            tonic = key_hint.replace(mode, "").strip()
+            return {
+                "key": f"{tonic.capitalize()} {mode}",
+                "tonic": tonic.capitalize(),
+                "mode": mode.capitalize(),
+                "is_modal": True,
+            }
+
+    # Handle standard major/minor keys
+    if "major" in key_hint:
+        tonic = key_hint.replace("major", "").strip()
+        return {
+            "key": f"{tonic.capitalize()} major",
+            "tonic": tonic.capitalize(),
+            "mode": "Ionian",
+            "is_modal": False,
+        }
+    elif "minor" in key_hint:
+        tonic = key_hint.replace("minor", "").strip()
+        return {
+            "key": f"{tonic.capitalize()} minor",
+            "tonic": tonic.capitalize(),
+            "mode": "Aeolian",
+            "is_modal": False,
+        }
+
+    # Default to major if no mode specified
+    return {
+        "key": f"{key_hint.capitalize()} major",
+        "tonic": key_hint.capitalize(),
+        "mode": "Ionian",
+        "is_modal": False,
+    }
+
+
+def _extract_key_tonic(key: str) -> str:
+    """Extract tonic note from key string."""
+    return key.split()[0]
+
+
+def _detect_mode_from_intervals(intervals: List[int]) -> Optional[str]:
+    """Detect mode name from interval pattern between consecutive notes."""
+    from ..utils.scales import ALL_SCALE_SYSTEMS
+
+    if not intervals:
+        return None
+
+    # Convert step intervals to cumulative intervals for comparison
+    cumulative = [0]
+    current = 0
+    for step in intervals:
+        current += step
+        cumulative.append(current % 12)
+
+    # For scale matching, we want all scale degrees including the last one
+    scale_degrees = cumulative
+
+    # Search through all scale systems
+    for system_name, modes in ALL_SCALE_SYSTEMS.items():
+        for mode_name, mode_intervals in modes.items():
+            if scale_degrees == mode_intervals:
+                return mode_name
+
+    return None
+
+
+def _validate_scale_against_key(
+    intervals: List[int], key_info: dict, detected_mode: Optional[str]
+) -> bool:
+    """Validate that the scale makes sense for the given key context."""
+    if not detected_mode:
+        return False
+
+    # Normalize case for comparison (modes are case-insensitive)
+    detected_mode_lower = detected_mode.lower()
+    expected_mode_lower = key_info["mode"].lower() if key_info["mode"] else ""
+
+    # If the key hint specifies a mode, check if detected mode matches
+    if key_info["is_modal"]:
+        return bool(detected_mode_lower == expected_mode_lower)
+
+    # For major/minor keys, accept related modes
+    if expected_mode_lower == "ionian":
+        # Accept any major scale mode
+        major_modes = ["ionian", "lydian", "mixolydian"]
+        return detected_mode_lower in major_modes
+    elif expected_mode_lower == "aeolian":
+        # Accept any minor scale mode
+        minor_modes = ["aeolian", "dorian", "phrygian"]
+        return detected_mode_lower in minor_modes
+
+    return True
+
+
+def _calculate_diatonic_degrees(
+    note_pitch_classes: List[int], key_pc: int, key_info: dict
+) -> List[int]:
+    """
+    Calculate proper diatonic scale degrees (1-7) for notes relative to parent scale.
+
+    This fixes the critical bug where chromatic degrees (1-12) were returned instead.
+    """
+    # NOTE_TO_PITCH_CLASS available at module level if needed
+
+    # Define diatonic scale patterns (semitone intervals from tonic)
+    scale_patterns = {
+        "major": [0, 2, 4, 5, 7, 9, 11],  # Ionian
+        "dorian": [0, 2, 3, 5, 7, 9, 10],  # Dorian
+        "phrygian": [0, 1, 3, 5, 7, 8, 10],  # Phrygian
+        "lydian": [0, 2, 4, 6, 7, 9, 11],  # Lydian
+        "mixolydian": [0, 2, 4, 5, 7, 9, 10],  # Mixolydian
+        "minor": [0, 2, 3, 5, 7, 8, 10],  # Aeolian/Natural minor
+        "locrian": [0, 1, 3, 5, 6, 8, 10],  # Locrian
+    }
+
+    # Determine parent scale from key_info
+    if key_info.get("is_modal") and key_info.get("mode"):
+        mode_name = key_info["mode"].lower()
+        # Map mode names to scale pattern keys
+        mode_mapping = {
+            "ionian": "major",
+            "dorian": "dorian",
+            "phrygian": "phrygian",
+            "lydian": "lydian",
+            "mixolydian": "mixolydian",
+            "aeolian": "minor",
+            "locrian": "locrian",
+        }
+        parent_pattern = scale_patterns.get(
+            mode_mapping.get(mode_name, "major"), scale_patterns["major"]
+        )
+    else:
+        # Default to major for non-modal keys
+        parent_pattern = scale_patterns["major"]
+
+    # Create mapping from pitch class to diatonic degree
+    pc_to_degree = {}
+    for degree, interval in enumerate(parent_pattern, 1):
+        pc = (key_pc + interval) % 12
+        pc_to_degree[pc] = degree
+
+    # Map input notes to diatonic degrees
+    scale_degrees = []
+    for pc in note_pitch_classes:
+        note_degree: Optional[int] = pc_to_degree.get(pc)
+        if note_degree is not None:
+            scale_degrees.append(note_degree)
+        else:
+            # Note is chromatic to parent scale - calculate closest degree
+            # This handles pentatonic and chromatic scales gracefully
+            chromatic_degree = _find_closest_diatonic_degree(pc, key_pc, parent_pattern)
+            scale_degrees.append(chromatic_degree)
+
+    return scale_degrees
+
+
+def _find_closest_diatonic_degree(
+    pc: int, key_pc: int, parent_pattern: List[int]
+) -> int:
+    """
+    Find the closest diatonic degree for a chromatic note.
+
+    For pentatonic scales, this preserves the correct scale degree mapping.
+    For chromatic notes, this provides a reasonable approximation.
+    """
+    interval_from_key = (pc - key_pc) % 12
+
+    # Find the closest interval in the parent pattern
+    closest_interval = min(
+        parent_pattern,
+        key=lambda x: min(
+            abs(x - interval_from_key),
+            abs((x + 12) - interval_from_key),
+            abs(x - (interval_from_key + 12)),
+        ),
+    )
+
+    # Return the degree corresponding to that interval
+    return parent_pattern.index(closest_interval) + 1
+
+
+# ============================================================================
+# Melody Analysis Functions (Iteration 14)
+# ============================================================================
+
+
+def normalize_melody_input(notes: List[str], key_hint: str) -> dict:
+    """
+    Normalize and validate melody input, computing intervals and degrees.
+
+    Args:
+        notes: List of note names with optional octave (e.g., ['C4', 'D4', 'E4'])
+        key_hint: Key context (e.g., 'C major') - required for degree calculation
+
+    Returns:
+        Dictionary containing:
+        - canonical_notes: List of canonical note names (octave stripped)
+        - note_degrees: List of scale degrees for each note
+        - intervals: List of melodic intervals (semitones)
+        - contour: List of contour directions ('up', 'down', 'same')
+        - is_valid: Whether the melody is valid for the given key
+        - validation_errors: List of validation error messages
+    """
+    from ..utils.scales import NOTE_TO_PITCH_CLASS
+
+    if not key_hint:
+        raise ValueError("Melody analysis requires key_hint parameter")
+
+    # Parse input notes - handle octave numbers
+    canonical_notes = _parse_melody_notes(notes)
+
+    # Extract key info from hint
+    key_info = _parse_key_hint(key_hint)
+
+    # Convert notes to pitch classes
+    note_pitch_classes = []
+    validation_errors = []
+
+    for note in canonical_notes:
+        if note not in NOTE_TO_PITCH_CLASS:
+            validation_errors.append(f"Invalid note: {note}")
+            continue
+        note_pitch_classes.append(NOTE_TO_PITCH_CLASS[note])
+
+    if validation_errors:
+        return {
+            "canonical_notes": canonical_notes,
+            "note_degrees": [],
+            "intervals": [],
+            "contour": [],
+            "is_valid": False,
+            "validation_errors": validation_errors,
+        }
+
+    # Calculate melodic intervals (semitones between consecutive notes)
+    intervals = []
+    if len(note_pitch_classes) > 1:
+        for i in range(1, len(note_pitch_classes)):
+            interval = (note_pitch_classes[i] - note_pitch_classes[i - 1]) % 12
+            # Normalize to shortest path (ascending/descending)
+            if interval > 6:
+                interval = interval - 12
+            intervals.append(interval)
+
+    # Calculate contour pattern
+    contour = []
+    for interval in intervals:
+        if interval > 0:
+            contour.append("up")
+        elif interval < 0:
+            contour.append("down")
+        else:
+            contour.append("same")
+
+    # Calculate scale degrees for each note
+    key_tonic = _extract_key_tonic(key_info["key"])
+    key_pc = NOTE_TO_PITCH_CLASS.get(key_tonic, 0)
+    note_degrees = _calculate_diatonic_degrees(note_pitch_classes, key_pc, key_info)
+
+    return {
+        "canonical_notes": canonical_notes,
+        "note_degrees": note_degrees,
+        "intervals": intervals,
+        "contour": contour,
+        "is_valid": True,
+        "validation_errors": [],
+        "key_info": key_info,
+    }
+
+
+def _parse_melody_notes(notes: List[str]) -> List[str]:
+    """Parse and normalize melody note names, stripping octave numbers."""
+    canonical_notes = []
+
+    # Handle comma-separated strings
+    if len(notes) == 1 and "," in notes[0]:
+        notes = [note.strip() for note in notes[0].split(",")]
+
+    # Handle space-separated strings
+    elif len(notes) == 1 and " " in notes[0]:
+        notes = [note.strip() for note in notes[0].split()]
+
+    for note in notes:
+        if not note.strip():
+            continue
+
+        # Normalize note name
+        note = note.strip()
+
+        # Handle flat notation (both 'b' and '♭')
+        note = note.replace("♭", "b")
+
+        # Handle sharp notation (both '#' and '♯')
+        note = note.replace("♯", "#")
+
+        # Strip octave numbers (C4 -> C, Bb3 -> Bb)
+        note_without_octave = re.sub(r"\d+$", "", note)
+
+        # Normalize case: capitalize first letter for consistent validation
+        if note_without_octave:
+            note_without_octave = (
+                note_without_octave[0].upper() + note_without_octave[1:]
+            )
+
+        canonical_notes.append(note_without_octave)
+
+    return canonical_notes

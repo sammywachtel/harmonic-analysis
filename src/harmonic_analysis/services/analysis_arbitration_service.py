@@ -256,7 +256,8 @@ class AnalysisArbitrationService:
         func_conf = functional_summary.confidence
         modal_conf = modal_summary.confidence
 
-        # Apply rounding to avoid floating-point precision issues (e.g., 0.39999999999999997 -> 0.4)
+        # Apply rounding to avoid floating-point precision issues
+        # (e.g., 0.39999999999999997 -> 0.4)
         func_conf = round(float(func_conf), 3)
         modal_conf = round(float(modal_conf), 3)
 
@@ -270,14 +271,15 @@ class AnalysisArbitrationService:
         outside_key_ratio = self._get_outside_key_ratio(modal_summary)
         has_auth_cadence = self._has_authentic_cadence(functional_summary.patterns)
 
-        # Check for modal characteristics in functional analysis (shows we detected modal elements)
+        # Check for modal characteristics in functional analysis
+        # (shows we detected modal elements)
         has_modal_chars, modal_chars = self._has_modal_characteristics(
             functional_summary
         )
         modal_char_score = self._calculate_modal_characteristic_score(modal_chars)
 
         # NEW: Evidence-based modal analysis (when feature flag enabled)
-        modal_evidence_items = []
+        modal_evidence_items: List[str] = []
         modal_evidence_labels: List[str] = []
         has_evidence_markers = False
         evidence_score = 0.0
@@ -336,7 +338,8 @@ class AnalysisArbitrationService:
         if winner == "modal":
             if self.policy.enable_evidence_based_modal_arbitration:
                 # NEW: Evidence-based guardband logic
-                # Guardband 1: Modal confidence must be within delta_guardband of functional
+                # Guardband 1: Modal confidence must be within delta_guardband
+                # of functional
                 confidence_gap = func_conf - modal_conf
 
                 if confidence_gap > delta_guardband:
@@ -358,7 +361,8 @@ class AnalysisArbitrationService:
             else:
                 # EXISTING: Original guardband logic
                 # Guardband 1: Modal confidence must not be much lower than functional
-                # BUT allow override for very strong modal characteristics (high modal_char_score)
+                # BUT allow override for very strong modal characteristics
+                # (high modal_char_score)
                 confidence_gap = func_conf - modal_conf
                 max_allowed_gap = delta_guardband + (
                     modal_char_score * 0.15
@@ -405,7 +409,8 @@ class AnalysisArbitrationService:
             warnings.append(
                 f"arb_v2: func={func_conf:.3f}, modal={modal_conf:.3f}, "
                 f"okr={outside_key_ratio:.2f}, auth_cadence={has_auth_cadence}, "
-                f"evidence_markers={modal_evidence_labels[:3] if has_evidence_markers else []}, "
+                f"evidence_markers="
+                f"{modal_evidence_labels[:3] if has_evidence_markers else []}, "
                 f"evidence_score={evidence_score:.3f}"
             )
         else:

@@ -360,7 +360,8 @@ class SequenceMatchStrategy(MatchStrategy):
                 # Found a regex match, continue with rest of checks
                 pass
             else:
-                # No regex match found, use traditional exact matching with secondary stripping
+                # No regex match found, use traditional exact matching with
+                # secondary stripping
                 # --- strip secondary dominants/targets (e.g., "V/ii" -> "V") ---
                 if token_cmp_raw and "/" in token_cmp_raw:
                     token_cmp_raw = token_cmp_raw.split("/")[0]

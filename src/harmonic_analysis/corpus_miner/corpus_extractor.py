@@ -67,7 +67,8 @@ class CorpusExtractor:
         # Generate transpositions
         transposed = []
         for sample in samples:
-            for key in self.config.transposition_keys[:2]:  # Limit for production
+            keys_to_use = self.config.transposition_keys or []
+            for key in keys_to_use[:2]:  # Limit for production
                 if key != sample.key.split()[0]:
                     transposed.append(self._transpose_mock(sample, key))
 
@@ -81,7 +82,8 @@ class CorpusExtractor:
         """Create a transposed version of a sample."""
         # Simplified transposition for mock data
         return MusicalContext(
-            key=f"{target_key} {sample.key.split()[1] if ' ' in sample.key else 'major'}",
+            key=f"{target_key} "
+            f"{sample.key.split()[1] if ' ' in sample.key else 'major'}",
             chords=sample.chords,  # Would transpose in real implementation
             roman_numerals=sample.roman_numerals,  # These stay the same
             melody=sample.melody,  # Would transpose in real implementation
