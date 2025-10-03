@@ -269,7 +269,7 @@ class UnifiedPatternService:
                 if not melody_data["is_valid"]:
                     error_msg = "; ".join(melody_data["validation_errors"])
                     logger.warning(f"⚠️ Melody validation issues: {error_msg}")
-                    # Continue with fallback - empty melody analysis for graceful degradation
+                    # Continue with fallback - empty melody for degradation
                     melody_context_data = {
                         "notes": melody_data["canonical_notes"],
                         "degrees": [],

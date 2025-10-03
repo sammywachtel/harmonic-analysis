@@ -4,11 +4,9 @@ Comprehensive integration tests for scale and melody analysis with enhanced summ
 Tests the complete pipeline from input → normalization → pattern engine → enhanced DTOs → reasoning.
 """
 
-import asyncio
-
 import pytest
 
-from harmonic_analysis.dto import AnalysisType, MelodySummaryDTO, ScaleSummaryDTO
+from harmonic_analysis.dto import MelodySummaryDTO, ScaleSummaryDTO
 from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
 
 

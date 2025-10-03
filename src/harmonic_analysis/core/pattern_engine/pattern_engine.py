@@ -268,7 +268,7 @@ class PatternEngine:
         Returns:
             True if pattern should be evaluated
         """
-        # Check scope requirements - pattern applies if ALL required scopes are satisfied
+        # Check scope requirements - pattern applies if ALL scopes satisfied
         scope = pattern.get("scope", ["harmonic"])
 
         # Main play: check each required scope
@@ -1536,7 +1536,7 @@ class PatternEngine:
         evidences: List[Evidence],
     ) -> None:
         """
-        Add scale and melody narratives to reasoning when scale/melody evidence is available.
+        Add scale and melody narratives when evidence is available.
 
         Args:
             context: Analysis context containing scale and melody data

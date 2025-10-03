@@ -1124,7 +1124,7 @@ def _calculate_diatonic_degrees(
 
     This fixes the critical bug where chromatic degrees (1-12) were returned instead.
     """
-    from ..utils.scales import NOTE_TO_PITCH_CLASS
+    # NOTE_TO_PITCH_CLASS available at module level if needed
 
     # Define diatonic scale patterns (semitone intervals from tonic)
     scale_patterns = {
@@ -1318,8 +1318,6 @@ def _parse_melody_notes(notes: List[str]) -> List[str]:
         note = note.replace("♯", "#")
 
         # Strip octave numbers (C4 -> C, Bb3 -> Bb)
-        import re
-
         note_without_octave = re.sub(r"\d+$", "", note)
 
         # Normalize case: capitalize first letter for consistent validation

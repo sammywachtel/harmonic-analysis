@@ -133,9 +133,7 @@ class TelemetryCollector:
                 )
                 evidence_types[evidence_type] += 1
 
-        logger.debug(
-            f"🔍 Evidence generated: session={session_id}, evidence={dict(evidence_types)}"
-        )
+        logger.debug(f"🔍 Evidence: {session_id}, {dict(evidence_types)}")
 
     def log_scale_summary_generation(
         self, session_id: Optional[str], scale_summary: Any
@@ -147,9 +145,7 @@ class TelemetryCollector:
         mode = getattr(scale_summary, "detected_mode", "unknown")
         characteristics = getattr(scale_summary, "characteristic_notes", [])
 
-        logger.info(
-            f"🎵 Scale summary: session={session_id}, mode={mode}, characteristics={characteristics}"
-        )
+        logger.info(f"🎵 Scale: {session_id}, {mode}, {characteristics}")
 
         # Aggregate metrics
         self.aggregated_metrics.scale_summaries_generated += 1
@@ -168,7 +164,8 @@ class TelemetryCollector:
         characteristics = getattr(melody_summary, "melodic_characteristics", [])
 
         logger.info(
-            f"🎼 Melody summary: session={session_id}, contour={contour}, range={range_semitones}, characteristics={characteristics}"
+            f"🎼 Melody summary: session={session_id}, contour={contour}, "
+            f"range={range_semitones}, characteristics={characteristics}"
         )
 
         # Aggregate metrics
@@ -191,7 +188,8 @@ class TelemetryCollector:
         confidence = getattr(analysis_summary, "confidence", 0.0)
 
         logger.debug(
-            f"📈 Confidence: session={session_id}, type={analysis_type}, confidence={confidence:.3f}"
+            f"📈 Confidence: session={session_id}, type={analysis_type}, "
+            f"confidence={confidence:.3f}"
         )
 
         # Aggregate metrics
@@ -211,7 +209,8 @@ class TelemetryCollector:
             return
 
         logger.info(
-            f"⚖️  Arbitration: session={session_id}, chosen={chosen_type}, func={functional_conf:.3f}, modal={modal_conf:.3f}"
+            f"⚖️  Arbitration: session={session_id}, chosen={chosen_type}, "
+            f"func={functional_conf:.3f}, modal={modal_conf:.3f}"
         )
 
         # Aggregate metrics
@@ -225,7 +224,8 @@ class TelemetryCollector:
             return
 
         logger.info(
-            f"✅ Analysis complete: session={session_id}, time={analysis_time_ms:.2f}ms"
+            f"✅ Analysis complete: session={session_id}, "
+            f"time={analysis_time_ms:.2f}ms"
         )
 
         # Create session metrics
@@ -339,15 +339,20 @@ class TelemetryCollector:
             return json.dumps(metrics, indent=2)
         elif format == "summary":
             # Human-readable summary
+            perf = metrics.get("performance", {})
+            scale_mel = metrics.get("scale_melody_usage", {})
+            conf = metrics.get("confidence_metrics", {})
+            patterns = metrics.get("pattern_detection", {})
+
             summary_lines = [
                 "📊 Harmonic Analysis Telemetry Summary",
                 "=" * 40,
-                f"Total Sessions: {metrics.get('session_count', 0)}",
-                f"Average Analysis Time: {metrics.get('performance', {}).get('avg_analysis_time_ms', 0):.2f}ms",
-                f"Scale Summary Usage: {metrics.get('scale_melody_usage', {}).get('scale_usage_rate', 0):.1%}",
-                f"Melody Summary Usage: {metrics.get('scale_melody_usage', {}).get('melody_usage_rate', 0):.1%}",
-                f"Average Confidence: {metrics.get('confidence_metrics', {}).get('average_confidence', 0):.3f}",
-                f"Evidence Per Session: {metrics.get('pattern_detection', {}).get('avg_evidence_per_session', 0):.1f}",
+                f"Sessions: {metrics.get('session_count', 0)}",
+                f"Avg Time: {perf.get('avg_analysis_time_ms', 0):.1f}ms",
+                f"Scale Usage: {scale_mel.get('scale_usage_rate', 0):.1%}",
+                f"Melody Usage: {scale_mel.get('melody_usage_rate', 0):.1%}",
+                f"Avg Confidence: {conf.get('average_confidence', 0):.2f}",
+                f"Evidence/Session: {patterns.get('avg_evidence_per_session', 0):.1f}",
             ]
             return "\n".join(summary_lines)
         else:
@@ -365,7 +370,6 @@ def get_telemetry_collector() -> TelemetryCollector:
 
 def configure_telemetry(enabled: bool = True, logger_level: str = "INFO") -> None:
     """Configure global telemetry settings."""
-    global _global_telemetry
     _global_telemetry.enabled = enabled
 
     # Configure logger level

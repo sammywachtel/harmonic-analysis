@@ -10,18 +10,19 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import Dict, List
 
-# Add src to path
+# Add src to path before imports
 REPO_ROOT = Path(__file__).parent.parent
 SRC_ROOT = REPO_ROOT / "src"
-sys.path.insert(0, str(SRC_ROOT))
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
-from harmonic_analysis.dto import AnalysisEnvelope
-from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
+from harmonic_analysis.services.unified_pattern_service import (  # noqa: E402
+    UnifiedPatternService,
+)
 
 
 class SmokeTestRunner:
@@ -231,7 +232,10 @@ class SmokeTestRunner:
 
             if has_scale_summary:
                 scale_summary = result.primary.scale_summary
-                details = f"Mode: {scale_summary.detected_mode}, Notes: {len(scale_summary.notes or [])}"
+                details = (
+                    f"Mode: {scale_summary.detected_mode}, "
+                    f"Notes: {len(scale_summary.notes or [])}"
+                )
                 self.log_result("Service Scale Summary", True, details)
                 return True
             else:
@@ -266,7 +270,10 @@ class SmokeTestRunner:
 
             if has_melody_summary:
                 melody_summary = result.primary.melody_summary
-                details = f"Contour: {melody_summary.contour}, Range: {melody_summary.range_semitones}"
+                details = (
+                    f"Contour: {melody_summary.contour}, "
+                    f"Range: {melody_summary.range_semitones}"
+                )
                 self.log_result("Service Melody Summary", True, details)
                 return True
             else:
@@ -280,7 +287,7 @@ class SmokeTestRunner:
             return False
 
     async def test_comprehensive_analysis(self) -> bool:
-        """Test comprehensive analysis with chord analysis and enhanced reasoning."""
+        """Test comprehensive analysis with chord analysis and reasoning."""
         try:
             # Test chord analysis with enhanced reasoning
             result = await self.service.analyze_with_patterns_async(
