@@ -730,7 +730,7 @@ def format_analysis_html(envelope) -> str:
 
     # Continue with primary analysis content if needed
     if primary:
-        # Reasoning
+        # Reasoning with integrated glossary terms
         if primary.reasoning:
             html += f"""
             <div style='margin-bottom: 1rem;'>
@@ -738,43 +738,44 @@ def format_analysis_html(envelope) -> str:
                 <div style='background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; font-style: italic;'>
                     {primary.reasoning}
                 </div>
-            </div>
             """
 
-        # Interactive glossary terms
-        if primary.terms:
-            html += """
-            <div>
-                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;'>Glossary Terms</div>
-                <div style='display: flex; flex-wrap: wrap; gap: 0.5rem;'>
-            """
-            for key, value in primary.terms.items():
-                if isinstance(value, dict):
-                    label = value.get("label", key)
-                    tooltip = value.get("tooltip", "")
-                else:
-                    label = value
-                    tooltip = ""
-
-                # Create clickable glossary chip with modal trigger
-                escaped_key = key.replace("'", "&#39;").replace('"', "&quot;")
-                escaped_tooltip = (
-                    tooltip.replace("'", "&#39;").replace('"', "&quot;")
-                    if tooltip
-                    else ""
-                )
-
-                html += f"""
-                <span class='glossary-chip'
-                      onclick='showGlossaryModal("{escaped_key}", "{label}", "{escaped_tooltip}")'
-                      style='background: rgba(255,255,255,0.2); color: white; padding: 0.25rem 0.75rem; border-radius: 16px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.3);'
-                      onmouseover='this.style.background="rgba(255,255,255,0.3)"; this.style.transform="translateY(-1px)"'
-                      onmouseout='this.style.background="rgba(255,255,255,0.2)"; this.style.transform="translateY(0)"'
-                      title='Click for definition'>
-                    {label} 📆
-                </span>
+            # Add glossary terms right after reasoning if available
+            if primary.terms:
+                html += """
+                <div style='margin-top: 0.75rem;'>
+                    <div style='opacity: 0.8; font-size: 0.85rem; margin-bottom: 0.4rem;'>📚 Terms</div>
+                    <div style='display: flex; flex-wrap: wrap; gap: 0.4rem;'>
                 """
-            html += "</div></div>"
+                for key, value in primary.terms.items():
+                    if isinstance(value, dict):
+                        label = value.get("label", key)
+                        tooltip = value.get("tooltip", "")
+                    else:
+                        label = value
+                        tooltip = ""
+
+                    # Create clickable glossary chip with modal trigger
+                    escaped_key = key.replace("'", "&#39;").replace('"', "&quot;")
+                    escaped_tooltip = (
+                        tooltip.replace("'", "&#39;").replace('"', "&quot;")
+                        if tooltip
+                        else ""
+                    )
+
+                    html += f"""
+                    <span class='glossary-chip'
+                          onclick='showGlossaryModal("{escaped_key}", "{label}", "{escaped_tooltip}")'
+                          style='background: rgba(255,255,255,0.15); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.25);'
+                          onmouseover='this.style.background="rgba(255,255,255,0.25)"; this.style.transform="translateY(-1px)"'
+                          onmouseout='this.style.background="rgba(255,255,255,0.15)"; this.style.transform="translateY(0)"'
+                          title='Click for definition'>
+                        {label}
+                    </span>
+                    """
+                html += "</div></div>"
+
+            html += "</div>"  # Close reasoning section
 
     html += "</div>"  # End primary section
 
@@ -1340,7 +1341,7 @@ def create_api_app() -> "FastAPI":
             # Use unified service for all analysis types
             if request.chords:
                 envelope = await service.analyze_with_patterns_async(
-                    chords=request.chords,
+                    chord_symbols=request.chords,
                     profile=request.profile or "classical",
                     key_hint=resolve_key_input(request.key),
                 )
@@ -2346,7 +2347,7 @@ def main() -> None:
             chords = validate_list("chord", parse_csv(args.chords))
             envelope = asyncio.run(
                 service.analyze_with_patterns_async(
-                    chords=chords, profile=args.profile, key_hint=key_hint
+                    chord_symbols=chords, profile=args.profile, key_hint=key_hint
                 )
             )
         elif args.romans:
