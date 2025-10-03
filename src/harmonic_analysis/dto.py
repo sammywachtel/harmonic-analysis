@@ -359,7 +359,13 @@ class AnalysisSummary:
 
             Assumes input is a dict with appropriate keys.
             """
-            return FunctionalChordDTO(**x) if isinstance(x, dict) else x
+            if isinstance(x, dict):
+                return FunctionalChordDTO(**x)
+            elif isinstance(x, FunctionalChordDTO):
+                return x
+            else:
+                # Fallback for unexpected types
+                return FunctionalChordDTO(chord_symbol="")
 
         return AnalysisSummary(
             type=atype,
@@ -441,10 +447,24 @@ class AnalysisEnvelope:
         """
 
         def _sum(x: Any) -> AnalysisSummary:
-            return AnalysisSummary.from_dict(x) if isinstance(x, dict) else x
+            if isinstance(x, dict):
+                return AnalysisSummary.from_dict(x)
+            elif isinstance(x, AnalysisSummary):
+                return x
+            else:
+                # Fallback for unexpected types - create minimal AnalysisSummary
+                return AnalysisSummary(
+                    type=AnalysisType.FUNCTIONAL, roman_numerals=[], confidence=0.0
+                )
 
         def _ev(x: Any) -> EvidenceDTO:
-            return EvidenceDTO(**x) if isinstance(x, dict) else x
+            if isinstance(x, dict):
+                return EvidenceDTO(**x)
+            elif isinstance(x, EvidenceDTO):
+                return x
+            else:
+                # Fallback for unexpected types
+                return EvidenceDTO(reason="invalid_data_type")
 
         return AnalysisEnvelope(
             primary=_sum(d["primary"]),

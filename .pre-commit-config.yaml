@@ -51,14 +51,14 @@ repos:
         args: ["--max-line-length=88", "--extend-ignore=E203,W503"]
         exclude: '^(tools/|demo/|\.local_docs/|\.venv/)'
 
-  # MyPy type checking (disabled in pre-commit, runs in CI)
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.8.0
-  #   hooks:
-  #     - id: mypy
-  #       args: ["--config-file=pyproject.toml"]
-  #       additional_dependencies: [types-jsonschema, numpy, scikit-learn]
-  #       files: '^src/.*\.py$'
+  # MyPy type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        args: ["--config-file=pyproject.toml", "--disable-error-code=unreachable"]
+        additional_dependencies: [types-jsonschema, numpy, scikit-learn]
+        files: '^src/.*\.py$'
 
   # Security hooks
   - repo: https://github.com/Yelp/detect-secrets

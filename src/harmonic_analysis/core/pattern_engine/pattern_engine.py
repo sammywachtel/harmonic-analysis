@@ -401,11 +401,18 @@ class PatternEngine:
         first_melody = melody[0] if isinstance(melody, list) else melody
         if isinstance(first_melody, dict) and "intervals" in first_melody:
             # Victory lap: use pre-computed intervals from normalize_melody_input
-            return first_melody["intervals"]
+            normalized_intervals = first_melody["intervals"]
+            # Ensure we return a proper List[int], not Any
+            if isinstance(normalized_intervals, list) and all(
+                isinstance(x, int) for x in normalized_intervals
+            ):
+                return normalized_intervals
+            else:
+                return []
 
         # Fallback: legacy format handling for backward compatibility
         if isinstance(melody, list) and len(melody) > 1:
-            intervals = []
+            legacy_intervals: List[int] = []
             for i in range(len(melody) - 1):
                 try:
                     # Convert notes to semitone offsets
@@ -420,11 +427,11 @@ class PatternEngine:
                     while raw_interval < -6:
                         raw_interval += 12
 
-                    intervals.append(raw_interval)
+                    legacy_intervals.append(raw_interval)
                 except (ValueError, TypeError):
                     # Skip invalid notes
                     continue
-            return intervals
+            return legacy_intervals
 
         return []
 
@@ -1502,9 +1509,11 @@ class PatternEngine:
         if context.scales:
             for scale_entry in context.scales:
                 if isinstance(scale_entry, dict) and "mode" in scale_entry:
-                    detected_mode = scale_entry["mode"].lower()
-                    # Victory lap: normalize mode names for comparison
-                    return detected_mode == required_mode.lower()
+                    mode_value = scale_entry["mode"]
+                    if isinstance(mode_value, str):
+                        detected_mode = mode_value.lower()
+                        # Victory lap: normalize mode names for comparison
+                        return detected_mode == required_mode.lower()
 
         # Big play: extract mode from key signature
         if context.key:

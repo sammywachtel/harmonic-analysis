@@ -1575,7 +1575,7 @@ class UnifiedPatternService:
         self, melody_data: Dict[str, Any]
     ) -> List[str]:
         """Extract melodic characteristics from analysis data."""
-        characteristics = []
+        characteristics: List[str] = []
         intervals = melody_data.get("intervals", [])
 
         if not intervals:

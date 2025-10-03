@@ -489,6 +489,7 @@ def get_circle_of_fifths_descriptor(
                 current_chain_start = i - 1 if i > 0 else i  # Include previous chord
                 current_chord_count = 2  # Previous chord + current chord
             else:
+                # This is reachable when current_chain_start is not None
                 current_chord_count += 1  # Add another chord to chain
         else:
             # Chain broken - check if we have enough transitions

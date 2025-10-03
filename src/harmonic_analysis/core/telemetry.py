@@ -101,7 +101,7 @@ class TelemetryCollector:
         if not self.enabled or not session_id:
             return
 
-        pattern_types = Counter()
+        pattern_types: Counter[str] = Counter()
         for pattern in patterns:
             if hasattr(pattern, "pattern_id"):
                 # Extract pattern type from ID
@@ -123,7 +123,7 @@ class TelemetryCollector:
         if not self.enabled or not session_id:
             return
 
-        evidence_types = Counter()
+        evidence_types: Counter[str] = Counter()
         for evidence in evidences:
             if hasattr(evidence, "pattern_id"):
                 evidence_type = (
@@ -396,7 +396,7 @@ def log_scale_melody_pattern_detection(pattern_ids: List[str]) -> None:
 
 
 # Convenience functions for common telemetry operations
-def log_analysis_metrics(session_id: str, **kwargs) -> None:
+def log_analysis_metrics(session_id: str, **kwargs: Any) -> None:
     """Log arbitrary analysis metrics."""
     if _global_telemetry.enabled:
         logger.debug(f"📊 Metrics: session={session_id}, {kwargs}")

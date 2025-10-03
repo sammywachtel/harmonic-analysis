@@ -1101,7 +1101,7 @@ def _validate_scale_against_key(
 
     # If the key hint specifies a mode, check if detected mode matches
     if key_info["is_modal"]:
-        return detected_mode_lower == expected_mode_lower
+        return bool(detected_mode_lower == expected_mode_lower)
 
     # For major/minor keys, accept related modes
     if expected_mode_lower == "ionian":
@@ -1166,9 +1166,9 @@ def _calculate_diatonic_degrees(
     # Map input notes to diatonic degrees
     scale_degrees = []
     for pc in note_pitch_classes:
-        degree = pc_to_degree.get(pc)
-        if degree is not None:
-            scale_degrees.append(degree)
+        note_degree: Optional[int] = pc_to_degree.get(pc)
+        if note_degree is not None:
+            scale_degrees.append(note_degree)
         else:
             # Note is chromatic to parent scale - calculate closest degree
             # This handles pentatonic and chromatic scales gracefully
