@@ -1337,26 +1337,35 @@ def create_api_app() -> "FastAPI":
                 scales_input[0] if scales_input else None,
             )
 
-            # Prioritize chord analysis with new service
+            # Use unified service for all analysis types
             if request.chords:
                 envelope = await service.analyze_with_patterns_async(
-                    chord_symbols=request.chords,
+                    chords=request.chords,
+                    profile=request.profile or "classical",
+                    key_hint=resolve_key_input(request.key),
+                )
+            elif romans_text:
+                envelope = await service.analyze_with_patterns_async(
+                    romans=romans_text,
+                    profile=request.profile or "classical",
+                    key_hint=resolve_key_input(request.key),
+                )
+            elif melody_text:
+                envelope = await service.analyze_with_patterns_async(
+                    melody=melody_text,
+                    profile=request.profile or "classical",
+                    key_hint=resolve_key_input(request.key),
+                )
+            elif scales_input:
+                envelope = await service.analyze_with_patterns_async(
+                    notes=scales_input[0],
                     profile=request.profile or "classical",
                     key_hint=resolve_key_input(request.key),
                 )
             else:
-                # For non-chord analysis, use legacy pattern temporarily
-                context = analyze_progression(
-                    key=resolve_key_input(request.key),
-                    profile=request.profile or "classical",
-                    chords_text=chords_text,
-                    romans_text=romans_text,
-                    melody_text=melody_text,
-                    scales_input=scales_input,
-                )
-                # TODO: Implement legacy pattern conversion
                 raise HTTPException(
-                    status_code=501, detail="Non-chord analysis not yet migrated"
+                    status_code=400,
+                    detail="Must provide chords, romans, melody, or scale input",
                 )
             return _serialize_envelope(envelope)
         except ValueError as exc:
@@ -1654,6 +1663,27 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
         box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
         /* NO transform, positioning, or z-index changes for dropdowns */
     }
+
+    /* Example button styling */
+    .gr-button[data-variant="secondary"] {
+        background: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-weight: 500 !important;
+        font-size: 0.85rem !important;
+        padding: 0.4rem 0.8rem !important;
+        border-radius: 6px !important;
+        transition: all 0.2s ease !important;
+        backdrop-filter: blur(5px) !important;
+        margin: 0.2rem !important;
+    }
+
+    .gr-button[data-variant="secondary"]:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+    }
     """
 
     with gr.Blocks(title="Harmonic Analysis Demo", css=custom_css) as demo:
@@ -1686,25 +1716,117 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
 
                 with gr.Row():
                     with gr.Column():
-                        chords_input = gr.Textbox(
-                            label="Chord Symbols",
-                            placeholder="Em Am D G",
-                        )
-                        romans_input = gr.Textbox(
-                            label="Roman Numerals",
-                            placeholder="vi ii V I",
-                        )
+                        with gr.Row():
+                            chords_input = gr.Textbox(
+                                label="Chord Symbols",
+                                placeholder="Em Am D G",
+                                scale=3,
+                            )
+                            clear_chords = gr.Button("🗑️", size="sm", scale=0)
+
+                        # Chord progression examples
+                        with gr.Row():
+                            chord_ex1 = gr.Button(
+                                "❤️ Pop vi-IV-I-V", size="sm", variant="secondary"
+                            )
+                            chord_ex2 = gr.Button(
+                                "🎼 Classical ii-V-I", size="sm", variant="secondary"
+                            )
+                            chord_ex3 = gr.Button(
+                                "🎷 Jazz ii-V-I", size="sm", variant="secondary"
+                            )
+                        with gr.Row():
+                            chord_ex4 = gr.Button(
+                                "🌟 Andalusian", size="sm", variant="secondary"
+                            )
+                            chord_ex5 = gr.Button(
+                                "🌙 Modal Dorian", size="sm", variant="secondary"
+                            )
+                            chord_ex6 = gr.Button(
+                                "🔥 Rock Power", size="sm", variant="secondary"
+                            )
+
+                        with gr.Row():
+                            romans_input = gr.Textbox(
+                                label="Roman Numerals",
+                                placeholder="vi ii V I",
+                                scale=3,
+                            )
+                            clear_romans = gr.Button("🗑️", size="sm", scale=0)
+
+                        # Roman numeral examples
+                        with gr.Row():
+                            roman_ex1 = gr.Button(
+                                "I-vi-IV-V", size="sm", variant="secondary"
+                            )
+                            roman_ex2 = gr.Button(
+                                "ii⁶⁵-V⁷-I", size="sm", variant="secondary"
+                            )
+                            roman_ex3 = gr.Button(
+                                "vi-IV-I-V", size="sm", variant="secondary"
+                            )
 
                     with gr.Column():
-                        melody_input = gr.Textbox(
-                            label="Melodic Line",
-                            placeholder="E4 G4 F#4 D4",
-                        )
-                        scales_input = gr.Textbox(
-                            label="Scale Analysis",
-                            placeholder="E F# G A B C D",
-                            lines=3,
-                        )
+                        with gr.Row():
+                            melody_input = gr.Textbox(
+                                label="Melodic Line",
+                                placeholder="E4 G4 F#4 D4",
+                                scale=3,
+                            )
+                            clear_melody = gr.Button("🗑️", size="sm", scale=0)
+
+                        # Melody examples
+                        with gr.Row():
+                            melody_ex1 = gr.Button(
+                                "🎵 Scale Ascent", size="sm", variant="secondary"
+                            )
+                            melody_ex2 = gr.Button(
+                                "🎶 Arpeggio", size="sm", variant="secondary"
+                            )
+                            melody_ex3 = gr.Button(
+                                "🎼 Bach-like", size="sm", variant="secondary"
+                            )
+                        with gr.Row():
+                            melody_ex4 = gr.Button(
+                                "🌟 Stepwise", size="sm", variant="secondary"
+                            )
+                            melody_ex5 = gr.Button(
+                                "🎺 Leaps", size="sm", variant="secondary"
+                            )
+                            melody_ex6 = gr.Button(
+                                "🎹 Chromatic", size="sm", variant="secondary"
+                            )
+
+                        with gr.Row():
+                            scales_input = gr.Textbox(
+                                label="Scale Analysis",
+                                placeholder="E F# G A B C D",
+                                lines=3,
+                                scale=3,
+                            )
+                            clear_scales = gr.Button("🗑️", size="sm", scale=0)
+
+                        # Scale examples
+                        with gr.Row():
+                            scale_ex1 = gr.Button(
+                                "Major Scale", size="sm", variant="secondary"
+                            )
+                            scale_ex2 = gr.Button(
+                                "Natural Minor", size="sm", variant="secondary"
+                            )
+                            scale_ex3 = gr.Button(
+                                "Dorian Mode", size="sm", variant="secondary"
+                            )
+                        with gr.Row():
+                            scale_ex4 = gr.Button(
+                                "Mixolydian", size="sm", variant="secondary"
+                            )
+                            scale_ex5 = gr.Button(
+                                "Phrygian", size="sm", variant="secondary"
+                            )
+                            scale_ex6 = gr.Button(
+                                "Lydian", size="sm", variant="secondary"
+                            )
 
                 analyze_btn = gr.Button("Analyze", variant="primary")
 
@@ -1863,6 +1985,263 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
             outputs=[analysis_output],
         )
 
+        # Clear button handlers
+        clear_chords.click(
+            lambda: "",
+            outputs=[chords_input],
+        )
+        clear_romans.click(
+            lambda: "",
+            outputs=[romans_input],
+        )
+        clear_melody.click(
+            lambda: "",
+            outputs=[melody_input],
+        )
+        clear_scales.click(
+            lambda: "",
+            outputs=[scales_input],
+        )
+
+        # Chord progression example handlers - Clear other fields and set chord + profile + key
+        chord_ex1.click(
+            lambda: ("Am F C G", "", "", "", "pop", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        chord_ex2.click(
+            lambda: ("Dm G7 C", "", "", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        chord_ex3.click(
+            lambda: ("Dm7 G7 Cmaj7", "", "", "", "jazz", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        chord_ex4.click(
+            lambda: ("Am F C G", "", "", "", "classical", "A minor"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        chord_ex5.click(
+            lambda: ("C F Bb C", "", "", "", "folk", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        chord_ex6.click(
+            lambda: ("E5 A5 B5 E5", "", "", "", "pop", "E major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+
+        # Roman numeral example handlers - Clear other fields and set romans + profile + key
+        roman_ex1.click(
+            lambda: ("", "I vi IV V", "", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        roman_ex2.click(
+            lambda: ("", "ii65 V7 I", "", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        roman_ex3.click(
+            lambda: ("", "vi IV I V", "", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+
+        # Melody example handlers - Clear other fields and set melody + profile + key
+        melody_ex1.click(
+            lambda: ("", "", "C4 D4 E4 F4 G4 A4 B4 C5", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        melody_ex2.click(
+            lambda: ("", "", "C4 E4 G4 C5 G4 E4 C4", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        melody_ex3.click(
+            lambda: ("", "", "G4 A4 B4 C5 B4 A4 G4 F4", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        melody_ex4.click(
+            lambda: ("", "", "E4 F4 G4 A4 B4 C5", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        melody_ex5.click(
+            lambda: ("", "", "C4 F4 A4 D5 G4 C5", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        melody_ex6.click(
+            lambda: ("", "", "C4 C#4 D4 D#4 E4 F4 F#4 G4", "", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+
+        # Scale example handlers - Clear other fields and set scale + profile + key
+        scale_ex1.click(
+            lambda: ("", "", "", "C D E F G A B", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        scale_ex2.click(
+            lambda: ("", "", "", "A B C D E F G", "classical", "A minor"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        scale_ex3.click(
+            lambda: ("", "", "", "D E F G A B C", "folk", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        scale_ex4.click(
+            lambda: ("", "", "", "G A B C D E F", "folk", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        scale_ex5.click(
+            lambda: ("", "", "", "E F G A B C D", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+        scale_ex6.click(
+            lambda: ("", "", "", "F G A B C D E", "classical", "C major"),
+            outputs=[
+                chords_input,
+                romans_input,
+                melody_input,
+                scales_input,
+                profile_input,
+                key_input,
+            ],
+        )
+
     demo.launch(
         server_name="127.0.0.1",
         server_port=7860,
@@ -1961,24 +2340,39 @@ def main() -> None:
             args.chords, args.romans, args.melody, scales_input_text
         )
 
-        # For now, focus on chord progression analysis with the new service
+        # Use unified service for all analysis types
+        service = get_service()
         if args.chords:
             chords = validate_list("chord", parse_csv(args.chords))
-            envelope = run_analysis_sync(chords, args.profile, key_hint)
-        else:
-            # Fall back to legacy pattern for non-chord analysis
-            context = analyze_progression(
-                key=key_hint,
-                profile=args.profile,
-                chords_text=args.chords,
-                romans_text=args.romans,
-                melody_text=args.melody,
-                scales_input=args.scale,
+            envelope = asyncio.run(
+                service.analyze_with_patterns_async(
+                    chords=chords, profile=args.profile, key_hint=key_hint
+                )
             )
-            # Create a mock envelope for backward compatibility
+        elif args.romans:
+            romans = validate_list("roman", parse_csv(args.romans))
+            envelope = asyncio.run(
+                service.analyze_with_patterns_async(
+                    romans=romans, profile=args.profile, key_hint=key_hint
+                )
+            )
+        elif args.melody:
+            melody = validate_list("note", parse_csv(args.melody))
+            envelope = asyncio.run(
+                service.analyze_with_patterns_async(
+                    melody=melody, profile=args.profile, key_hint=key_hint
+                )
+            )
+        elif args.scale:
+            scales = parse_scales(args.scale)
+            envelope = asyncio.run(
+                service.analyze_with_patterns_async(
+                    notes=scales[0], profile=args.profile, key_hint=key_hint
+                )
+            )
+        else:
             raise ValueError(
-                "Roman numeral, melody, and scale analysis are not yet migrated to the new service. "
-                "Please use chord symbols instead. For example: --chords 'Am Dm G C' --key 'C major'"
+                "Must provide one of: --chords, --romans, --melody, or --scale"
             )
     except ValueError as exc:
         parser.error(str(exc))
