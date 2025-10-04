@@ -489,7 +489,14 @@ class TokenConverter:
             base_roman = base_roman.lower()
 
         # Append seventh quality
-        if is_maj7:
+        # Big play: check for half-diminished BEFORE plain seventh
+        is_half_dim = bool(
+            re.search(r"m7[b♭]5", chord, flags=re.IGNORECASE) or "ø" in chord
+        )
+
+        if is_half_dim:
+            base_roman += "ø7"
+        elif is_maj7:
             base_roman += "maj7"
         elif re.search(r"7(?![+])", chord):  # plain '7' (dominant/minor-7 contexts)
             base_roman += "7"
