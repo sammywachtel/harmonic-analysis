@@ -98,14 +98,7 @@ from harmonic_analysis.api.analysis import analyze_melody, analyze_scale
 # Validation helpers
 # ---------------------------------------------------------------------------
 
-CHORD_RE = re.compile(
-    r"^[A-G](?:#|b)?(?:"
-    r"maj7|maj9|maj13|maj11|maj|m7|m9|m11|m13|m6|m|dim7|dim|aug|add9|sus2|sus4|"
-    r"7|9|11|13|6|\+7|\+|°|ø)?"
-    r"(?:/[A-G](?:#|b)?)?$",
-    re.IGNORECASE,
-)
-
+# Roman numeral and note validation (library doesn't own these yet)
 ROMAN_RE = re.compile(r"^[ivIV]+(?:[#b♯♭]?[ivIV]+)?(?:[°ø+]?)(?:\d+)?$")
 NOTE_RE = re.compile(r"^[A-Ga-g](?:#|b)?(?:\d+)?$")
 
@@ -142,16 +135,31 @@ def validate_list(kind: str, items: List[str]) -> List[str]:
     if not items:
         return []
 
-    validator = {
-        "chord": CHORD_RE,
-        "roman": ROMAN_RE,
-        "note": NOTE_RE,
-    }[kind]
+    # Opening move: use library's parsers for validation when available
+    if kind == "chord":
+        # Chord validation uses the library's ChordParser
+        from harmonic_analysis.core.utils.chord_logic import ChordParser
 
-    invalid = [item for item in items if not validator.match(item)]
-    if invalid:
-        raise ValueError(f"Invalid {kind} entries: {', '.join(invalid)}")
-    return items
+        parser = ChordParser()
+        invalid = []
+        for item in items:
+            try:
+                parser.parse_chord(item)
+            except ValueError:
+                invalid.append(item)
+        if invalid:
+            raise ValueError(f"Invalid {kind} entries: {', '.join(invalid)}")
+        return items
+    else:
+        # Roman numerals and notes still use regex (library doesn't own these)
+        validator = {
+            "roman": ROMAN_RE,
+            "note": NOTE_RE,
+        }[kind]
+        invalid = [item for item in items if not validator.match(item)]
+        if invalid:
+            raise ValueError(f"Invalid {kind} entries: {', '.join(invalid)}")
+        return items
 
 
 def parse_melody(value: Optional[str]) -> List[str]:
@@ -1192,7 +1200,11 @@ def main() -> None:
     )
     parser.add_argument(
         "--chords",
-        help="Chord symbols separated by spaces or commas (e.g. 'G7 Cmaj7' or 'G7,Cmaj7'). Optional.",
+        help=(
+            "Chord symbols separated by spaces or commas (e.g. 'G7 Cmaj7' or 'G7,Cmaj7'). "
+            "Half-diminished: use 'm7b5' (e.g. 'Dm7b5') - keyboard friendly! "
+            "Slash chords: 'C/E' for inversions. Optional."
+        ),
     )
     parser.add_argument(
         "--romans",

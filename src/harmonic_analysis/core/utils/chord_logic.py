@@ -73,7 +73,21 @@ class ChordParser:
         if not chord_symbol:
             raise ValueError("Empty chord symbol")
 
-        match = self.CHORD_PATTERN.match(chord_symbol)
+        # Opening move: check for half-diminished before regex (m7b5 or m7♭5)
+        # This handles keyboard-friendly notation
+        normalized_symbol = chord_symbol
+        if "m7b5" in chord_symbol.lower() or "m7♭5" in chord_symbol:
+            # Extract root and bass, replace m7b5/m7♭5 with ø7
+            half_dim_pattern = re.compile(
+                r"^([A-G][#b]?)m7[b♭]5(/[A-G][#b]?)?$", re.IGNORECASE
+            )
+            hd_match = half_dim_pattern.match(chord_symbol)
+            if hd_match:
+                root_part = hd_match.group(1)
+                bass_part = hd_match.group(2) or ""
+                normalized_symbol = f"{root_part}ø7{bass_part}"
+
+        match = self.CHORD_PATTERN.match(normalized_symbol)
         if not match:
             raise ValueError(f"Cannot parse chord symbol: {chord_symbol}")
 
