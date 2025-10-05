@@ -1,0 +1,442 @@
+{
+  "version": 1,
+  "concepts": {
+    "cadence.authentic.perfect": {
+      "id": "cadence.authentic.perfect",
+      "display_name": "Perfect Authentic Cadence (PAC)",
+      "learning_levels": {
+        "beginner": {
+          "summary": "The strongest way to end a musical phrase - like a period at the end of a sentence",
+          "key_points": [
+            "Uses V → I chords (the most powerful progression)",
+            "Both chords in strongest position (root position)",
+            "Melody ends on the home note (scale degree 1)",
+            "Creates the strongest sense of 'coming home'"
+          ],
+          "listen_for": "The satisfying 'resolved' feeling at phrase endings",
+          "common_uses": [
+            "Classical symphonies",
+            "Hymn endings",
+            "Final cadences in songs"
+          ]
+        },
+        "intermediate": {
+          "summary": "PAC combines three requirements for maximum closure strength",
+          "key_points": [
+            "V or V7 → I progression required",
+            "Both chords must be in root position",
+            "Soprano voice must end on tonic (^1)"
+          ],
+          "theory_deep_dive": {
+            "requirements": [
+              "V or V7 → I progression",
+              "Both chords in root position",
+              "Soprano voice ends on tonic (^1)"
+            ],
+            "why_strongest": [
+              "Root position maximizes bass clarity",
+              "Soprano ^1 provides melodic closure",
+              "V-I progression fulfills dominant-tonic expectation"
+            ]
+          },
+          "composition_tips": [
+            "Use PAC for final cadences in pieces",
+            "Reserve PAC for most important structural points",
+            "Compare with IAC to create hierarchy of phrase endings"
+          ]
+        },
+        "advanced": {
+          "summary": "PAC as structural cornerstone in formal design",
+          "theoretical_context": {
+            "schenkerian_view": "PAC represents fundamental structure's bass arpeggiation I-V-I",
+            "formal_function": "Essential punctuation for period structure",
+            "historical_evolution": "Codified in Common Practice, weakened in Romantic era"
+          },
+          "analytical_considerations": [
+            "Distinguishes authentic periods from sentences",
+            "PAC elision creates continuous motion",
+            "Delayed PAC builds dramatic tension"
+          ],
+          "related_patterns": [
+            "Cadential 6/4 → V7 → I (expands PAC)",
+            "Deceptive resolution (subverts PAC expectation)",
+            "Extended PAC with pre-dominant chains"
+          ]
+        }
+      },
+      "musical_examples": {
+        "progressions": [
+          {
+            "chords": "G7 C",
+            "key": "C major",
+            "context": "Simplest PAC",
+            "roman_numerals": "V7 I"
+          },
+          {
+            "chords": "Dm G7 C",
+            "key": "C major",
+            "context": "PAC with predominant",
+            "roman_numerals": "ii V7 I"
+          },
+          {
+            "chords": "F C/E Dm G7 C",
+            "key": "C major",
+            "context": "Extended approach to PAC",
+            "roman_numerals": "IV I6 ii V7 I"
+          }
+        ],
+        "repertoire": [
+          {
+            "composer": "Beethoven",
+            "piece": "Symphony No. 5, mvt. 1",
+            "location": "m. 21",
+            "note": "Powerful PAC in Eb major"
+          },
+          {
+            "composer": "Mozart",
+            "piece": "Piano Sonata K. 545, mvt. 1",
+            "location": "m. 4",
+            "note": "Classic period ending with PAC"
+          }
+        ]
+      },
+      "relationships": {
+        "contrasts_with": [
+          "cadence.authentic.imperfect",
+          "cadence.half",
+          "cadence.deceptive"
+        ],
+        "builds_from": [
+          "function.predominant",
+          "function.dominant"
+        ],
+        "leads_to": [
+          "phrase.new",
+          "section.coda"
+        ]
+      },
+      "misconceptions": [
+        {
+          "myth": "Any V-I is a PAC",
+          "reality": "Must be root position with soprano on ^1",
+          "clarification": "V6-I is IAC, not PAC, due to inversion. The bass and soprano positions matter just as much as the harmonic progression."
+        }
+      ],
+      "practice_exercises": [
+        "Identify PACs vs IACs in Bach chorales",
+        "Compose parallel periods using PAC endings",
+        "Analyze Haydn string quartets for PAC placement in formal structure"
+      ]
+    },
+    "cadence.authentic.imperfect": {
+      "id": "cadence.authentic.imperfect",
+      "display_name": "Imperfect Authentic Cadence (IAC)",
+      "learning_levels": {
+        "beginner": {
+          "summary": "A slightly weaker ending than PAC - still feels resolved but not as final",
+          "key_points": [
+            "Uses V → I like PAC, but with one difference",
+            "Either a chord is inverted, OR the melody doesn't end on the home note",
+            "Still sounds 'finished' but less strongly than PAC"
+          ],
+          "listen_for": "Resolution that feels complete but leaves room for continuation",
+          "common_uses": [
+            "Middle of pieces (not final endings)",
+            "Question-answer phrases (answer part)",
+            "Internal phrase endings"
+          ]
+        },
+        "intermediate": {
+          "summary": "IAC weakens PAC through inversion or soprano displacement",
+          "key_points": [
+            "V-I progression maintained",
+            "Fails one PAC requirement: inversion OR soprano not on ^1",
+            "Creates hierarchy of cadential strength"
+          ],
+          "theory_deep_dive": {
+            "requirements": [
+              "V or V7 → I progression",
+              "At least one chord inverted OR soprano not on ^1"
+            ],
+            "types": [
+              "Inverted IAC: V6-I or V-I6",
+              "Melodic IAC: V-I with soprano on ^3 or ^5"
+            ]
+          },
+          "composition_tips": [
+            "Use for internal phrase endings",
+            "Create contrast with stronger PAC later",
+            "Employ in antecedent phrases before PAC consequent"
+          ]
+        },
+        "advanced": {
+          "summary": "IAC as tool for formal continuation and hierarchical structure",
+          "theoretical_context": {
+            "formal_function": "Enables continuation through weaker closure",
+            "voice_leading": "Inverted bass provides smoother motion",
+            "expressive_function": "Suggests incompleteness, forward momentum"
+          },
+          "analytical_considerations": [
+            "IAC in antecedent enables period structure",
+            "Differentiates sentence from period construction",
+            "Allows modulation through weaker tonic confirmation"
+          ],
+          "related_patterns": [
+            "Contrasts with PAC strength",
+            "Often precedes PAC in period structure",
+            "Can substitute for HC in some contexts"
+          ]
+        }
+      },
+      "musical_examples": {
+        "progressions": [
+          {
+            "chords": "G7 C",
+            "key": "C major",
+            "context": "IAC with soprano on 3rd (E)",
+            "roman_numerals": "V7 I"
+          },
+          {
+            "chords": "G7 C/E",
+            "key": "C major",
+            "context": "IAC with inverted tonic",
+            "roman_numerals": "V7 I6"
+          }
+        ],
+        "repertoire": [
+          {
+            "composer": "Mozart",
+            "piece": "Eine Kleine Nachtmusik, mvt. 1",
+            "location": "m. 8",
+            "note": "IAC at antecedent ending"
+          }
+        ]
+      },
+      "relationships": {
+        "contrasts_with": [
+          "cadence.authentic.perfect"
+        ],
+        "builds_from": [
+          "function.dominant"
+        ],
+        "leads_to": [
+          "phrase.continuation",
+          "cadence.authentic.perfect"
+        ]
+      },
+      "misconceptions": [
+        {
+          "myth": "IAC is just a weak or failed PAC",
+          "reality": "IAC serves distinct formal and expressive functions",
+          "clarification": "Composers deliberately choose IAC for its continuation properties, not because they couldn't write PAC"
+        }
+      ],
+      "practice_exercises": [
+        "Compare IAC and PAC in Mozart sonata expositions",
+        "Write period structures using IAC-PAC cadential pattern",
+        "Identify types of IAC (inverted vs melodic) in repertoire"
+      ]
+    },
+    "functional.ii_V_I": {
+      "id": "functional.ii_V_I",
+      "display_name": "ii-V-I Progression",
+      "learning_levels": {
+        "beginner": {
+          "summary": "The most fundamental progression in Western music - a complete journey home",
+          "key_points": [
+            "Moves through all three harmonic functions: PD → D → T",
+            "ii chord 'sets up' the V chord",
+            "V chord creates tension that resolves to I",
+            "Foundation of countless songs across all genres"
+          ],
+          "listen_for": "The satisfying three-step journey to resolution",
+          "common_uses": [
+            "Jazz standards (with 7th chords: ii7-V7-I)",
+            "Classical cadences",
+            "Pop song endings"
+          ]
+        },
+        "intermediate": {
+          "summary": "Complete functional progression demonstrating T-PD-D-T harmonic cycle",
+          "key_points": [
+            "ii = predominant function (prepares dominant)",
+            "V = dominant function (creates tension)",
+            "I = tonic function (provides resolution)"
+          ],
+          "theory_deep_dive": {
+            "voice_leading": [
+              "Smooth voice leading: ii and V share scale degree 4",
+              "Leading tone (7) resolves up to tonic (1)",
+              "Root motion by 4th (ii→V) and 5th (V→I)"
+            ],
+            "extensions": [
+              "Jazz: ii7-V7-Imaj7 with extended tertian harmony",
+              "Minor: ii°-V-i with raised leading tone",
+              "Substitutions: IV can replace ii, vi can replace I"
+            ]
+          },
+          "composition_tips": [
+            "Use ii7-V7-I for jazz flavor",
+            "Try ii°6 in minor for smoother bass",
+            "Extend with iii-vi-ii-V-I for longer phrases"
+          ]
+        },
+        "advanced": {
+          "summary": "Archetypal functional paradigm in tonal music theory",
+          "theoretical_context": {
+            "historical_development": "Crystallized in Classical period, extended in Romantic/Jazz",
+            "theoretical_models": "Central to Riemann's functional theory",
+            "jazz_theory": "Basis for ii-V substitutions and reharmonization"
+          },
+          "analytical_considerations": [
+            "Can be prolonged through passing chords",
+            "Subject to tritone substitution in jazz (bII7 for V7)",
+            "Modal mixture allows ii-V-i in major contexts"
+          ],
+          "related_patterns": [
+            "Circle of fifths: foundation pattern",
+            "Ragtime progression: I-vi-ii-V",
+            "Turnaround: vi-ii-V-I in jazz"
+          ]
+        }
+      },
+      "musical_examples": {
+        "progressions": [
+          {
+            "chords": "Dm G7 C",
+            "key": "C major",
+            "context": "Basic ii-V-I",
+            "roman_numerals": "ii V7 I"
+          },
+          {
+            "chords": "Dm7 G7 Cmaj7",
+            "key": "C major",
+            "context": "Jazz ii-V-I with 7ths",
+            "roman_numerals": "ii7 V7 Imaj7"
+          },
+          {
+            "chords": "D°7 G7 Cm",
+            "key": "C minor",
+            "context": "Minor ii-V-i",
+            "roman_numerals": "ii°7 V7 i"
+          }
+        ],
+        "repertoire": [
+          {
+            "composer": "George Gershwin",
+            "piece": "I Got Rhythm",
+            "location": "Throughout",
+            "note": "Classic jazz ii-V-I turnarounds"
+          },
+          {
+            "composer": "J.S. Bach",
+            "piece": "Chorale: 'Jesu, Joy of Man's Desiring'",
+            "location": "Multiple cadences",
+            "note": "ii6-V-I bass motion"
+          }
+        ]
+      },
+      "relationships": {
+        "contrasts_with": [
+          "functional.I_IV_V",
+          "modal.plagal"
+        ],
+        "builds_from": [
+          "function.predominant",
+          "function.dominant"
+        ],
+        "leads_to": [
+          "extended.circle_of_fifths",
+          "jazz.turnaround"
+        ]
+      },
+      "misconceptions": [
+        {
+          "myth": "ii-V-I is only a jazz progression",
+          "reality": "It's the fundamental cadential formula in all Western tonal music",
+          "clarification": "Classical music uses ii-V-I extensively; jazz simply extended it with 7th chords and substitutions"
+        }
+      ],
+      "practice_exercises": [
+        "Play ii-V-I in all 12 keys",
+        "Harmonize melodies using ii-V-I cadences",
+        "Analyze jazz standards for ii-V-I occurrences and substitutions"
+      ]
+    }
+  },
+  "pattern_families": {
+    "cadential": {
+      "overview": "Harmonic formulas that create closure or continuation in musical phrases",
+      "hierarchy": [
+        "PAC (strongest)",
+        "IAC (strong)",
+        "HC (weak, continuational)",
+        "Deceptive (evaded)",
+        "Plagal (alternative resolution)"
+      ],
+      "pedagogical_sequence": [
+        "Start with V-I (both PAC and IAC)",
+        "Add Half Cadence for contrast",
+        "Introduce Deceptive for expressive effect",
+        "Explore Plagal as alternative"
+      ],
+      "cross_references": {
+        "formal_analysis": "Cadences define phrase boundaries and structural divisions",
+        "voice_leading": "Soprano scale degree affects cadence strength",
+        "harmony": "Functional harmony drives cadential motion"
+      }
+    },
+    "functional": {
+      "overview": "Progressions following the T-PD-D-T functional paradigm",
+      "hierarchy": [
+        "ii-V-I (complete cycle)",
+        "IV-V-I (alternative PD)",
+        "I-IV-V-I (extended)"
+      ],
+      "pedagogical_sequence": [
+        "Master ii-V-I first",
+        "Understand PD substitutions (ii vs IV)",
+        "Explore circle of fifths extensions"
+      ],
+      "cross_references": {
+        "jazz_harmony": "Basis for reharmonization and substitution",
+        "classical_harmony": "Foundation of Common Practice Period"
+      }
+    }
+  },
+  "harmonic_functions": {
+    "T": {
+      "full_name": "Tonic Function",
+      "musician_explanation": "Chords that sound stable and 'at home' - the point of rest in music",
+      "common_chords": [
+        "I",
+        "vi (tonic substitute)",
+        "iii (rare)"
+      ],
+      "role_in_music": "Provides stability, resolution, and establishes the key",
+      "tension_level": "Low - feels resolved and at rest"
+    },
+    "D": {
+      "full_name": "Dominant Function",
+      "musician_explanation": "Chords that create tension wanting to resolve to tonic",
+      "common_chords": [
+        "V",
+        "V7",
+        "vii° (leading-tone chord)"
+      ],
+      "role_in_music": "Drives forward motion, creates harmonic tension, demands resolution",
+      "tension_level": "High - strong pull toward tonic"
+    },
+    "PD": {
+      "full_name": "Predominant Function",
+      "musician_explanation": "Chords that prepare the dominant - the 'wind-up' before the tension",
+      "common_chords": [
+        "ii",
+        "IV",
+        "vi (sometimes)"
+      ],
+      "role_in_music": "Bridge from tonic to dominant, builds tension gradually",
+      "tension_level": "Medium - moving toward dominant, preparing resolution"
+    }
+  }
+}
