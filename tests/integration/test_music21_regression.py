@@ -254,36 +254,19 @@ class TestMusic21IntegrationIsolation:
 class TestMusic21ExistingTestSuite:
     """Verify existing test suite still passes."""
 
-    def test_comprehensive_tests_available(self):
-        """Comprehensive test suite should still exist."""
-        # This is a meta-test - verify our main test files exist
-        import os
+    def test_can_import_existing_test_modules(self):
+        """Should be able to import existing integration test modules."""
+        # Verify integration test modules are importable
+        # (If imports fail, it means we broke something)
+        try:
+            from tests.integration import test_melody_analysis  # noqa: F401
+            from tests.integration import test_roman_numeral_analysis  # noqa: F401
+            from tests.integration import test_scale_analysis  # noqa: F401
 
-        test_files = [
-            "tests/integration/test_scale_analysis.py",
-            "tests/integration/test_melody_analysis.py",
-            "tests/integration/test_roman_numeral_analysis.py",
-        ]
-
-        for test_file in test_files:
-            assert os.path.exists(test_file), f"Test file missing: {test_file}"
-
-    @pytest.mark.slow
-    def test_existing_suite_runs(self):
-        """Existing comprehensive tests should still run."""
-        # This would normally run the full suite
-        # For now, we just verify we can import the test modules
-        import importlib.util
-
-        spec = importlib.util.spec_from_file_location(
-            "comprehensive_tests",
-            "tests/test_comprehensive_multi_layer_validation.py",
-        )
-
-        if spec and spec.loader:
-            module = importlib.util.module_from_spec(spec)
-            # Just verify it loads - actual execution happens in CI
-            assert module is not None
+            # If we got here, imports work
+            assert True
+        except ImportError as e:
+            pytest.fail(f"Failed to import existing test module: {e}")
 
 
 # Mark all regression tests for easy filtering
