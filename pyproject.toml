@@ -103,6 +103,7 @@ markers = [
     "modal: Modal analysis tests",
     "chromatic: Chromatic analysis tests",
     "asyncio: Mark a test as an asyncio test",
+    "regression: Regression tests to ensure existing functionality unchanged",
 ]
 
 [tool.black]
