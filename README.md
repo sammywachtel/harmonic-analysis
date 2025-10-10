@@ -137,65 +137,85 @@ harmonic-analysis/
 ├── 📁 src/harmonic_analysis/           # Core library source code
 │   ├── __init__.py                     # Main library exports and API
 │   ├── analysis_types.py               # Analysis result type definitions
-│   ├── scales.py                       # Scale and mode definitions
-│   │
-│   ├── 📁 api/                         # High-level public API
-│   │   ├── analysis.py                 # Main analysis functions
-│   │   ├── character.py                # Musical character analysis
-│   │   └── musical_data.py             # Musical data structures
+│   ├── dto.py                          # Data transfer objects
 │   │
 │   ├── 📁 core/                        # Core analysis engines
 │   │   ├── functional_harmony.py       # Roman numeral & functional analysis
-│   │   ├── enhanced_modal_analyzer.py  # Modal analysis (Dorian, Mixolydian, etc.)
 │   │   ├── chromatic_analysis.py       # Advanced chromatic harmony
 │   │   ├── scale_melody_analysis.py    # Scale and melody analysis
+│   │   ├── arbitration.py              # Analysis type arbitration logic
+│   │   ├── validation_errors.py        # Input validation errors
+│   │   ├── telemetry.py                # Analysis telemetry
 │   │   │
-│   │   └── 📁 pattern_engine/          # 🆕 NEW: Pattern matching system
+│   │   └── 📁 pattern_engine/          # Pattern matching system
+│   │       ├── pattern_engine.py       # Main pattern engine orchestrator
+│   │       ├── pattern_loader.py       # Pattern definition loader
 │   │       ├── matcher.py              # Core pattern matching logic
+│   │       ├── aggregator.py           # Evidence aggregation
+│   │       ├── calibration.py          # Confidence calibration
+│   │       ├── evidence.py             # Evidence data structures
 │   │       ├── low_level_events.py     # Bass motion & voice leading detection
 │   │       ├── token_converter.py      # Analysis → pattern tokens
-│   │       ├── patterns.json           # Pattern definitions (40+ patterns)
-│   │       └── glossary_service.py     # Musical term definitions
+│   │       ├── target_builder_unified.py # Unified target building
+│   │       ├── plugin_registry.py      # Plugin system for evaluators
+│   │       ├── glossary.py             # Musical term definitions
+│   │       ├── glossary_service.py     # Glossary lookup service
+│   │       └── schemas/                # Pattern definition schemas
 │   │
 │   ├── 📁 services/                    # High-level analysis services
-│   │   ├── pattern_analysis_service.py # 🆕 NEW: Main pattern analysis API
-│   │   ├── multiple_interpretation_service.py # Multiple analysis perspectives
-│   │   ├── bidirectional_suggestion_engine.py # Key suggestion system
-│   │   └── algorithmic_suggestion_engine.py   # Analysis optimization
+│   │   ├── pattern_analysis_service.py # Main pattern analysis API
+│   │   ├── unified_pattern_service.py  # Unified pattern service
+│   │   └── analysis_arbitration_service.py # Analysis type arbitration
 │   │
-│   ├── 📁 specialized/                 # Specialized analysis modules
-│   │   ├── algorithms.py               # Advanced analysis algorithms
-│   │   ├── chromatic.py                # Chromatic harmony tools
-│   │   ├── midi.py                     # MIDI integration utilities
-│   │   └── theory.py                   # Music theory constants & utilities
+│   ├── 📁 utils/                       # Utility functions
+│   │   ├── chord_logic.py              # Chord analysis logic
+│   │   ├── chord_inversions.py         # Inversion analysis
+│   │   ├── scales.py                   # Scale utilities
+│   │   ├── music_theory_constants.py   # Constants and mappings
+│   │   ├── analysis_helpers.py         # Analysis helper functions
+│   │   └── api_helpers.py              # API utility functions
 │   │
-│   └── 📁 utils/                       # Utility functions
-│       ├── chord_parser.py             # Chord symbol parsing
-│       ├── chord_logic.py              # Chord analysis logic
-│       ├── chord_inversions.py         # Inversion analysis
-│       ├── roman_numeral_converter.py  # Roman numeral conversion
-│       ├── scales.py                   # Scale utilities
-│       └── music_theory_constants.py   # Constants and mappings
+│   ├── 📁 integrations/                # 🆕 External library integrations
+│   │   └── music21_adapter.py          # music21 library integration
+│   │
+│   ├── 📁 educational/                 # Educational content system
+│   │   ├── educational_service.py      # Educational content service
+│   │   ├── knowledge_base.py           # Music theory knowledge base
+│   │   ├── formatter.py                # Educational content formatting
+│   │   └── types.py                    # Educational content types
+│   │
+│   ├── 📁 corpus_miner/                # Corpus mining tools
+│   │   ├── corpus_extractor.py         # Extract patterns from corpus
+│   │   ├── pattern_labeler.py          # Label patterns in data
+│   │   ├── target_builder.py           # Build training targets
+│   │   └── types.py                    # Corpus mining types
+│   │
+│   └── 📁 resources/                   # Static resources
+│       └── educational/                # Educational content resources
 │
-├── 📁 tests/                           # Comprehensive test suite (1500+ tests)
-│   ├── test_pattern_engine.py          # 🆕 Pattern engine tests
-│   ├── test_comprehensive_multi_layer_validation.py # 427 sophisticated tests
-│   ├── test_inversion_regression.py    # Bidirectional inversion tests
-│   ├── test_edge_case_behavior.py      # Edge case handling
-│   ├── test_chromatic_analysis.py      # Chromatic harmony tests
-│   ├── test_enhanced_modal_analyzer.py # Modal analysis tests
-│   └── unit/test_chord_logic.py        # Unit tests for core logic
+├── 📁 tests/                           # Comprehensive test suite (450+ tests)
+│   ├── patterns/                        # Pattern engine tests
+│   ├── integration/                     # Integration tests
+│   │   ├── test_scale_analysis.py      # Scale analysis tests
+│   │   ├── test_roman_numeral_analysis.py # Roman numeral tests
+│   │   ├── test_melody_analysis.py     # Melody analysis tests
+│   │   └── test_music21_adapter.py     # 🆕 music21 integration tests
+│   └── unit/                            # Unit tests
+│       └── test_chord_logic.py         # Chord parsing and logic tests
 │
 ├── 📁 scripts/                         # Development and maintenance scripts
 │   ├── quality_check.py                # Linting, typing, and test runner
 │   ├── generate_comprehensive_multi_layer_tests.py # Test case generation
 │   └── music_expert_review.py          # Expert review validation
 │
-├── 📁 docs/                            # Documentation
-│   ├── API_GUIDE.md                    # Complete API documentation
-│   ├── ARCHITECTURE.md                 # System architecture overview
-│   ├── TESTING.md                      # Testing strategy and guides
-│   └── TROUBLESHOOTING.md              # Common issues and solutions
+├── 📁 docs/                            # Documentation (Diátaxis framework)
+│   ├── tutorials/                       # Learning-oriented guides
+│   ├── how-to/                          # Problem-solving guides
+│   ├── reference/                       # Technical reference
+│   ├── explanation/                     # Concept explanations
+│   ├── TESTING.md                       # Testing strategy and guides
+│   ├── DEVELOPMENT.md                   # Development workflow
+│   └── (legacy docs being migrated)     # API_GUIDE.md, ARCHITECTURE.md, etc.
 │
 ├── 📁 .local_docs/                     # Development documentation
 │   ├── music-alg.md                    # 🆕 Pattern engine implementation guide
@@ -336,31 +356,27 @@ The library provides comprehensive inversion analysis with proper figured bass n
 
 ```python
 import asyncio
-from harmonic_analysis import analyze_chord_progression, AnalysisOptions
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 async def analyze_inversions():
     # Progression with multiple inversions in F major
     chords = ['D', 'Gm/Bb', 'D/A', 'Gm', 'F/C', 'C', 'F']
 
-    result = await analyze_chord_progression(
+    service = PatternAnalysisService()
+    result = await service.analyze_with_patterns_async(
         chords,
-        AnalysisOptions(parent_key='F major')
+        key_hint='F major',
+        profile='classical'
     )
 
-    print("Analysis:", result.primary_analysis.analysis)
+    print("Analysis:", result.primary.reasoning)
     # Output: "Functional progression with secondary dominants"
 
-    print("Roman numerals:", result.primary_analysis.roman_numerals)
+    print("Roman numerals:", result.primary.roman_numerals)
     # Output: ['V/ii', 'ii⁶', 'V/ii⁶⁴', 'ii', 'I⁶⁴', 'V', 'I']
 
-    # Perfect bidirectional conversion
-    from harmonic_analysis.utils.roman_numeral_converter import convert_roman_numerals_to_chords
-
-    romans_str = " ".join(result.primary_analysis.roman_numerals)
-    reconstructed = convert_roman_numerals_to_chords(romans_str, "F major")
-    print("Reconstructed chords:", reconstructed)
-    # Output: ['D', 'Gm/Bb', 'D/A', 'Gm', 'F/C', 'C', 'F']
-    # Perfect round-trip conversion preserves all inversions!
+    # The library handles inversions through the pattern analysis system
+    # All inversion symbols (⁶, ⁶⁴, ⁴²) are preserved in roman numeral analysis
 
 asyncio.run(analyze_inversions())
 ```
@@ -818,12 +834,14 @@ When no parent key is provided but one would unlock better analysis:
 
 ```python
 import asyncio
-from harmonic_analysis import analyze_chord_progression, AnalysisOptions
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 async def add_key_example():
+    service = PatternAnalysisService()
+
     # Classic ii-V-I progression without key context
     progression = ['Dm7', 'G7', 'Cmaj7']
-    result = await analyze_chord_progression(progression)
+    result = await service.analyze_with_patterns_async(progression, profile='classical')
 
     # Initial analysis (likely modal)
     print(f"Without key: {result.primary_analysis.analysis}")
@@ -847,9 +865,10 @@ async def add_key_example():
         # → "Confidence: 78%"
 
         # Follow the suggestion
-        better_result = await analyze_chord_progression(
+        better_result = await service.analyze_with_patterns_async(
             progression,
-            AnalysisOptions(parent_key=suggestion.suggested_key)
+            key_hint=suggestion.suggested_key,
+            profile='classical'
         )
         print(f"\n🎯 With suggested key:")
         print(f"   Analysis: {better_result.primary_analysis.analysis}")
@@ -870,13 +889,16 @@ When a parent key is provided but actually makes analysis worse:
 
 ```python
 async def remove_key_example():
+    service = PatternAnalysisService()
+
     # Jazz progression with WRONG parent key
     jazz_progression = ['A', 'E/G#', 'B7sus4/F#', 'E', 'A/C#', 'G#m/B', 'F#m/A', 'E/G#']
 
     # Force wrong key (C major doesn't fit this progression)
-    result = await analyze_chord_progression(
+    result = await service.analyze_with_patterns_async(
         jazz_progression,
-        AnalysisOptions(parent_key='C major')
+        key_hint='C major',
+        profile='jazz'
     )
 
     print(f"With wrong key (C major):")
@@ -899,7 +921,10 @@ async def remove_key_example():
         # → "Reason: Parent key doesn't improve analysis confidence"
 
         # Compare with no key
-        no_key_result = await analyze_chord_progression(jazz_progression)
+        no_key_result = await service.analyze_with_patterns_async(
+            jazz_progression,
+            profile='jazz'
+        )
         print(f"\n🎯 Without the problematic key:")
         print(f"   Analysis: {no_key_result.primary_analysis.analysis}")
         print(f"   Type: {no_key_result.primary_analysis.type.value}")
@@ -921,13 +946,16 @@ When a different parent key would work better than the current one:
 
 ```python
 async def change_key_example():
+    service = PatternAnalysisService()
+
     # Ambiguous progression with suboptimal key
     progression = ['Am', 'F', 'C', 'G']
 
     # Provide A minor key (works, but C major might be better)
-    result = await analyze_chord_progression(
+    result = await service.analyze_with_patterns_async(
         progression,
-        AnalysisOptions(parent_key='A minor')
+        key_hint='A minor',
+        profile='classical'
     )
 
     print(f"With A minor key:")
@@ -1126,16 +1154,22 @@ result = await analyze_chord_progression(['Dm', 'G', 'C'])
 
 ```python
 # Same chords, different context
-options_major = AnalysisOptions(parent_key="C major")
-options_minor = AnalysisOptions(parent_key="A minor")
-
+service = PatternAnalysisService()
 chords = ['Am', 'Dm', 'G', 'C']
 
 # In C major context: vi - ii - V - I
-result1 = await analyze_chord_progression(chords, options_major)
+result1 = await service.analyze_with_patterns_async(
+    chords,
+    key_hint="C major",
+    profile="classical"
+)
 
 # In A minor context: i - iv - bVII - bIII
-result2 = await analyze_chord_progression(chords, options_minor)
+result2 = await service.analyze_with_patterns_async(
+    chords,
+    key_hint="A minor",
+    profile="classical"
+)
 ```
 
 ### It Recognizes Musical Idioms
@@ -1150,12 +1184,17 @@ The library knows common patterns:
 ### It Handles Edge Cases Gracefully
 
 ```python
+service = PatternAnalysisService()
+
 # Single chord - lower confidence
-await analyze_chord_progression(['C'])
+result = await service.analyze_with_patterns_async(['C'], profile="classical")
 # Result: "Single chord: C major" (confidence: ~45%)
 
 # Ambiguous progression
-await analyze_chord_progression(['C', 'Dm', 'Eb', 'F'])
+result = await service.analyze_with_patterns_async(
+    ['C', 'Dm', 'Eb', 'F'],
+    profile="classical"
+)
 # Provides multiple interpretations with reasoning
 ```
 
@@ -1183,19 +1222,17 @@ final_result = synthesize_interpretations(
 ### Customizing Analysis
 
 ```python
-from harmonic_analysis import analyze_chord_progression, AnalysisOptions
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
-# Fine-tune the analysis
-options = AnalysisOptions(
-    parent_key="G major",           # Provide context
-    pedagogical_level="advanced",   # Get more detailed analysis
-    confidence_threshold=0.6,       # Show alternatives above 60%
-    max_alternatives=3              # Maximum alternative interpretations
-)
+# Initialize the service
+service = PatternAnalysisService()
 
-result = await analyze_chord_progression(
-    ['G', 'C', 'D', 'Em'],
-    options
+# Fine-tune the analysis with various options
+result = await service.analyze_with_patterns_async(
+    chord_symbols=['G', 'C', 'D', 'Em'],
+    key_hint="G major",      # Provide tonal context
+    profile="classical",     # Choose pattern library (classical/jazz/pop)
+    best_cover=True         # Find optimal pattern coverage
 )
 ```
 
@@ -1282,20 +1319,24 @@ print(matches[0].chord_name)  # 'Major'
 
 ### Advanced Chromatic Analysis
 ```python
-from harmonic_analysis.chromatic import ChromaticAnalyzer, analyze_chromatic_harmony
-from harmonic_analysis.core.functional_harmony import FunctionalHarmonyAnalyzer
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 async def chromatic_example():
-    # First get functional analysis
-    functional_analyzer = FunctionalHarmonyAnalyzer()
+    service = PatternAnalysisService()
     chords = ['C', 'A7', 'Dm', 'G7', 'C']
-    functional_result = await functional_analyzer.analyze_functionally(chords, 'C major')
 
-    # Then analyze chromatic elements
-    chromatic_result = analyze_chromatic_harmony(functional_result)
-    if chromatic_result:
-        print(f"Secondary dominants: {len(chromatic_result.secondary_dominants)}")
-        print(f"Borrowed chords: {len(chromatic_result.borrowed_chords)}")
+    # Analyze with chromatic pattern detection
+    result = await service.analyze_with_patterns_async(
+        chords,
+        key_hint='C major',
+        profile='classical'
+    )
+
+    # Access detected chromatic elements
+    if result.primary.chromatic_elements:
+        print(f"Chromatic elements found: {len(result.primary.chromatic_elements)}")
+        for elem in result.primary.chromatic_elements:
+            print(f"  {elem.type}: {elem.chord_symbol}")
 ```
 
 ### Music Theory Utilities
@@ -1315,23 +1356,28 @@ print(characteristics.brightness)  # "neutral"
 print(characteristics.characteristic_degrees)  # ['1', '♭3', '6', '♭7']
 ```
 
-### Algorithmic Suggestions
+### Pattern-Based Analysis
 ```python
-from harmonic_analysis.algorithms import BidirectionalSuggestionEngine, AnalysisOptions
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
-async def suggestion_example():
-    engine = BidirectionalSuggestionEngine()
+async def pattern_example():
+    service = PatternAnalysisService()
     chords = ['Dm7', 'G7', 'Cmaj7']
-    options = AnalysisOptions()
 
-    suggestions = await engine.generate_bidirectional_suggestions(
-        chords, options, current_analysis_confidence=0.6
+    # Analyze with pattern matching
+    result = await service.analyze_with_patterns_async(
+        chords,
+        key_hint='C major',
+        profile='jazz',
+        best_cover=True  # Find optimal pattern coverage
     )
 
-    if suggestions.parent_key_suggestions:
-        suggestion = suggestions.parent_key_suggestions[0]
-        print(f"Try: {suggestion.suggested_key}")
-        print(f"Reason: {suggestion.reason}")
+    # Access matched patterns
+    if result.pattern_matches:
+        for match in result.pattern_matches:
+            print(f"Pattern: {match.name}")
+            print(f"Confidence: {match.score:.2f}")
+            print(f"Evidence: {match.evidence}")
 ```
 
 ## Common Questions
