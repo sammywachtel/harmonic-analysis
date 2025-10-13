@@ -4,3 +4,4 @@ scipy
 scikit-learn
 fastapi
 uvicorn
+music21
