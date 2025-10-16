@@ -37,10 +37,7 @@ from demo.lib.analysis_orchestration import (
 )
 
 # Import chord detection utilities
-from demo.lib.chord_detection import (
-    detect_chord_from_pitches,
-    detect_chord_with_music21,
-)
+from demo.lib.chord_detection import detect_chord_from_pitches
 
 # Import constants from extracted modules
 from demo.lib.constants import (
@@ -54,18 +51,8 @@ from demo.lib.constants import (
     ROMAN_RE,
 )
 
-# Import key conversion utilities
-from demo.lib.key_conversion import (
-    convert_key_signature_to_mode,
-    parse_key_signature_from_hint,
-)
-
 # Import music file processing
-from demo.lib.music_file_processing import (
-    analyze_uploaded_file,
-    calculate_initial_window,
-    detect_tempo_from_score,
-)
+from demo.lib.music_file_processing import analyze_uploaded_file
 
 # Import UI formatters
 from demo.ui import (
@@ -81,6 +68,16 @@ from demo.ui import (
     get_chord_function_description,
     summarize_envelope,
 )
+
+# Import library utilities that were extracted from demo
+from harmonic_analysis.core.utils.analysis_params import calculate_initial_window
+
+# Import key conversion utilities
+from harmonic_analysis.core.utils.key_signature import (
+    convert_key_signature_to_mode,
+    parse_key_signature_from_hint,
+)
+from harmonic_analysis.integrations.music21_adapter import Music21Adapter
 
 # Import core library components
 try:
@@ -967,21 +964,7 @@ def launch_gradio_demo(
                             )
 
                     with gr.Column():
-                        gr.Markdown("### 🎵 Chord Detection Comparison")
-                        upload_comparison_output = gr.Dataframe(
-                            label="music21 vs chord_logic Detection",
-                            headers=["Measure", "music21", "chord_logic", "Match"],
-                            datatype=["number", "str", "str", "str"],
-                            col_count=(4, "fixed"),
-                            row_count=(10, "dynamic"),
-                            wrap=True,
-                        )
-
-                with gr.Row():
-                    upload_agreement_output = gr.Textbox(
-                        label="Agreement Rate",
-                        interactive=False,
-                    )
+                        pass
 
                 # Full-width notation viewer for proper rendering
                 with gr.Row():
@@ -1159,9 +1142,8 @@ def launch_gradio_demo(
             # Opening move: handle empty file upload
             if file_obj is None:
                 return (
+                    gr.update(visible=False),  # window_info_output
                     {"error": "No file uploaded"},
-                    None,
-                    "",
                     None,
                     None,
                     "<p><em>Please upload a file first.</em></p>",
@@ -1218,28 +1200,9 @@ def launch_gradio_demo(
                     window_info_text = f"**🎯 Analysis Window:** {window_mode} - **{result['window_size_used']} QL** ({note_name})"
                     window_info_visible = True
 
-                # Format comparison dataframe
+                # Comparison functionality removed - no longer used by demo UI
                 comparison_data = None
-                if result["comparison"]:
-                    comparison_data = [
-                        [
-                            c["measure"],
-                            c["music21"],
-                            c["chord_logic"],
-                            "✓" if c["match"] else "✗",
-                        ]
-                        for c in result["comparison"]
-                    ]
-
-                # Format agreement rate with truncation notice if applicable
-                agreement_text = (
-                    f"{result['agreement_rate']:.1%}" if result["comparison"] else "N/A"
-                )
-
-                # Add note if notation was truncated for display
-                if result.get("truncated_for_display", False):
-                    measure_count = result.get("measure_count", 0)
-                    agreement_text += f"\n\n⚠️ **Note:** Large file detected ({measure_count} measures). Notation viewer shows first {MAX_MEASURES_FOR_DISPLAY} measures only. Download the complete MusicXML file below."
+                agreement_text = ""
 
                 # Format analysis HTML (if available)
                 analysis_html = "<p><em>No analysis run.</em></p>"
@@ -1289,8 +1252,6 @@ def launch_gradio_demo(
                         value=window_info_text, visible=window_info_visible
                     ),  # window_info_output
                     info_json,
-                    comparison_data,
-                    agreement_text,
                     notation_iframe,  # Return iframe pointing to HTML file
                     result["download_url"],
                     analysis_html,
@@ -1309,8 +1270,6 @@ def launch_gradio_demo(
                 return (
                     gr.update(visible=False),  # window_info_output (hide on error)
                     {"error": str(e)},
-                    None,
-                    "",
                     None,
                     None,
                     f"<div style='color: red;'><strong>Error:</strong> {e}<br/><pre>{error_details}</pre></div>",
@@ -1349,8 +1308,6 @@ def launch_gradio_demo(
             outputs=[
                 window_info_output,  # Window size display (prominent)
                 upload_info_output,
-                upload_comparison_output,
-                upload_agreement_output,
                 upload_notation_output,
                 upload_download_output,
                 upload_analysis_output,

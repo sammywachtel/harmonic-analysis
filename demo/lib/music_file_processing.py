@@ -29,11 +29,8 @@ from dataclasses import asdict
 from typing import Any, Dict, List, Optional
 
 from demo.lib.analysis_orchestration import get_service
-from demo.lib.chord_detection import (
-    detect_chord_from_pitches,
-    detect_chord_with_music21,
-)
-from demo.lib.key_conversion import (
+from harmonic_analysis.core.utils.chord_detection import detect_chord_from_pitches
+from harmonic_analysis.core.utils.key_signature import (
     convert_key_signature_to_mode,
     parse_key_signature_from_hint,
 )
@@ -42,142 +39,6 @@ from demo.lib.key_conversion import (
 # (MIDI files can create massive MusicXML that browsers can't handle)
 # Reduced to 20 for better OSMD performance with dense piano music
 MAX_MEASURES_FOR_DISPLAY = 20
-
-
-# ============================================================================
-# Tempo Detection
-# ============================================================================
-
-
-def detect_tempo_from_score(score) -> float:
-    """
-    Detect tempo from score, either from tempo marking or estimated from note density.
-
-    Opening move: Look for explicit tempo markings in the score metadata.
-    If none found, estimate tempo based on note density in the opening measures.
-    This heuristic helps set appropriate analysis windows even when tempo isn't marked.
-
-    Args:
-        score: music21 Score object
-
-    Returns:
-        Tempo in BPM (beats per minute). Defaults to 100 if not found.
-
-    Example:
-        >>> from music21 import converter
-        >>> score = converter.parse('tests/data/test_files/simple_progression.xml')
-        >>> tempo = detect_tempo_from_score(score)
-        >>> print(f"Detected tempo: {tempo} BPM")
-        Detected tempo: 120.0 BPM
-    """
-    try:
-        # First, look for explicit tempo markings
-        from music21 import tempo as m21_tempo
-
-        tempo_marks = score.flatten().getElementsByClass(m21_tempo.MetronomeMark)
-        if tempo_marks:
-            bpm = tempo_marks[0].number
-            # Check if bpm is valid (not None)
-            if bpm is not None and bpm > 0:
-                print(f"DEBUG: Found tempo marking: {bpm} BPM")
-                return float(bpm)
-            else:
-                print(f"DEBUG: Found tempo marking but value is invalid: {bpm}")
-
-        # If no tempo marking, estimate from note density
-        # This is a rough heuristic: count notes in first 4 measures
-        total_notes = 0
-        total_duration = 0.0
-
-        for part in score.parts[:1]:  # Just check first part
-            measures = part.getElementsByClass("Measure")
-            for measure in measures[:4]:  # First 4 measures
-                notes = measure.flatten().notesAndRests
-                total_notes += len([n for n in notes if n.isNote or n.isChord])
-                total_duration += measure.quarterLength
-
-        if total_duration > 0:
-            # Notes per quarter note
-            density = total_notes / total_duration
-            # Rough estimate: higher density often means faster tempo
-            # This is very approximate but better than nothing
-            if density > 4:  # Very dense (lots of 16ths)
-                estimated_bpm = 140
-            elif density > 2:  # Moderate (8ths, some 16ths)
-                estimated_bpm = 110
-            else:  # Sparse (quarters, halves)
-                estimated_bpm = 80
-
-            print(
-                f"DEBUG: Estimated tempo from note density: {estimated_bpm} BPM (density={density:.2f} notes/QL)"
-            )
-            return float(estimated_bpm)
-
-    except Exception as e:
-        print(f"DEBUG: Could not detect tempo: {e}")
-
-    # Default fallback
-    print("DEBUG: Using default tempo: 100 BPM")
-    return 100.0
-
-
-# ============================================================================
-# Window Size Calculation
-# ============================================================================
-
-
-def calculate_initial_window(tempo_bpm: float) -> float:
-    """
-    Calculate initial analysis window size based on tempo.
-
-    CRITICAL: Returns only musically sensible note values:
-        - 0.5 QL = eighth note
-        - 1.0 QL = quarter note
-        - 2.0 QL = half note
-        - 4.0 QL = whole note
-
-    This ensures chord detection windows align with musical phrasing.
-    Faster tempos use smaller windows (more frequent changes), while
-    slower tempos use larger windows (sustained harmonies).
-
-    Args:
-        tempo_bpm: Tempo in beats per minute
-
-    Returns:
-        Window size quantized to musical note values
-
-    Tempo guidelines:
-        - Very fast (>140 BPM): 1.0 QL (quarter note) - Fast jazz, rapid changes
-        - Fast (100-140 BPM): 2.0 QL (half note) - Pop, upbeat classical
-        - Moderate (60-100 BPM): 2.0 QL (half note) - Ballads, most classical
-        - Slow (<60 BPM): 4.0 QL (whole note) - Slow choral, very sustained
-
-    Example:
-        >>> window = calculate_initial_window(120)  # Fast tempo
-        >>> print(f"Window size: {window} QL")
-        Window size: 2.0 QL
-    """
-    if tempo_bpm > 140:
-        window = 1.0
-        category = "Very fast"
-        note_name = "quarter note"
-    elif tempo_bpm > 100:
-        window = 2.0
-        category = "Fast"
-        note_name = "half note"
-    elif tempo_bpm > 60:
-        window = 2.0
-        category = "Moderate"
-        note_name = "half note"
-    else:
-        window = 4.0
-        category = "Slow"
-        note_name = "whole note"
-
-    print(
-        f"DEBUG: Tempo-based window calculation: {tempo_bpm} BPM → {window} QL = {note_name} ({category})"
-    )
-    return window
 
 
 # ============================================================================
@@ -199,10 +60,10 @@ def analyze_uploaded_file(
     """
     Process uploaded MusicXML/MIDI file with optional chordify and analysis.
 
-    This function tests the music21 integration by:
+    This function provides music21 integration by:
     1. Parsing uploaded files (MusicXML or MIDI)
     2. Optionally using music21's chordify to extract chord reduction
-    3. Detecting chords and comparing music21 vs chord_logic
+    3. Detecting chords using the library's chord detection
     4. Generating PNG notation and MusicXML download
     5. Optionally running harmonic analysis on extracted chords
 
@@ -234,8 +95,6 @@ def analyze_uploaded_file(
             - chordified_symbols_with_measures: Chords with measure numbers
             - key_hint: Detected key signature
             - metadata: File metadata (title, composer, etc.)
-            - comparison: List of chord detection comparisons
-            - agreement_rate: Percentage agreement between detections
             - notation_url: Path to generated PNG notation
             - download_url: Path to annotated MusicXML file
             - analysis_result: Optional analysis results
@@ -259,8 +118,8 @@ def analyze_uploaded_file(
         ... )
         >>> print(result['chord_symbols'])
         ['C', 'Am', 'F', 'G']
-        >>> print(result['agreement_rate'])
-        0.95
+        >>> print(result['analysis_result']['primary']['interpretation'])
+        'I - vi - IV - V (Functional cadence in C major)'
     """
     # Opening move: import music21 integration and check file exists
     # Capture warnings during file parsing
@@ -362,100 +221,23 @@ def analyze_uploaded_file(
     else:
         key_hint_for_analysis = key_hint
 
-    # Initialize comparison tracking and window info
-    comparison: List[Dict[str, Any]] = []
+    # Initialize window info
     final_window_size = None  # Will be set if chordify is enabled
     chordified_symbols_with_measures = (
         []
     )  # Will be populated during labeling if chordify+label enabled
 
-    # Big play: chordify and label if requested
+    # Big play: chordify and label if requested using library utilities
     if add_chordify:
-        # Adaptive windowing based on harmonic change detection
-        # Use fine-grained sampling + intelligent merging when harmony is stable
-        from music21 import chord as m21_chord
-        from music21 import clef, key
-        from music21 import note as m21_note
-        from music21 import stream
-
-        # Create chord staff with adaptive windowing
-        chordified = stream.Part()
-        chordified.partName = "Chord Analysis"
-
-        # Set bass clef for chord analysis staff (chord symbols typically in bass register)
-        bass_clef = clef.BassClef()
-        chordified.insert(0, bass_clef)
-        print("DEBUG: Set bass clef for chord analysis staff")
-
-        # Copy key signature from original score (important: chord staff should match original key)
-        try:
-            original_key = score.flatten().getElementsByClass("KeySignature")[0]
-            print(f"DEBUG: Found original key signature: {original_key.sharps} sharps")
-            # Create a NEW KeySignature object to avoid reference issues
-            key_copy = key.KeySignature(original_key.sharps)
-            print(f"DEBUG: Created new key signature copy: {key_copy.sharps} sharps")
-            chordified.insert(0, key_copy)
-            print(f"DEBUG: ✓ Inserted key signature into chord staff at offset 0")
-        except (IndexError, AttributeError) as e:
-            print(f"DEBUG: No key signature found in original score: {e}")
-
-        # CRITICAL: Copy time signature from original score (prevents Dorico signpost issues)
-        try:
-            from music21 import meter
-
-            original_time = score.flatten().getElementsByClass("TimeSignature")[0]
-            # Create a new TimeSignature object to avoid reference issues
-            time_sig_copy = meter.TimeSignature(
-                f"{original_time.numerator}/{original_time.denominator}"
-            )
-            chordified.insert(0, time_sig_copy)
-            print(
-                f"DEBUG: Copied time signature to chord staff: {original_time.numerator}/{original_time.denominator}"
-            )
-        except (IndexError, AttributeError) as e:
-            print(f"DEBUG: No time signature found in original score: {e}")
-
-        # Get the total duration of the piece
-        full_duration = score.flatten().highestTime
-
-        # Performance optimization: For large files, only chordify first portion
-        # UNLESS user explicitly requested full file processing for download
-        measure_count = (
-            max(len(part.getElementsByClass("Measure")) for part in score.parts)
-            if score.parts
-            else 0
+        from harmonic_analysis.core.utils.analysis_params import (
+            calculate_initial_window,
         )
-        if measure_count > MAX_MEASURES_FOR_DISPLAY and not process_full_file:
-            # Calculate duration of first N measures
-            try:
-                time_sig = score.flatten().getElementsByClass("TimeSignature")[0]
-                quarters_per_measure = time_sig.numerator * (4.0 / time_sig.denominator)
-            except (IndexError, AttributeError):
-                quarters_per_measure = 4.0
-
-            total_duration = MAX_MEASURES_FOR_DISPLAY * quarters_per_measure
-            print(
-                f"DEBUG: Large file detected - limiting chordify to first {MAX_MEASURES_FOR_DISPLAY} measures ({total_duration} QL instead of {full_duration} QL)"
-            )
-            print(
-                f"       💡 Tip: Enable 'Process Full File' option to include all measures in download"
-            )
-        else:
-            total_duration = full_duration
-            if measure_count > MAX_MEASURES_FOR_DISPLAY:
-                print(
-                    f"DEBUG: Processing full file ({measure_count} measures, {full_duration} QL) - this will take 1-2 minutes"
-                )
-
-        # Sample at fine intervals (16th notes) to detect all changes
-        sample_interval = 0.25  # Quarter note / 4 = 16th note
 
         # Determine analysis window size
         if auto_window:
             # Auto mode: calculate based on tempo
-            tempo_bpm = detect_tempo_from_score(score)
-            initial_window = calculate_initial_window(tempo_bpm)
-            analysis_window = initial_window
+            tempo_bpm = adapter.detect_tempo_from_score(score)
+            analysis_window = calculate_initial_window(tempo_bpm)
             print(
                 f"DEBUG: AUTO WINDOW MODE - Tempo: {tempo_bpm} BPM → Window: {analysis_window} QL"
             )
@@ -467,348 +249,18 @@ def analyze_uploaded_file(
         # Store for return value
         final_window_size = analysis_window
 
-        print(
-            f"DEBUG: Using adaptive windowing (sample={sample_interval}QL, window={analysis_window}QL)"
+        # Use library's chordify_score method
+        score = adapter.chordify_score(
+            score,
+            analysis_window=analysis_window,
+            sample_interval=0.25,
+            process_full_file=process_full_file,
+            max_measures=MAX_MEASURES_FOR_DISPLAY,
         )
 
-        # First pass: collect pitch sets at each sample point
-        samples = []
-        current_offset = 0.0
-        total_samples = int(total_duration / sample_interval)
-
-        # Generate list of offsets to iterate over
-        offsets = []
-        temp_offset = 0.0
-        while temp_offset < total_duration:
-            offsets.append(temp_offset)
-            temp_offset += sample_interval
-
-        # Use progress tracking with periodic updates
-        for idx, current_offset in enumerate(offsets):
-            # Collect all notes sounding at this moment
-            pitches_at_moment = []
-
-            for part in score.parts:
-                for element in part.flatten().notesAndRests:
-                    if element.isNote:
-                        note_start = element.offset
-                        note_end = element.offset + element.duration.quarterLength
-
-                        # Note is sounding if current_offset is within its duration
-                        if note_start <= current_offset < note_end:
-                            pitches_at_moment.append(element.pitch)
-                    elif element.isChord:
-                        chord_start = element.offset
-                        chord_end = element.offset + element.duration.quarterLength
-
-                        # Chord is sounding at this moment
-                        if chord_start <= current_offset < chord_end:
-                            pitches_at_moment.extend(element.pitches)
-
-            # Store pitch class set (not MIDI notes) for comparison
-            pitch_classes = frozenset(p.pitchClass for p in pitches_at_moment)
-
-            if pitch_classes:  # Only add if there are notes
-                samples.append(
-                    {
-                        "offset": current_offset,
-                        "pitch_classes": pitch_classes,
-                        "pitches": pitches_at_moment,
-                    }
-                )
-
-        print(f"DEBUG: Collected {len(samples)} sample points")
-
-        # Second pass: use sliding window to detect chord changes
-        # Look ahead to accumulate notes before deciding on boundaries
-        merged_regions = []
-
-        if samples:
-            i = 0
-            total_windows = len(samples)
-            windows_processed = 0
-
-            while i < len(samples):
-                # Look ahead: collect all notes within the next analysis_window
-                window_start = samples[i]["offset"]
-                window_end = window_start + analysis_window
-
-                # Accumulate all pitch classes in this window
-                window_pitch_classes = set()
-                window_pitches = []
-                window_samples = 0
-
-                # Collect samples within this window
-                j = i
-                while j < len(samples) and samples[j]["offset"] < window_end:
-                    window_pitch_classes |= samples[j]["pitch_classes"]
-                    window_pitches.extend(samples[j]["pitches"])
-                    window_samples += 1
-                    j += 1
-
-                windows_processed += 1
-
-                if window_pitch_classes:
-                    # Detect chord from accumulated window
-                    window_chord = detect_chord_from_pitches(
-                        [pc for pc in window_pitch_classes]
-                    )
-
-                    # Check if this chord is different from previous region
-                    if merged_regions:
-                        prev_chord = detect_chord_from_pitches(
-                            [pc for pc in merged_regions[-1]["pitch_classes"]]
-                        )
-
-                        # Compare chord roots (ignore inversions)
-                        prev_root = (
-                            prev_chord.split("/")[0]
-                            if "/" in prev_chord
-                            else prev_chord
-                        )
-                        curr_root = (
-                            window_chord.split("/")[0]
-                            if "/" in window_chord
-                            else window_chord
-                        )
-
-                        # If same chord, extend previous region
-                        if prev_root == curr_root and curr_root != "Unknown":
-                            # Merge with previous region
-                            merged_regions[-1]["pitch_classes"] |= window_pitch_classes
-                            merged_regions[-1]["pitches"].extend(window_pitches)
-                            merged_regions[-1]["end"] = window_end
-                            merged_regions[-1]["duration"] = (
-                                merged_regions[-1]["end"] - merged_regions[-1]["start"]
-                            )
-                        else:
-                            # Different chord - create new region
-                            merged_regions.append(
-                                {
-                                    "start": window_start,
-                                    "end": window_end,
-                                    "duration": analysis_window,
-                                    "pitch_classes": window_pitch_classes,
-                                    "pitches": window_pitches,
-                                }
-                            )
-                    else:
-                        # First region
-                        merged_regions.append(
-                            {
-                                "start": window_start,
-                                "end": window_end,
-                                "duration": analysis_window,
-                                "pitch_classes": window_pitch_classes,
-                                "pitches": window_pitches,
-                            }
-                        )
-
-                # Move to next window (advance by full window size - non-overlapping)
-                i = j
-
-        print(
-            f"DEBUG: Merged into {len(merged_regions)} harmonic regions via sliding windows"
-        )
-
-        # CRITICAL: Split regions at measure boundaries
-        # Musical convention: each measure should get its own chord instance,
-        # even if the harmony continues from the previous measure
-        try:
-            time_sig = score.flatten().getElementsByClass("TimeSignature")[0]
-            quarters_per_measure = time_sig.numerator * (4.0 / time_sig.denominator)
-        except (IndexError, AttributeError):
-            quarters_per_measure = 4.0  # Default to 4/4 time
-
-        measure_aware_regions = []
-        for region in merged_regions:
-            # Calculate which measures this region spans
-            start_measure = int(region["start"] / quarters_per_measure)
-            end_measure = int(
-                (region["end"] - 0.001) / quarters_per_measure
-            )  # Subtract small amount to handle exact boundaries
-
-            if start_measure == end_measure:
-                # Region fits within a single measure - keep as is
-                measure_aware_regions.append(region)
-            else:
-                # Region crosses measure boundary - split it
-                for measure_num in range(start_measure, end_measure + 1):
-                    measure_start_offset = measure_num * quarters_per_measure
-                    measure_end_offset = (measure_num + 1) * quarters_per_measure
-
-                    # Calculate intersection with this measure
-                    split_start = max(region["start"], measure_start_offset)
-                    split_end = min(region["end"], measure_end_offset)
-
-                    if split_end > split_start:  # Valid intersection
-                        measure_aware_regions.append(
-                            {
-                                "start": split_start,
-                                "end": split_end,
-                                "duration": split_end - split_start,
-                                "pitch_classes": region["pitch_classes"],
-                                "pitches": region["pitches"],
-                            }
-                        )
-
-        print(
-            f"DEBUG: Split into {len(measure_aware_regions)} measure-aware regions (respecting barlines)"
-        )
-
-        # DEBUG: Show how many chords per measure
-        chords_per_measure = {}
-        for region in measure_aware_regions:
-            measure_num = int(region["start"] / quarters_per_measure) + 1  # 1-indexed
-            chords_per_measure[measure_num] = chords_per_measure.get(measure_num, 0) + 1
-
-        # Show first 10 measures
-        first_10_measures = sorted([m for m in chords_per_measure.keys() if m <= 10])
-        if first_10_measures:
-            measure_stats = ", ".join(
-                [f"M{m}:{chords_per_measure[m]}" for m in first_10_measures]
-            )
-            print(f"DEBUG: Chords per measure (first 10): {measure_stats}")
-
-        # Third pass: create chords from measure-aware regions
-        for region in measure_aware_regions:
-            if region["pitches"]:
-                # Remove duplicate pitches (same MIDI note)
-                unique_pitches = []
-                seen_midi = set()
-                for p in region["pitches"]:
-                    if p.midi not in seen_midi:
-                        unique_pitches.append(p)
-                        seen_midi.add(p.midi)
-
-                # Create chord for this region
-                window_chord = m21_chord.Chord(unique_pitches)
-                window_chord.quarterLength = region["duration"]
-                # CRITICAL: Set voice to 1 to prevent MusicXML export warnings
-                # Missing voice tags cause Dorico to misinterpret the entire score
-                window_chord.voice = 1
-                chordified.insert(region["start"], window_chord)
-
-        print(
-            f"DEBUG: Created {len(chordified.flatten().notesAndRests)} adaptive chords"
-        )
-
-        # Note: We intentionally do NOT call makeMeasures() here
-        # music21 will auto-generate measures during MusicXML export
-        # Calling makeMeasures() can corrupt the measure structure of the entire score
-
-        # Critical fix: Rebuild score with proper part order
-        # Chord staff should appear at BOTTOM (traditional lead sheet style)
-        from music21 import instrument, layout, stream
-
-        # Save original parts
-        original_parts = list(score.parts)
-
-        # Create new score with metadata preserved
-        new_score = stream.Score()
-        if score.metadata:
-            new_score.metadata = score.metadata
-
-        # Add original parts FIRST (top staves)
-        # CRITICAL: Deep copy parts to avoid music21 export modifying them in place
-        copied_parts = []
-        for part in original_parts:
-            new_part = copy.deepcopy(part)
-            new_score.append(new_part)
-            copied_parts.append(new_part)
-
-        # Create a staff group for the original parts (to keep them visually separate from chord analysis)
-        if len(copied_parts) > 0:
-            # StaffGroup keeps original parts together with bracket
-            original_group = layout.StaffGroup(
-                copied_parts, name="Original", symbol="bracket"
-            )
-            new_score.insert(0, original_group)
-
-        # CRITICAL: Set explicit instrument to prevent auto-grouping with piano parts
-        # Use a generic instrument to mark this as completely separate
-        chord_instrument = instrument.Instrument()
-        chord_instrument.instrumentName = "Chord Analysis"
-        chord_instrument.instrumentAbbreviation = "Ch."
-        chordified.insert(0, chord_instrument)
-        print("DEBUG: Set explicit instrument for chord staff to prevent auto-grouping")
-
-        # Add chordified LAST as a completely separate part (no staff group, separate instrument)
-        new_score.append(chordified)
-
-        # Replace score
-        score = new_score
-
-        print(
-            f"DEBUG: Score rebuilt with {len(score.parts)} parts (chord staff as separate instrument at bottom)"
-        )
-
+        # Use library's label_chords method if requested
         if label_chords:
-            # For each chord in chordified staff, detect and label
-            # Need to iterate through the actual chordified part in the score
-            chord_part = new_score.parts[-1]  # Last part is chord analysis
-            labeled_count = 0
-
-            # Get time signature to calculate measure numbers from offsets
-            # Assume 4/4 time if not specified (4 quarter notes per measure)
-            try:
-                time_sig = score.flatten().getElementsByClass("TimeSignature")[0]
-                quarters_per_measure = time_sig.numerator * (4.0 / time_sig.denominator)
-            except (IndexError, AttributeError):
-                quarters_per_measure = 4.0  # Default to 4/4 time
-
-            print(
-                f"DEBUG: Calculating measures with {quarters_per_measure} quarters per measure"
-            )
-
-            for element in chord_part.flatten().notesAndRests:
-                if element.isChord:
-                    # music21's enhanced chord detection with sus4/add4 support
-                    try:
-                        m21_symbol = detect_chord_with_music21(element)
-                    except (AttributeError, Exception) as e:
-                        print(f"DEBUG: music21 detection failed: {e}")
-                        m21_symbol = "Unknown"
-
-                    # Our detection: extract pitches and detect chord using legacy chord_parser logic
-                    try:
-                        # Get MIDI pitch numbers from the chord
-                        pitches = [p.midi for p in element.pitches]
-                        our_symbol = detect_chord_from_pitches(pitches)
-                    except (AttributeError, Exception) as e:
-                        print(f"DEBUG: chord_logic detection failed: {e}")
-                        our_symbol = "Unknown"
-
-                    # Add our labels to the score as lyrics (below staff)
-                    element.addLyric(our_symbol)
-                    labeled_count += 1
-
-                    # Calculate measure number from offset
-                    # Measure numbers start at 1
-                    measure_num = int(element.offset / quarters_per_measure) + 1
-
-                    # Store chord symbol with measure for analysis
-                    chordified_symbols_with_measures.append(
-                        {
-                            "measure": measure_num,
-                            "chord": our_symbol,
-                            "offset": element.offset,
-                        }
-                    )
-
-                    comparison.append(
-                        {
-                            "measure": measure_num,
-                            "music21": m21_symbol,
-                            "chord_logic": our_symbol,
-                            "match": "✓" if m21_symbol == our_symbol else "✗",
-                        }
-                    )
-
-            print(f"DEBUG: Added labels to {labeled_count} chords")
-            print(
-                f"DEBUG: Collected {len(chordified_symbols_with_measures)} chords with measures for analysis"
-            )
+            chordified_symbols_with_measures = adapter.label_chords(score)
 
     # Generate output files
     # We need TWO files:
@@ -1133,12 +585,6 @@ def analyze_uploaded_file(
             f.write(error_xml)
         print(f"DEBUG: Created placeholder MusicXML file due to export error")
 
-    # Calculate agreement rate
-    agreement_rate = 0.0
-    if comparison:
-        matches = sum(1 for c in comparison if c["match"] == "✓")
-        agreement_rate = matches / len(comparison)
-
     # Optional: run harmonic analysis
     # CRITICAL: Use chordified symbols if available, otherwise fall back to original
     analysis_result = None
@@ -1176,11 +622,9 @@ def analyze_uploaded_file(
     # Victory lap: return comprehensive results
     return {
         "chord_symbols": chord_symbols,
-        "chordified_symbols_with_measures": chordified_symbols_with_measures,  # NEW: chords with measure info
+        "chordified_symbols_with_measures": chordified_symbols_with_measures,  # Chords with measure info
         "key_hint": key_hint,
         "metadata": metadata,
-        "comparison": comparison,
-        "agreement_rate": agreement_rate,
         "notation_url": notation_xml_path,  # MusicXML file for OSMD viewer (always 20 measures)
         "download_url": download_xml_path,  # MusicXML file for download (full or preview)
         "analysis_result": asdict(analysis_result) if analysis_result else None,
