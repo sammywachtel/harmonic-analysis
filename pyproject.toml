@@ -50,6 +50,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+api = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.0.0",
+]
+music21 = [
+    "music21>=9.1.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov",
@@ -58,12 +67,16 @@ dev = [
     "flake8",
     "mypy",
     "pre-commit",
+    "httpx>=0.25.0",  # For testing FastAPI endpoints
+    "music21>=9.1.0",  # For music21 integration tests
 ]
 test = [
     "pytest>=7.0",
     "pytest-cov",
     "pytest-xdist",
     "pytest-asyncio>=0.21",
+    "httpx>=0.25.0",  # For testing FastAPI endpoints
+    "music21>=9.1.0",  # For file upload tests
 ]
 
 [project.urls]
@@ -159,8 +172,24 @@ module = [
     "supabase.client",
     "postgrest",
     "gotrue",
+    "fastapi",
+    "fastapi.middleware.cors",
+    "pydantic",
+    "uvicorn",
+    "music21",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "harmonic_analysis.rest_api.models",
+    "harmonic_analysis.rest_api.routes",
+]
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = "harmonic_analysis.integrations.music21_adapter"
+warn_unused_ignores = false
 
 [tool.coverage.run]
 source = [

@@ -19,6 +19,40 @@ flake8 src/ tests/ scripts/
 mypy src/ --ignore-missing-imports
 ```
 
+### System Dependencies (Required for Full Functionality)
+
+**Lilypond** (REQUIRED for PNG notation generation in file upload demo):
+
+Lilypond is a music notation program used by music21 to generate PNG images of musical scores.
+
+```bash
+# macOS (via Homebrew)
+brew install lilypond
+
+# Linux (Debian/Ubuntu)
+sudo apt-get update
+sudo apt-get install lilypond
+
+# Linux (Fedora)
+sudo dnf install lilypond
+
+# Windows
+# Download installer from: http://lilypond.org/download.html
+```
+
+**Verify Installation:**
+```bash
+lilypond --version
+# Should output: GNU LilyPond 2.24.x or higher
+```
+
+**Note**: Without Lilypond installed, the file upload demo will work for:
+- ✅ Parsing MusicXML/MIDI files
+- ✅ Chord extraction and detection
+- ✅ Harmonic analysis
+- ✅ MusicXML download (annotated scores)
+- ❌ PNG notation preview (will show error message)
+
 ### Maintenance Scripts
 ```bash
 # Confidence calibration analysis (essential for debugging)

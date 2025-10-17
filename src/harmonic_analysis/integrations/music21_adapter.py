@@ -674,7 +674,7 @@ class Music21Adapter:
             while i < len(samples):
                 # Look ahead: collect all notes within the next analysis_window
                 window_start = samples[i]["offset"]  # type: ignore[index]
-                window_end = window_start + analysis_window
+                window_end = window_start + analysis_window  # type: ignore[operator]
 
                 # Accumulate all pitch classes in this window
                 window_pitch_classes: set[Any] = set()
@@ -682,10 +682,15 @@ class Music21Adapter:
 
                 # Collect samples within this window
                 j = i
-                while j < len(samples) and samples[j]["offset"] < window_end:  # type: ignore[index]
-                    window_pitch_classes |= samples[j]["pitch_classes"]  # type: ignore[index]
-                    window_pitches.extend(samples[j]["pitches"])  # type: ignore[index]
+                sample_offset = samples[j]["offset"]  # type: ignore[index]
+                while j < len(samples) and sample_offset < window_end:  # type: ignore[operator]  # noqa: E501
+                    pcs = samples[j]["pitch_classes"]  # type: ignore[index]
+                    window_pitch_classes |= pcs  # type: ignore[arg-type]
+                    pitches = samples[j]["pitches"]  # type: ignore[index]
+                    window_pitches.extend(pitches)  # type: ignore[arg-type]
                     j += 1
+                    if j < len(samples):
+                        sample_offset = samples[j]["offset"]  # type: ignore[index]
 
                 if window_pitch_classes:
                     # Import chord detection here to avoid circular import
@@ -829,11 +834,13 @@ class Music21Adapter:
 
                 # Create chord for this region
                 window_chord = self._music21.chord.Chord(unique_pitches)
-                window_chord.quarterLength = region["duration"]  # type: ignore[assignment]
+                duration = region["duration"]
+                window_chord.quarterLength = duration  # type: ignore[attr-defined]
                 # CRITICAL: Set voice to 1 to prevent MusicXML export warnings
                 # Missing voice tags cause Dorico to misinterpret the entire score
-                window_chord.voice = 1  # type: ignore[assignment]
-                chordified.insert(region["start"], window_chord)  # type: ignore[arg-type]
+                window_chord.voice = 1  # type: ignore[attr-defined]
+                start_offset = region["start"]
+                chordified.insert(start_offset, window_chord)  # type: ignore[arg-type]
 
         print(
             f"DEBUG: Created {len(chordified.flatten().notesAndRests)} adaptive chords"

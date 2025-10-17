@@ -127,6 +127,9 @@ Think of it as having three music theory professors analyze your work simultaneo
 
 ```bash
 pip install harmonic-analysis
+
+# Optional: Install with REST API support
+pip install harmonic-analysis[api]
 ```
 
 ## 📚 Documentation
@@ -289,6 +292,131 @@ async def analyze_my_progression():
 
 asyncio.run(analyze_my_progression())
 ```
+
+### 🌐 REST API Usage (NEW!)
+
+The library now includes a production-ready REST API built with FastAPI. Perfect for web applications, microservices, and remote analysis:
+
+```bash
+# Install with API support
+pip install harmonic-analysis[api]
+
+# Start the API server
+uvicorn harmonic_analysis.rest_api.main:app --reload
+
+# API is now running at http://localhost:8000
+# OpenAPI docs available at http://localhost:8000/docs
+```
+
+#### API Endpoints
+
+**Analyze Chord Progressions** (POST `/api/analyze`)
+```bash
+curl -X POST "http://localhost:8000/api/analyze" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chords": ["Dm", "G7", "C"],
+    "key": "C major",
+    "profile": "classical"
+  }'
+```
+
+**Analyze Scales** (POST `/api/analyze/scale`)
+```bash
+curl -X POST "http://localhost:8000/api/analyze/scale" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notes": ["C", "D", "E", "F", "G", "A", "B"],
+    "key": "C major"
+  }'
+```
+
+**Analyze Melodies** (POST `/api/analyze/melody`)
+```bash
+curl -X POST "http://localhost:8000/api/analyze/melody" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notes": ["C4", "D4", "E4", "F4", "G4"],
+    "key": "C major"
+  }'
+```
+
+**Upload Music Files** (POST `/api/analyze/file`)
+```bash
+curl -X POST "http://localhost:8000/api/analyze/file" \
+  -F "file=@my_score.musicxml" \
+  -F "add_chordify=true" \
+  -F "label_chords=true" \
+  -F "run_analysis=true" \
+  -F "profile=classical"
+```
+
+**Glossary Lookup** (GET `/glossary/{term}`)
+```bash
+curl "http://localhost:8000/glossary/half_cadence"
+```
+
+#### Python Client Example
+
+```python
+import httpx
+import asyncio
+
+async def analyze_via_api():
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8000/api/analyze",
+            json={
+                "chords": ["Dm", "G7", "C"],
+                "key": "C major",
+                "profile": "classical"
+            }
+        )
+        result = response.json()
+        print(f"Analysis: {result['summary']}")
+        print(f"Roman numerals: {result['analysis']['primary']['roman_numerals']}")
+
+asyncio.run(analyze_via_api())
+```
+
+#### JavaScript/TypeScript Client Example
+
+```typescript
+const response = await fetch('http://localhost:8000/api/analyze', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    chords: ['Dm', 'G7', 'C'],
+    key: 'C major',
+    profile: 'classical'
+  })
+});
+
+const result = await response.json();
+console.log('Analysis:', result.summary);
+```
+
+#### API Features
+
+- **🔥 FastAPI Framework**: High-performance async API with automatic validation
+- **📖 OpenAPI Documentation**: Interactive docs at `/docs` (Swagger UI)
+- **🎼 File Upload Support**: Analyze MusicXML and MIDI files
+- **🔒 CORS Configured**: Ready for frontend integration
+- **✅ Pydantic Validation**: Automatic request/response validation
+- **📊 Comprehensive Responses**: JSON-formatted analysis with full details
+- **🎯 Multiple Endpoints**: Dedicated endpoints for chords, scales, melodies, and files
+
+#### Running in Production
+
+```bash
+# Production deployment with Gunicorn + Uvicorn
+gunicorn harmonic_analysis.rest_api.main:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000
+```
+
+See [API tests](tests/api/test_rest_api.py) for comprehensive usage examples.
 
 ### Analyzing Scales with Enhanced Summaries (NEW!)
 
