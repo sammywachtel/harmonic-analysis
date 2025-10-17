@@ -6,70 +6,80 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import re
+import os
 import sys
+import warnings
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Union
 
-OPTIONAL_DEP_HINTS: Dict[str, str] = {
-    "scipy": "Install SciPy (e.g. 'pip install scipy' or 'pip install -r requirements.txt').",
-    "sklearn": "Install scikit-learn (e.g. 'pip install scikit-learn' or 'pip install -r requirements.txt').",
-    "jsonschema": "Install jsonschema (e.g. 'pip install jsonschema' or 'pip install -r requirements.txt').",
-}
-
-PROFILE_OPTIONS = [
-    "classical",
-    "jazz",
-    "pop",
-    "folk",
-    "choral",
-]
-
-KEY_OPTION_NONE = "None"
-
-KEY_OPTIONS = [
-    KEY_OPTION_NONE,
-    "C major",
-    "G major",
-    "D major",
-    "A major",
-    "E major",
-    "B major",
-    "F# major",
-    "C# major",
-    "F major",
-    "Bb major",
-    "Eb major",
-    "Ab major",
-    "Db major",
-    "Gb major",
-    "Cb major",
-    "A minor",
-    "E minor",
-    "B minor",
-    "F# minor",
-    "C# minor",
-    "G# minor",
-    "D# minor",
-    "A# minor",
-    "D minor",
-    "G minor",
-    "C minor",
-    "F minor",
-    "Bb minor",
-    "Eb minor",
-    "Ab minor",
-]
-
-MISSING_SCALE_KEY_MSG = "Scale analysis requires a key context."
-MISSING_MELODY_KEY_MSG = "Melody analysis requires a key context."
-
+# Setup path for harmonic_analysis library
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_ROOT = REPO_ROOT / "src"
 if SRC_ROOT.exists() and str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
+# Add REPO_ROOT to path so we can import demo.lib and demo.ui modules
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
+# Import analysis orchestration
+from demo.lib.analysis_orchestration import (
+    get_service,
+    normalize_scale_input,
+    parse_csv,
+    parse_melody,
+    parse_scales,
+    resolve_key_input,
+    run_analysis_async,
+    run_analysis_sync,
+    validate_exclusive_input,
+    validate_list,
+)
+
+# Import chord detection utilities
+from demo.lib.chord_detection import detect_chord_from_pitches
+
+# Import constants from extracted modules
+from demo.lib.constants import (
+    KEY_OPTION_NONE,
+    KEY_OPTIONS,
+    MISSING_MELODY_KEY_MSG,
+    MISSING_SCALE_KEY_MSG,
+    NOTE_RE,
+    OPTIONAL_DEP_HINTS,
+    PROFILE_OPTIONS,
+    ROMAN_RE,
+)
+
+# Import music file processing
+from demo.lib.music_file_processing import analyze_uploaded_file
+
+# Import UI formatters
+from demo.ui import (
+    format_analysis_html,
+    format_confidence_badge,
+    format_evidence_html,
+    format_file_analysis_html,
+    generate_chord_progression_display,
+    generate_code_snippet,
+    generate_enhanced_evidence_cards,
+    generate_osmd_html_file,
+    generate_osmd_viewer,
+    get_chord_function_description,
+    summarize_envelope,
+)
+
+# Import library utilities that were extracted from demo
+from harmonic_analysis.core.utils.analysis_params import calculate_initial_window
+
+# Import key conversion utilities
+from harmonic_analysis.core.utils.key_signature import (
+    convert_key_signature_to_mode,
+    parse_key_signature_from_hint,
+)
+from harmonic_analysis.integrations.music21_adapter import Music21Adapter
+
+# Import core library components
 try:
     from harmonic_analysis.core.pattern_engine.pattern_engine import AnalysisContext
     from harmonic_analysis.core.pattern_engine.token_converter import romanize_chord
@@ -86,1099 +96,6 @@ except ModuleNotFoundError as exc:  # pragma: no cover - defensive import guard
     raise
 
 from harmonic_analysis.api.analysis import analyze_melody, analyze_scale
-
-# ---------------------------------------------------------------------------
-# Validation helpers
-# ---------------------------------------------------------------------------
-
-# Roman numeral and note validation (library doesn't own these yet)
-ROMAN_RE = re.compile(r"^[ivIV]+(?:[#b♯♭]?[ivIV]+)?(?:[°ø+]?)(?:\d+)?$")
-NOTE_RE = re.compile(r"^[A-Ga-g](?:#|b)?(?:\d+)?$")
-
-
-def parse_csv(value: Optional[str]) -> List[str]:
-    if not value:
-        return []
-
-    # Handle both comma and space delimiters
-    # First try comma separation
-    if "," in value:
-        return [item.strip() for item in value.split(",") if item.strip()]
-    else:
-        # Use space separation if no commas found
-        return [item.strip() for item in value.split() if item.strip()]
-
-
-def resolve_key_input(value: Optional[str]) -> Optional[str]:
-    """Normalize user-provided key hints, treating 'None' as no key."""
-
-    if value is None:
-        return None
-
-    if isinstance(value, str):
-        normalized = value.strip()
-        if not normalized or normalized.lower() == "none":
-            return None
-        return normalized
-
-    return value
-
-
-def validate_list(kind: str, items: List[str]) -> List[str]:
-    if not items:
-        return []
-
-    # Opening move: use library's parsers for validation when available
-    if kind == "chord":
-        # Chord validation uses the library's ChordParser
-        from harmonic_analysis.core.utils.chord_logic import ChordParser
-
-        parser = ChordParser()
-        invalid = []
-        for item in items:
-            try:
-                parser.parse_chord(item)
-            except ValueError:
-                invalid.append(item)
-        if invalid:
-            raise ValueError(f"Invalid {kind} entries: {', '.join(invalid)}")
-        return items
-    else:
-        # Roman numerals and notes still use regex (library doesn't own these)
-        validator = {
-            "roman": ROMAN_RE,
-            "note": NOTE_RE,
-        }[kind]
-        invalid = [item for item in items if not validator.match(item)]
-        if invalid:
-            raise ValueError(f"Invalid {kind} entries: {', '.join(invalid)}")
-        return items
-
-
-def validate_exclusive_input(
-    chords_text: Optional[str],
-    romans_text: Optional[str],
-    melody_text: Optional[str],
-    scales_input: Optional[str],
-) -> None:
-    """Ensure only one type of musical input is provided."""
-    inputs_provided = [
-        ("chords", chords_text and chords_text.strip()),
-        ("romans", romans_text and romans_text.strip()),
-        ("melody", melody_text and melody_text.strip()),
-        ("scales", scales_input and scales_input.strip()),
-    ]
-
-    provided_types = [name for name, value in inputs_provided if value]
-
-    if len(provided_types) == 0:
-        raise ValueError(
-            "Please provide at least one type of musical input (chords, romans, melody, or scales)."
-        )
-
-    if len(provided_types) > 1:
-        raise ValueError(
-            f"Please provide only one type of musical input. "
-            f"Found: {', '.join(provided_types)}. "
-            f"Analyze one type at a time for best results."
-        )
-
-
-def parse_melody(value: Optional[str]) -> List[str]:
-    items = parse_csv(value)
-    if not items:
-        return []
-    validated: List[str] = []
-    for item in items:
-        token = item.strip()
-        if token.isdigit():
-            validated.append(token)
-        else:
-            if not NOTE_RE.match(token):
-                raise ValueError(f"Invalid melody note: {token}")
-            validated.append(token)
-    return validated
-
-
-def parse_scales(values: Optional[Sequence[str]]) -> List[List[str]]:
-    if not values:
-        return []
-
-    scales: List[List[str]] = []
-    for raw in values:
-        notes = validate_list("note", parse_csv(raw))
-        if not notes:
-            raise ValueError("Scale definitions cannot be empty.")
-        scales.append(notes)
-    return scales
-
-
-# ---------------------------------------------------------------------------
-# Service bootstrap
-# ---------------------------------------------------------------------------
-
-_SERVICE: Optional[PatternAnalysisService] = None
-
-
-def get_service() -> PatternAnalysisService:
-    global _SERVICE
-    if _SERVICE is None:
-        _SERVICE = PatternAnalysisService()
-    return _SERVICE
-
-
-# ---------------------------------------------------------------------------
-# Rendering helpers
-# ---------------------------------------------------------------------------
-
-
-def format_confidence_badge(confidence: float) -> str:
-    """Create a colored confidence badge based on value."""
-    if confidence >= 0.8:
-        color = "#22c55e"  # Green
-        label = "High"
-    elif confidence >= 0.6:
-        color = "#f59e0b"  # Amber
-        label = "Medium"
-    elif confidence >= 0.4:
-        color = "#ef4444"  # Red
-        label = "Low"
-    else:
-        color = "#64748b"  # Gray
-        label = "Very Low"
-
-    return f'<span style="background-color: {color}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">{label} ({confidence:.3f})</span>'
-
-
-def generate_code_snippet(
-    chord_symbols: List[str], profile: str, key_hint: Optional[str], envelope
-) -> str:
-    """Generate Python code snippet to reproduce the analysis."""
-
-    # Escape single quotes in inputs for code generation
-    chords_str = str(chord_symbols).replace("'", "\\'")
-    profile_escaped = profile.replace("'", "\\'")
-    key_escaped = key_hint.replace('"', '\\"') if key_hint else None
-    key_str = f"'{key_escaped}'" if key_hint else "None"
-
-    # Basic async example
-    async_code = f"""from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
-
-# Initialize the analysis service
-service = PatternAnalysisService()
-
-# Analyze your chord progression
-result = await service.analyze_with_patterns_async(
-    chord_symbols={chords_str},
-    profile='{profile_escaped}',
-    key_hint={key_str}
-)
-
-# Access the results
-print(f"Analysis Type: {{result.primary.type.value}}")
-print(f"Confidence: {{result.primary.confidence:.3f}}")
-print(f"Roman Numerals: {{' - '.join(result.primary.roman_numerals)}}")
-print(f"Key: {{result.primary.key_signature}}")
-print(f"Mode: {{result.primary.mode}}")
-
-# Access evidence patterns
-for evidence in result.evidence:
-    print(f"Pattern: {{evidence.reason}} (Score: {{evidence.details.raw_score}})")"""
-
-    # Sync wrapper example
-    sync_code = f"""from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
-import asyncio
-
-# Initialize the analysis service
-service = PatternAnalysisService()
-
-# Sync wrapper function
-def analyze_progression():
-    return asyncio.run(
-        service.analyze_with_patterns_async(
-            chord_symbols={chords_str},
-            profile='{profile_escaped}',
-            key_hint={key_str}
-        )
-    )
-
-# Run the analysis
-result = analyze_progression()
-print(f"{{result.primary.type.value}} analysis with {{result.primary.confidence:.3f}} confidence")"""
-
-    # API usage example
-    api_code = f"""import requests
-import json
-
-# API endpoint
-url = "http://localhost:7860/analysis/progression"
-
-# Request payload
-payload = {{
-    "chords": {chords_str},
-    "profile": "{profile_escaped}",
-    "key": {key_str}
-}}
-
-# Make the request
-response = requests.post(url, json=payload)
-result = response.json()
-
-# Display results
-primary = result["primary"]
-print(f"Analysis: {{primary['type']}} ({{primary['confidence']:.3f}})")
-print(f"Roman Numerals: {{' - '.join(primary['roman_numerals'])}}")"""
-
-    return async_code, sync_code, api_code
-
-
-def generate_enhanced_evidence_cards(envelope) -> str:
-    """Generate enhanced evidence display with rich cards and visualizations."""
-    if not envelope.evidence:
-        return ""
-
-    evidence_html = """
-    <div style='margin-top: 1.5rem;'>
-        <div style='opacity: 0.9; font-size: 1rem; margin-bottom: 1rem; font-weight: 600; color: white;'>
-            📊 Analysis Evidence
-        </div>
-        <div style='display: flex; flex-direction: column; gap: 1rem;'>
-    """
-
-    for evidence in envelope.evidence:
-        pattern_family = (
-            evidence.reason.split(".")[0] if "." in evidence.reason else "general"
-        )
-
-        # Color coding by pattern family
-        family_colors = {
-            "cadence": "#8b5cf6",  # Purple
-            "modal": "#06b6d4",  # Cyan
-            "functional": "#22c55e",  # Green
-            "chromatic": "#f59e0b",  # Amber
-            "general": "#6b7280",  # Gray
-        }
-
-        color = family_colors.get(pattern_family, family_colors["general"])
-        score = evidence.details.get("raw_score", 0)
-        span = evidence.details.get("span", [])
-
-        # Create chord span display
-        chord_span_text = ""
-        if span and len(span) >= 2:
-            start_idx, end_idx = span[0], span[1]
-            if hasattr(envelope, "chord_symbols") and envelope.chord_symbols:
-                chords_in_span = envelope.chord_symbols[start_idx:end_idx]
-                chord_span_text = f"Chords {start_idx+1}-{end_idx}: <strong>{' → '.join(chords_in_span)}</strong>"
-
-        # Progress bar for confidence
-        progress_width = min(100, max(5, score * 100))  # Ensure visible minimum
-
-        evidence_html += f"""
-        <div style='background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 1rem;
-                    border-left: 4px solid {color}; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
-            <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;'>
-                <div>
-                    <span style='background: {color}; color: white; padding: 0.25rem 0.75rem;
-                                 border-radius: 16px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase;'>
-                        {pattern_family}
-                    </span>
-                    <span style='margin-left: 0.75rem; font-weight: 600; color: #374151; font-size: 1rem;'>
-                        {evidence.reason.replace('_', ' ').title()}
-                    </span>
-                </div>
-                <div style='font-weight: 600; color: {color}; font-size: 1.1rem;'>
-                    {score:.3f}
-                </div>
-            </div>
-
-            <div style='background: #f3f4f6; border-radius: 8px; height: 8px; margin-bottom: 0.75rem;'>
-                <div style='background: {color}; height: 100%; border-radius: 8px; width: {progress_width}%;
-                            transition: width 0.3s ease;'></div>
-            </div>
-
-            {f"<div style='color: #6b7280; font-size: 0.9rem;'>{chord_span_text}</div>" if chord_span_text else ""}
-        </div>
-        """
-
-    evidence_html += """
-        </div>
-    </div>
-    """
-
-    return evidence_html
-
-
-def generate_chord_progression_display(envelope) -> str:
-    """Generate enhanced chord progression display with music notation styling."""
-    if not hasattr(envelope, "chord_symbols") or not envelope.chord_symbols:
-        return ""
-
-    primary = envelope.primary
-    chord_symbols = envelope.chord_symbols
-    romans = primary.roman_numerals if primary.roman_numerals else []
-
-    # Ensure we have matching arrays
-    max_length = max(len(chord_symbols), len(romans))
-    chord_symbols_padded = chord_symbols + [""] * (max_length - len(chord_symbols))
-    romans_padded = romans + [""] * (max_length - len(romans))
-
-    html = """
-    <div style='margin-top: 1.5rem;'>
-        <div style='opacity: 0.9; font-size: 1rem; margin-bottom: 1rem; font-weight: 600; color: white;'>
-            🎼 Chord Progression
-        </div>
-        <div style='background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
-            <div style='display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: center;'>
-    """
-
-    for i, (chord, roman) in enumerate(zip(chord_symbols_padded, romans_padded)):
-        if not chord:
-            continue
-
-        # Determine chord quality color
-        chord_colors = {
-            "major": "#22c55e",  # Green for major
-            "minor": "#3b82f6",  # Blue for minor
-            "diminished": "#ef4444",  # Red for diminished
-            "augmented": "#f59e0b",  # Amber for augmented
-            "dominant": "#8b5cf6",  # Purple for dominant
-            "default": "#6b7280",  # Gray default
-        }
-
-        # Simple chord quality detection
-        color = chord_colors["default"]
-        if "m" in chord.lower() and "maj" not in chord.lower():
-            color = chord_colors["minor"]
-        elif any(x in chord for x in ["dim", "°"]):
-            color = chord_colors["diminished"]
-        elif any(x in chord for x in ["aug", "+"]):
-            color = chord_colors["augmented"]
-        elif (
-            any(x in chord for x in ["7", "9", "11", "13"])
-            and "maj" not in chord.lower()
-        ):
-            color = chord_colors["dominant"]
-        else:
-            color = chord_colors["major"]
-
-        # Add progression arrow if not first chord
-        if i > 0:
-            html += """
-            <div style='display: flex; align-items: center; color: #6b7280; font-size: 1.5rem; font-weight: 300;'>
-                →
-            </div>
-            """
-
-        html += f"""
-        <div style='display: flex; flex-direction: column; align-items: center; min-width: 80px;
-                    background: {color}; color: white; padding: 1rem; border-radius: 12px;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s ease;'
-             onmouseover='this.style.transform="scale(1.05)"'
-             onmouseout='this.style.transform="scale(1)"'>
-            <div style='font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; font-family: "Times New Roman", serif;'>
-                {chord}
-            </div>
-            {f'<div style="font-size: 1rem; font-weight: 600; opacity: 0.9;">{roman}</div>' if roman else ''}
-            <div style='font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;'>
-                Chord {i+1}
-            </div>
-        </div>
-        """
-
-    html += """
-            </div>
-        </div>
-    </div>
-    """
-
-    return html
-
-
-def format_evidence_html(evidence_list) -> str:
-    """Format evidence list as styled HTML."""
-    if not evidence_list:
-        return "<p style='color: #64748b; font-style: italic;'>No evidence patterns found.</p>"
-
-    html = "<div style='margin-top: 1rem;'>"
-    for i, evidence in enumerate(evidence_list, 1):
-        details = evidence.details or {}
-        raw_features = details.get("features", {})
-
-        if isinstance(raw_features, dict):
-            features = dict(raw_features)
-            features_ui = features.pop("features_ui", {})
-        else:
-            features = raw_features
-            features_ui = {}
-
-        # Evidence card
-        html += f"""
-        <div style='background: #f8fafc; border-left: 4px solid #3b82f6; padding: 1rem; margin-bottom: 0.75rem; border-radius: 0 8px 8px 0;'>
-            <div style='font-weight: 600; color: #1e40af; margin-bottom: 0.5rem;'>
-                🎼 Pattern {i}: {evidence.reason}
-            </div>
-        """
-
-        # Features
-        if features_ui:
-            html += "<div style='margin-left: 1rem; color: #475569;'>"
-            for key, meta in features_ui.items():
-                label = meta.get("label", key)
-                val = meta.get("value")
-                tooltip = meta.get("tooltip", "")
-                tooltip_text = (
-                    f" <span style='color: #64748b; font-size: 0.85rem;'>({tooltip})</span>"
-                    if tooltip
-                    else ""
-                )
-                html += f"<div style='margin: 0.25rem 0;'>• <strong>{label}:</strong> {val}{tooltip_text}</div>"
-            html += "</div>"
-        elif features:
-            html += "<div style='margin-left: 1rem; color: #475569;'>"
-            for key, val in features.items():
-                html += f"<div style='margin: 0.25rem 0;'>• <strong>{key}:</strong> {val}</div>"
-            html += "</div>"
-
-        # Additional details
-        raw_score = details.get("raw_score")
-        if raw_score is not None:
-            html += f"<div style='margin-left: 1rem; color: #64748b; font-size: 0.9rem;'>Raw score: {raw_score}</div>"
-
-        if "span" in details:
-            html += f"<div style='margin-left: 1rem; color: #64748b; font-size: 0.9rem;'>Span: {details['span']}</div>"
-
-        html += "</div>"
-
-    html += "</div>"
-    return html
-
-
-def format_analysis_html(envelope) -> str:
-    """Format the analysis envelope as rich HTML with interactive glossary."""
-    primary = envelope.primary
-
-    # Include JavaScript for glossary modal functionality
-    modal_js = """
-    <script>
-    function showGlossaryModal(term, label, tooltip) {
-        // Create modal overlay
-        const overlay = document.createElement('div');
-        overlay.id = 'glossary-modal-overlay';
-        overlay.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 1000; display: flex;
-            align-items: center; justify-content: center; cursor: pointer;
-        `;
-
-        // Create modal content
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            background: white; padding: 2rem; border-radius: 12px;
-            max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            cursor: default;
-        `;
-
-        modal.innerHTML = `
-            <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;'>
-                <h3 style='margin: 0; color: #1f2937;'>📆 ${label}</h3>
-                <button onclick='closeGlossaryModal()' style='background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;'>&times;</button>
-            </div>
-            <div style='color: #374151; line-height: 1.6;'>
-                <div style='background: #f9fafb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;'>
-                    <strong>Term:</strong> ${term}
-                </div>
-                ${tooltip ? `<div><strong>Definition:</strong><br>${tooltip}</div>` : '<div><em>Loading definition...</em></div>'}
-                <div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 0.9rem;'>
-                    💡 <strong>Tip:</strong> Click outside this modal to close
-                </div>
-            </div>
-        `;
-
-        // Close modal when clicking overlay
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) closeGlossaryModal();
-        });
-
-        // Prevent modal from closing when clicking inside
-        modal.addEventListener('click', (e) => e.stopPropagation());
-
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
-
-        // Focus trap for accessibility
-        modal.focus();
-    }
-
-    function closeGlossaryModal() {
-        const overlay = document.getElementById('glossary-modal-overlay');
-        if (overlay) {
-            overlay.remove();
-        }
-    }
-
-    // Close modal with Escape key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeGlossaryModal();
-    });
-    </script>
-    """
-
-    # Main container with modern styling
-    html = (
-        modal_js
-        + """
-    <div style='font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #334155;'>
-    """
-    )
-
-    # Primary interpretation section
-    html += """
-    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;'>
-        <h2 style='margin: 0 0 1rem 0; display: flex; align-items: center; font-size: 1.5rem;'>
-            🎵 Primary Interpretation
-        </h2>
-    """
-
-    if not primary:
-        html += "<p style='margin: 0; opacity: 0.9;'>No primary interpretation returned.</p>"
-    else:
-        # Analysis type and confidence
-        html += f"""
-        <div style='display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;'>
-            <div>
-                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.25rem;'>Analysis Type</div>
-                <div style='font-size: 1.25rem; font-weight: 600;'>{primary.type.value.title()}</div>
-            </div>
-            <div>
-                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.25rem;'>Confidence</div>
-                <div style='font-size: 1.25rem;'>{format_confidence_badge(primary.confidence)}</div>
-            </div>
-        </div>
-        """
-
-        # Key and mode info
-        if primary.key_signature or primary.mode:
-            html += "<div style='display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;'>"
-            if primary.key_signature:
-                html += f"""
-                <div>
-                    <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.25rem;'>Key Signature</div>
-                    <div style='font-size: 1.1rem; font-weight: 500;'>{primary.key_signature}</div>
-                </div>
-                """
-            if primary.mode:
-                html += f"""
-                <div>
-                    <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.25rem;'>Mode</div>
-                    <div style='font-size: 1.1rem; font-weight: 500;'>{primary.mode}</div>
-                </div>
-                """
-            html += "</div>"
-
-        # Roman numerals
-        if primary.roman_numerals:
-            html += f"""
-            <div style='margin-bottom: 1rem;'>
-                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;'>Roman Numeral Analysis</div>
-                <div style='background: rgba(255,255,255,0.15); padding: 0.75rem; border-radius: 8px; font-family: "SF Mono", Monaco, monospace; font-size: 1.1rem; letter-spacing: 0.5px;'>
-                    {' - '.join(primary.roman_numerals)}
-                </div>
-            </div>
-            """
-
-        # Scale Summary (NEW in iteration 14-a)
-        if hasattr(primary, "scale_summary") and primary.scale_summary:
-            scale_summary = primary.scale_summary
-            html += f"""
-            <div style='margin-bottom: 1rem;'>
-                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;'>🎼 Scale Analysis</div>
-                <div style='background: rgba(255,255,255,0.15); padding: 0.75rem; border-radius: 8px;'>
-            """
-            if scale_summary.detected_mode:
-                html += (
-                    f"<div><strong>Mode:</strong> {scale_summary.detected_mode}</div>"
-                )
-            if scale_summary.parent_key:
-                html += f"<div><strong>Parent Key:</strong> {scale_summary.parent_key}</div>"
-            if scale_summary.characteristic_notes:
-                html += f"<div><strong>Characteristics:</strong> {', '.join(scale_summary.characteristic_notes)}</div>"
-            if scale_summary.notes:
-                html += f"<div><strong>Scale Notes:</strong> {' - '.join(scale_summary.notes)}</div>"
-            html += "</div></div>"
-
-        # Melody Summary (NEW in iteration 14-a)
-        if hasattr(primary, "melody_summary") and primary.melody_summary:
-            melody_summary = primary.melody_summary
-            html += f"""
-            <div style='margin-bottom: 1rem;'>
-                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;'>🎵 Melody Analysis</div>
-                <div style='background: rgba(255,255,255,0.15); padding: 0.75rem; border-radius: 8px;'>
-            """
-            if melody_summary.contour:
-                html += f"<div><strong>Contour:</strong> {melody_summary.contour.title()}</div>"
-            if melody_summary.range_semitones is not None:
-                html += f"<div><strong>Range:</strong> {melody_summary.range_semitones} semitones</div>"
-            if melody_summary.leading_tone_resolutions > 0:
-                html += f"<div><strong>Leading Tone Resolutions:</strong> {melody_summary.leading_tone_resolutions}</div>"
-            if melody_summary.melodic_characteristics:
-                html += f"<div><strong>Characteristics:</strong> {', '.join(melody_summary.melodic_characteristics)}</div>"
-            if melody_summary.chromatic_notes:
-                html += f"<div><strong>Chromatic Notes:</strong> {', '.join(melody_summary.chromatic_notes)}</div>"
-            html += "</div></div>"
-
-    # Interactive Chord Progression Display (moved outside the primary section to be full-width)
-    html += generate_chord_progression_display(envelope)
-
-    # Back to white background for remaining sections
-    html += """
-    <div style='background: white; border: 2px solid #e5e7eb; padding: 1.25rem; border-radius: 12px; margin-top: 1.5rem;'>
-    """
-
-    # Continue with primary analysis content if needed
-    if primary:
-        # Reasoning with integrated glossary terms
-        if primary.reasoning:
-            html += f"""
-            <div style='margin-bottom: 1rem;'>
-                <div style='opacity: 0.8; font-size: 0.9rem; margin-bottom: 0.5rem;'>Analysis Reasoning</div>
-                <div style='background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; font-style: italic;'>
-                    {primary.reasoning}
-                </div>
-            """
-
-            # Add glossary terms right after reasoning if available
-            if primary.terms:
-                html += """
-                <div style='margin-top: 0.75rem;'>
-                    <div style='opacity: 0.8; font-size: 0.85rem; margin-bottom: 0.4rem;'>📚 Terms</div>
-                    <div style='display: flex; flex-wrap: wrap; gap: 0.4rem;'>
-                """
-
-                for key, value in primary.terms.items():
-                    if isinstance(value, dict):
-                        label = value.get("label", key)
-                        tooltip = value.get("tooltip", "")
-                    else:
-                        label = str(value)
-                        tooltip = ""
-
-                    # Create simple glossary chip for now (remove complex onclick)
-                    html += f"""
-                    <span class='glossary-chip'
-                          style='background: rgba(255,255,255,0.15); color: white; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.25);'
-                          title='{tooltip}'>
-                        {label}
-                    </span>
-                    """
-                html += "</div></div>"
-
-            html += "</div>"  # Close reasoning section
-
-    html += "</div>"  # End primary section
-
-    # Alternatives section with enhanced details
-    if envelope.alternatives:
-        html += """
-        <div style='background: #f1f5f9; border: 2px solid #e2e8f0; padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem;'>
-            <h3 style='margin: 0 0 1rem 0; color: #475569; display: flex; align-items: center;'>
-                🔄 Alternative Interpretations
-            </h3>
-            <div style='display: grid; gap: 1rem;'>
-        """
-
-        for idx, alt in enumerate(envelope.alternatives, 1):
-            # Create expandable alternative card with details
-            alt_romans = (
-                " - ".join(getattr(alt, "roman_numerals", []))
-                if hasattr(alt, "roman_numerals") and alt.roman_numerals
-                else "N/A"
-            )
-            alt_mode = getattr(alt, "mode", "N/A") or "N/A"
-            alt_key = getattr(alt, "key_signature", "N/A") or "N/A"
-            alt_reasoning = getattr(alt, "reasoning", "") or ""
-
-            html += f"""
-            <details style='background: white; border-radius: 8px; border-left: 3px solid #6366f1; overflow: hidden;'>
-                <summary style='padding: 0.75rem 1rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: rgba(99, 102, 241, 0.05);'>
-                    <span><strong>#{idx}</strong> {alt.type.value.title()}</span>
-                    <span>{format_confidence_badge(alt.confidence)}</span>
-                </summary>
-                <div style='padding: 1rem; border-top: 1px solid #e5e7eb;'>
-                    <div style='display: grid; gap: 0.5rem;'>
-                        <div><strong>Key:</strong> {alt_key}</div>
-                        <div><strong>Mode:</strong> {alt_mode}</div>
-                        <div><strong>Roman Numerals:</strong> <code style='background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace;'>{alt_romans}</code></div>
-                        {f'<div><strong>Analysis:</strong> <em>{alt_reasoning}</em></div>' if alt_reasoning else ''}
-                    </div>
-                </div>
-            </details>
-            """
-
-        html += "</div></div>"
-
-    html += "</div>"  # End white background section for primary content
-
-    # Enhanced Evidence section with rich cards
-    html += generate_enhanced_evidence_cards(envelope)
-
-    # Code snippet section
-    if hasattr(envelope, "chord_symbols") and envelope.chord_symbols:
-        # Extract analysis parameters for code generation
-        chord_symbols = envelope.chord_symbols
-        profile = "classical"  # Default, could be enhanced to detect from analysis
-        key_hint = primary.key_signature if primary.key_signature else None
-
-        async_code, sync_code, api_code = generate_code_snippet(
-            chord_symbols, profile, key_hint, envelope
-        )
-
-        html += f"""
-        <div style='margin-top: 1.5rem;'>
-            <div style='opacity: 0.9; font-size: 1rem; margin-bottom: 1rem; font-weight: 600; color: white;'>
-                💻 Code Examples
-            </div>
-
-            <!-- Code snippet tabs -->
-            <div style='background: rgba(255, 255, 255, 0.95); border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
-                <div style='display: flex; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb;'>
-                    <button onclick='showCodeTab("async")' id='async-tab'
-                            style='padding: 0.5rem 1rem; border: none; background: #4f46e5; color: white;
-                                   border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; margin-right: 2px;'>
-                        Async
-                    </button>
-                    <button onclick='showCodeTab("sync")' id='sync-tab'
-                            style='padding: 0.5rem 1rem; border: none; background: #e5e7eb; color: #374151;
-                                   border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600; margin-right: 2px;'>
-                        Sync
-                    </button>
-                    <button onclick='showCodeTab("api")' id='api-tab'
-                            style='padding: 0.5rem 1rem; border: none; background: #e5e7eb; color: #374151;
-                                   border-radius: 8px 8px 0 0; cursor: pointer; font-weight: 600;'>
-                        API
-                    </button>
-                </div>
-
-                <div id='async-code' style='display: block;'>
-                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
-                        <h4 style='margin: 0; color: #374151;'>Async Python Code</h4>
-                        <button onclick='copyCode("async")'
-                                style='background: #4f46e5; color: white; border: none; padding: 0.25rem 0.75rem;
-                                       border-radius: 6px; cursor: pointer; font-size: 0.85rem;'>
-                            📋 Copy
-                        </button>
-                    </div>
-                    <pre id='async-code-content' style='background: #f8fafc; padding: 1rem; border-radius: 8px;
-                                                          overflow-x: auto; margin: 0; font-family: "SF Mono", Monaco, monospace;
-                                                          font-size: 0.85rem; line-height: 1.4; color: #1e293b;'>{async_code}</pre>
-                </div>
-
-                <div id='sync-code' style='display: none;'>
-                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
-                        <h4 style='margin: 0; color: #374151;'>Sync Python Code</h4>
-                        <button onclick='copyCode("sync")'
-                                style='background: #4f46e5; color: white; border: none; padding: 0.25rem 0.75rem;
-                                       border-radius: 6px; cursor: pointer; font-size: 0.85rem;'>
-                            📋 Copy
-                        </button>
-                    </div>
-                    <pre id='sync-code-content' style='background: #f8fafc; padding: 1rem; border-radius: 8px;
-                                                       overflow-x: auto; margin: 0; font-family: "SF Mono", Monaco, monospace;
-                                                       font-size: 0.85rem; line-height: 1.4; color: #1e293b;'>{sync_code}</pre>
-                </div>
-
-                <div id='api-code' style='display: none;'>
-                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;'>
-                        <h4 style='margin: 0; color: #374151;'>API Integration</h4>
-                        <button onclick='copyCode("api")'
-                                style='background: #4f46e5; color: white; border: none; padding: 0.25rem 0.75rem;
-                                       border-radius: 6px; cursor: pointer; font-size: 0.85rem;'>
-                            📋 Copy
-                        </button>
-                    </div>
-                    <pre id='api-code-content' style='background: #f8fafc; padding: 1rem; border-radius: 8px;
-                                                      overflow-x: auto; margin: 0; font-family: "SF Mono", Monaco, monospace;
-                                                      font-size: 0.85rem; line-height: 1.4; color: #1e293b;'>{api_code}</pre>
-                </div>
-            </div>
-        </div>
-
-        <script>
-        function showCodeTab(tabName) {{
-            // Hide all code sections
-            document.getElementById('async-code').style.display = 'none';
-            document.getElementById('sync-code').style.display = 'none';
-            document.getElementById('api-code').style.display = 'none';
-
-            // Reset all tab styles
-            document.getElementById('async-tab').style.background = '#e5e7eb';
-            document.getElementById('async-tab').style.color = '#374151';
-            document.getElementById('sync-tab').style.background = '#e5e7eb';
-            document.getElementById('sync-tab').style.color = '#374151';
-            document.getElementById('api-tab').style.background = '#e5e7eb';
-            document.getElementById('api-tab').style.color = '#374151';
-
-            // Show selected tab
-            document.getElementById(tabName + '-code').style.display = 'block';
-            document.getElementById(tabName + '-tab').style.background = '#4f46e5';
-            document.getElementById(tabName + '-tab').style.color = 'white';
-        }}
-
-        function copyCode(tabName) {{
-            const codeElement = document.getElementById(tabName + '-code-content');
-            const text = codeElement.textContent;
-
-            if (navigator.clipboard) {{
-                navigator.clipboard.writeText(text).then(function() {{
-                    // Show success feedback
-                    const button = event.target;
-                    const originalText = button.textContent;
-                    button.textContent = '✅ Copied!';
-                    button.style.background = '#22c55e';
-                    setTimeout(() => {{
-                        button.textContent = originalText;
-                        button.style.background = '#4f46e5';
-                    }}, 2000);
-                }});
-            }} else {{
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-
-                const button = event.target;
-                const originalText = button.textContent;
-                button.textContent = '✅ Copied!';
-                setTimeout(() => {{
-                    button.textContent = originalText;
-                }}, 2000);
-            }}
-        }}
-        </script>
-        """
-
-    html += "</div>"  # End main container
-    return html
-
-
-def summarize_envelope(envelope, include_raw: bool = True) -> str:
-    lines: List[str] = []
-    primary = envelope.primary
-    lines.append("===== Primary Interpretation =====")
-    if not primary:
-        lines.append("No primary interpretation returned.")
-    else:
-        lines.append(f"Type           : {primary.type.value}")
-        lines.append(f"Confidence     : {primary.confidence:.3f}")
-        if primary.key_signature:
-            lines.append(f"Key            : {primary.key_signature}")
-        if primary.mode:
-            lines.append(f"Mode           : {primary.mode}")
-        if primary.reasoning:
-            lines.append(f"Reasoning      : {primary.reasoning}")
-        if primary.roman_numerals:
-            lines.append(f"Roman Numerals : {', '.join(primary.roman_numerals)}")
-
-        # Scale Summary (NEW in iteration 14-a)
-        if hasattr(primary, "scale_summary") and primary.scale_summary:
-            scale_summary = primary.scale_summary
-            lines.append("")
-            lines.append("=== Scale Analysis ===")
-            if scale_summary.detected_mode:
-                lines.append(f"Mode           : {scale_summary.detected_mode}")
-            if scale_summary.parent_key:
-                lines.append(f"Parent Key     : {scale_summary.parent_key}")
-            if scale_summary.characteristic_notes:
-                lines.append(
-                    f"Characteristics: {', '.join(scale_summary.characteristic_notes)}"
-                )
-            if scale_summary.notes:
-                lines.append(f"Scale Notes    : {' - '.join(scale_summary.notes)}")
-            if scale_summary.degrees:
-                lines.append(
-                    f"Degrees        : {', '.join(map(str, scale_summary.degrees))}"
-                )
-
-        # Melody Summary (NEW in iteration 14-a)
-        if hasattr(primary, "melody_summary") and primary.melody_summary:
-            melody_summary = primary.melody_summary
-            lines.append("")
-            lines.append("=== Melody Analysis ===")
-            if melody_summary.contour:
-                lines.append(f"Contour        : {melody_summary.contour.title()}")
-            if melody_summary.range_semitones is not None:
-                lines.append(
-                    f"Range          : {melody_summary.range_semitones} semitones"
-                )
-            if melody_summary.intervals:
-                intervals_str = ", ".join(
-                    [f"{'+' if i > 0 else ''}{i}" for i in melody_summary.intervals]
-                )
-                lines.append(f"Intervals      : {intervals_str}")
-            if melody_summary.leading_tone_resolutions > 0:
-                lines.append(
-                    f"Leading Tones  : {melody_summary.leading_tone_resolutions} resolutions"
-                )
-            if melody_summary.melodic_characteristics:
-                lines.append(
-                    f"Characteristics: {', '.join(melody_summary.melodic_characteristics)}"
-                )
-            if melody_summary.chromatic_notes:
-                lines.append(
-                    f"Chromatic Notes: {', '.join(melody_summary.chromatic_notes)}"
-                )
-
-        if primary.terms:
-            lines.append("")
-            lines.append("Glossary Terms:")
-            for key, value in primary.terms.items():
-                if isinstance(value, dict):
-                    label = value.get("label", key)
-                    tooltip = value.get("tooltip", "")
-                else:
-                    label = value
-                    tooltip = ""
-                suffix = f" ({tooltip})" if tooltip else ""
-                lines.append(f"  - {key}: {label}{suffix}")
-
-    if envelope.alternatives:
-        lines.append("")
-        lines.append("===== Alternatives =====")
-        for idx, alt in enumerate(envelope.alternatives, start=1):
-            lines.append(f"[{idx}] {alt.type.value} — confidence {alt.confidence:.3f}")
-
-    if envelope.evidence:
-        lines.append("")
-        lines.append("===== Evidence =====")
-        for evidence in envelope.evidence:
-            details = evidence.details or {}
-            raw_features = details.get("features", {})
-            if isinstance(raw_features, dict):
-                features = dict(raw_features)
-                features_ui = features.pop("features_ui", {})
-            else:
-                features = raw_features
-                features_ui = {}
-            lines.append(f"- Pattern: {evidence.reason}")
-            if features_ui:
-                for key, meta in features_ui.items():
-                    label = meta.get("label", key)
-                    val = meta.get("value")
-                    tooltip = meta.get("tooltip", "")
-                    suffix = f" ({tooltip})" if tooltip else ""
-                    lines.append(f"    • {label}: {val}{suffix}")
-            elif features:
-                for key, val in features.items():
-                    lines.append(f"    • {key}: {val}")
-            raw_score = details.get("raw_score")
-            if raw_score is not None:
-                lines.append(f"    • Raw score: {raw_score}")
-            if "span" in details:
-                lines.append(f"    • Span: {details['span']}")
-
-    if include_raw:
-        lines.append("")
-        lines.append("===== Raw Envelope =====")
-        try:
-            result_dict = envelope.to_dict()
-            lines.append(json.dumps(result_dict, indent=2, default=str))
-        except Exception as e:
-            lines.append(f"Raw envelope serialization error: {e}")
-            lines.append(f"Envelope type: {type(envelope)}")
-            lines.append("Available envelope attributes:")
-            for attr in dir(envelope):
-                if not attr.startswith("_"):
-                    lines.append(f"  - {attr}: {type(getattr(envelope, attr, None))}")
-
-    return "\n".join(lines)
-
-
-# ---------------------------------------------------------------------------
-# Analysis helpers
-# ---------------------------------------------------------------------------
-
-
-def normalize_scale_input(raw_scales: Optional[str | Sequence[str]]) -> List[str]:
-    if raw_scales is None:
-        return []
-    if isinstance(raw_scales, str):
-        candidates = [
-            line.strip() for line in raw_scales.splitlines() if line and line.strip()
-        ]
-        return candidates
-    return [item.strip() for item in raw_scales if item and item.strip()]
-
-
-def analyze_progression(
-    *,
-    key: Optional[str],
-    profile: str,
-    chords_text: Optional[str],
-    romans_text: Optional[str],
-    melody_text: Optional[str],
-    scales_input: Optional[str | Sequence[str]],
-) -> AnalysisContext:
-    if not any([chords_text, romans_text, melody_text, scales_input]):
-        raise ValueError(
-            "Provide at least one of --chords, --romans, --melody, or --scale for analysis."
-        )
-
-    key_hint = resolve_key_input(key)
-
-    chords = validate_list("chord", parse_csv(chords_text)) if chords_text else []
-
-    romans = validate_list("roman", parse_csv(romans_text)) if romans_text else []
-    if chords and romans and len(romans) != len(chords):
-        raise ValueError("Number of roman numerals must match number of chords.")
-
-    if chords and not romans and key_hint:
-        auto_romans = []
-        for chord in chords:
-            try:
-                auto_romans.append(romanize_chord(chord, key_hint))
-            except Exception:
-                auto_romans = []
-                break
-        if auto_romans:
-            romans = [rn.replace("b", "♭") for rn in auto_romans]
-
-    melody = parse_melody(melody_text)
-
-    scale_entries = normalize_scale_input(scales_input)
-    scales = parse_scales(scale_entries)
-
-    if melody and not key_hint:
-        raise ValueError(MISSING_MELODY_KEY_MSG)
-
-    if scales and not key_hint:
-        raise ValueError(MISSING_SCALE_KEY_MSG)
-
-    return AnalysisContext(
-        key=key_hint,
-        chords=chords,
-        roman_numerals=romans,
-        melody=melody,
-        scales=scales,
-        metadata={"profile": profile, "source": "demo/full_library_demo.py"},
-    )
-
-
-async def run_analysis_async(
-    chord_symbols: List[str], profile: str, key_hint: Optional[str]
-):
-    service = get_service()
-    return await service.analyze_with_patterns_async(
-        chord_symbols=chord_symbols, profile=profile, key_hint=key_hint
-    )
-
-
-def run_analysis_sync(chord_symbols: List[str], profile: str, key_hint: Optional[str]):
-    """Synchronous wrapper for CLI usage."""
-    return asyncio.run(run_analysis_async(chord_symbols, profile, key_hint))
 
 
 def create_api_app() -> "FastAPI":
@@ -1410,7 +327,9 @@ def create_api_app() -> "FastAPI":
 # ---------------------------------------------------------------------------
 
 
-def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None:
+def launch_gradio_demo(
+    default_key: Optional[str], default_profile: str, port: Optional[int] = None
+) -> None:
     try:
         import gradio as gr
     except ImportError as exc:  # pragma: no cover - guard for missing optional dep
@@ -1530,6 +449,33 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
         box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
     }
 
+    /* Override Gradio's CSS variable at root level */
+    :root,
+    .gradio-container {
+        --block-label-text-color: white !important;
+    }
+
+    /* Nuclear option: Direct override with maximum specificity */
+    .gr-dataframe .header-row .label p,
+    .gr-dataframe .label p,
+    [class*="svelte"] .header-row .label p {
+        color: white !important;
+    }
+
+    /* Additional styling for dataframe labels */
+    .gr-dataframe .label,
+    .gr-dataframe .header-row .label,
+    .dataframe .label {
+        font-weight: 700 !important;
+        font-size: 1rem !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+        background: rgba(0, 0, 0, 0.3) !important;
+        padding: 0.75rem 1rem !important;
+        border-radius: 8px !important;
+        margin-bottom: 1rem !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
     /* Input field styling - comprehensive targeting */
     .gr-textbox,
     .gr-dropdown,
@@ -1598,6 +544,22 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
         color: white !important;
         font-weight: 600 !important;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* File upload label fix - make text visible on white background */
+    label.svelte-j0zqjt.svelte-j0zqjt,
+    .gr-file label,
+    .upload-container label {
+        color: #374151 !important;
+        text-shadow: none !important;
+    }
+
+    /* File upload drop zone text - make visible on white background */
+    .wrap.svelte-12ioyct,
+    .wrap.svelte-12ioyct *,
+    .or.svelte-12ioyct {
+        color: #374151 !important;
+        stroke: #374151 !important;
     }
 
     /* Enhanced visual styling - carefully avoiding dropdown positioning issues */
@@ -1849,6 +811,183 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
                     value="Enter musical content above and click analyze."
                 )
 
+            with gr.TabItem("File Upload (music21)"):
+                gr.Markdown(
+                    """
+                    ## 🎼 Upload MusicXML or MIDI Files
+
+                    Test the music21 integration by uploading notation files. The system will:
+                    - Parse the file and extract chords
+                    - Optionally create a chord reduction (chordify)
+                    - Add chord symbol labels to the notation
+                    - Generate PNG notation and downloadable MusicXML
+                    - Compare chord detection methods
+                    - Optionally analyze the progression
+                    """
+                )
+
+                with gr.Row():
+                    file_upload = gr.File(
+                        label="Upload MusicXML or MIDI File",
+                        file_types=[".xml", ".mxl", ".mid", ".midi"],
+                        file_count="single",
+                    )
+
+                # MIDI Warning - appears when MIDI file is uploaded
+                midi_warning_box = gr.Markdown(
+                    visible=False,
+                    value="""
+                    ⚠️ **MIDI Translation Notice**: MIDI files contain performance data (note on/off timing)
+                    rather than musical notation. The conversion to music notation may not always be accurate due to:
+                    - Ambiguous rhythm interpretation (triplets, tuplets)
+                    - Missing voice/staff assignments
+                    - Unclear measure boundaries
+
+                    For best results, use MusicXML files when available.
+                    """,
+                )
+
+                with gr.Row():
+                    with gr.Column():
+                        add_chordify_check = gr.Checkbox(
+                            label="Add Chordify Staff",
+                            value=True,
+                            info="Generate chord reduction using music21's chordify",
+                        )
+                        label_chords_check = gr.Checkbox(
+                            label="Label Chords",
+                            value=True,
+                            info="Add chord symbol labels to notation",
+                        )
+                    with gr.Column():
+                        run_analysis_check = gr.Checkbox(
+                            label="Run Harmonic Analysis",
+                            value=False,
+                            info="Analyze the extracted progression with pattern engine",
+                        )
+                        process_full_file_check = gr.Checkbox(
+                            label="Process Full File (slower)",
+                            value=False,
+                            info="Process entire file for download. Unchecked: fast preview (first 20 measures)",
+                        )
+                        upload_profile = gr.Dropdown(
+                            label="Analysis Profile",
+                            choices=PROFILE_OPTIONS,
+                            value="classical",
+                        )
+
+                        # Key mode preference for analysis
+                        key_mode_preference = gr.Radio(
+                            label="Key Mode Preference",
+                            choices=["Major", "Minor"],
+                            value="Major",
+                            info="Treat key signature as major or relative minor (e.g., 2 sharps = D major or B minor)",
+                        )
+
+                # Windowing controls (merged into single box with mutual exclusion)
+                with gr.Column():
+                    auto_window_check = gr.Checkbox(
+                        label="Auto Window Size",
+                        value=True,
+                        info="Automatically adjust window based on tempo (disables manual slider)",
+                    )
+                    window_size_slider = gr.Slider(
+                        minimum=0.5,
+                        maximum=4.0,
+                        value=2.0,
+                        step=0.5,
+                        label="Manual Window (QL = Quarter Lengths)",
+                        info="Use musical note values: 0.5=eighth, 1.0=quarter, 2.0=half, 4.0=whole",
+                        interactive=False,  # Start disabled when Auto is on
+                    )
+
+                # Help tooltip for windowing
+                gr.Markdown(
+                    """
+                    <details>
+                    <summary><b>ℹ️ How does windowing work?</b></summary>
+
+                    **Windowing** determines how far ahead the algorithm looks to accumulate notes before identifying a chord.
+
+                    **What is QL?**
+                    - **QL = Quarter Length** (music21 term for quarter notes)
+                    - **0.5 QL** = eighth note ♪
+                    - **1.0 QL** = quarter note ♩
+                    - **2.0 QL** = half note 𝅗𝅥
+                    - **4.0 QL** = whole note 𝅝
+
+                    **Recommended Window Sizes (use musical note values):**
+                    - **1.0 QL (quarter note)**: Very fast music, rapid chord changes (>140 BPM)
+                    - **2.0 QL (half note)**: Most music, typical tempo (60-140 BPM) ⭐ **Start here**
+                    - **4.0 QL (whole note)**: Very slow, sustained chords (<60 BPM)
+
+                    **Auto Mode** (recommended):
+                    - Detects tempo and selects musically appropriate window size
+                    - Quantizes to standard note values (0.5, 1.0, 2.0, 4.0 QL)
+                    - Shows selected window and note name in results
+
+                    **Manual Mode**:
+                    - Uncheck "Auto Window Size" to choose your own
+                    - Stick to musical note values for best results
+                    - Increase if chords look fragmented (too many splits)
+                    - Decrease if different chords are being merged
+                    </details>
+                    """,
+                    elem_classes="windowing-help",
+                )
+
+                upload_analyze_btn = gr.Button("Process File", variant="primary")
+
+                # Output sections
+                with gr.Row():
+                    with gr.Column():
+                        gr.Markdown("### 📊 Extracted Information")
+
+                        # Window size display (prominent)
+                        window_info_output = gr.Markdown(
+                            value="", visible=False, elem_id="window_info"
+                        )
+
+                        upload_info_output = gr.JSON(
+                            label="File Metadata",
+                        )
+
+                        # Parsing log indicator and display
+                        with gr.Accordion(
+                            "🚩 Parsing Logs & Warnings", open=False, visible=False
+                        ) as parsing_log_accordion:
+                            parsing_log_output = gr.Textbox(
+                                label="File Parsing Details",
+                                lines=10,
+                                interactive=False,
+                                placeholder="No warnings or issues detected during file parsing.",
+                            )
+
+                    with gr.Column():
+                        pass
+
+                # Full-width notation viewer for proper rendering
+                with gr.Row():
+                    with gr.Column():
+                        gr.Markdown("### 🎼 Interactive Notation Viewer")
+                        upload_notation_output = gr.HTML(
+                            label="Notation Viewer",
+                            value="<p style='text-align: center; color: #666;'><em>Upload and process a file to see interactive notation here</em></p>",
+                        )
+
+                # Download section below notation viewer
+                with gr.Row():
+                    with gr.Column():
+                        gr.Markdown("### 📥 Download Files")
+                        upload_download_output = gr.File(
+                            label="Download Annotated MusicXML",
+                        )
+
+                gr.Markdown("### 🔍 Optional: Harmonic Analysis Results")
+                upload_analysis_output = gr.HTML(
+                    value="<p><em>Enable 'Run Harmonic Analysis' to see pattern analysis results here.</em></p>"
+                )
+
             with gr.TabItem("Glossary"):
                 with gr.Row():
                     glossary_search = gr.Textbox(
@@ -1983,8 +1122,199 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
                 </div>
                 """
 
+        def process_uploaded_file_wrapper(
+            file_obj,
+            add_chordify,
+            label_chords,
+            run_analysis,
+            process_full_file,
+            profile,
+            auto_window,
+            manual_window_size,
+            key_mode_preference,
+        ):
+            """
+            Wrapper for analyze_uploaded_file() that formats outputs for Gradio.
+
+            Handles file upload, processes through analyze_uploaded_file(), and
+            formats results for Gradio components.
+            """
+            # Opening move: handle empty file upload
+            if file_obj is None:
+                return (
+                    gr.update(visible=False),  # window_info_output
+                    {"error": "No file uploaded"},
+                    None,
+                    None,
+                    "<p><em>Please upload a file first.</em></p>",
+                    gr.update(visible=False),  # midi_warning_box
+                    gr.update(visible=False),  # parsing_log_accordion
+                    "",  # parsing_log_output
+                )
+
+            # Main play: process the file
+            try:
+                import os
+
+                file_path = (
+                    file_obj.name if hasattr(file_obj, "name") else str(file_obj)
+                )
+
+                result = analyze_uploaded_file(
+                    file_path=file_path,
+                    add_chordify=add_chordify,
+                    label_chords=label_chords,
+                    run_analysis=run_analysis,
+                    profile=profile,
+                    process_full_file=process_full_file,
+                    auto_window=auto_window,
+                    manual_window_size=manual_window_size,
+                    key_mode_preference=key_mode_preference,
+                )
+
+                # Format info JSON
+                info_json = {
+                    "chord_symbols": result["chord_symbols"],
+                    "key_hint": result["key_hint"],
+                    "metadata": result["metadata"],
+                }
+
+                # Format window size info prominently
+                window_info_text = ""
+                window_info_visible = False
+                if result.get("window_size_used") is not None:
+                    # Map QL to note names
+                    ql_to_note = {
+                        0.5: "eighth note",
+                        1.0: "quarter note",
+                        2.0: "half note",
+                        4.0: "whole note",
+                    }
+                    note_name = ql_to_note.get(result["window_size_used"], "custom")
+                    info_json["window_size"] = (
+                        f"{result['window_size_used']} QL ({note_name})"
+                    )
+
+                    # Create prominent display
+                    window_mode = "🤖 Auto" if auto_window else "✋ Manual"
+                    window_info_text = f"**🎯 Analysis Window:** {window_mode} - **{result['window_size_used']} QL** ({note_name})"
+                    window_info_visible = True
+
+                # Comparison functionality removed - no longer used by demo UI
+                comparison_data = None
+                agreement_text = ""
+
+                # Format analysis HTML (if available)
+                analysis_html = "<p><em>No analysis run.</em></p>"
+                if result["analysis_result"]:
+                    analysis_html = format_file_analysis_html(
+                        result["analysis_result"],
+                        result.get("chordified_symbols_with_measures", []),
+                        result.get("key_hint"),
+                    )
+
+                # Victory lap: return all formatted outputs
+                # Generate standalone OSMD HTML file (Gradio blocks inline JS)
+                # Use notation_url (always 20 measures) for viewer, not download_url
+                notation_html_file = generate_osmd_html_file(result["notation_url"])
+                print(f"DEBUG: Generated OSMD viewer file: {notation_html_file}")
+
+                # Read HTML content and encode as data URI (Gradio file serving doesn't work for iframes)
+                import base64
+                import os
+
+                # Check size of MusicXML file
+                xml_size = (
+                    os.path.getsize(result["download_url"])
+                    if os.path.exists(result["download_url"])
+                    else 0
+                )
+                print(f"DEBUG: MusicXML file size: {xml_size:,} bytes")
+
+                # Read and encode the HTML viewer
+                with open(notation_html_file, "rb") as f:
+                    html_bytes = f.read()
+                html_base64 = base64.b64encode(html_bytes).decode("utf-8")
+
+                # Create iframe with data URI instead of file path
+                notation_iframe = f'<iframe src="data:text/html;base64,{html_base64}" width="100%" height="700px" frameborder="0" style="border: 1px solid #ddd; border-radius: 8px;"></iframe>'
+                print(
+                    f"DEBUG: Created data URI iframe ({len(html_base64)} base64 chars)"
+                )
+
+                # Determine if we should show MIDI warning and parsing logs
+                show_midi_warning = result.get("is_midi", False)
+                parsing_logs = result.get("parsing_logs")
+                show_parsing_logs = parsing_logs is not None and len(parsing_logs) > 0
+
+                return (
+                    gr.update(
+                        value=window_info_text, visible=window_info_visible
+                    ),  # window_info_output
+                    info_json,
+                    notation_iframe,  # Return iframe pointing to HTML file
+                    result["download_url"],
+                    analysis_html,
+                    gr.update(visible=show_midi_warning),  # midi_warning_box
+                    gr.update(
+                        visible=show_parsing_logs, open=show_parsing_logs
+                    ),  # parsing_log_accordion
+                    parsing_logs or "",  # parsing_log_output
+                )
+
+            except Exception as e:
+                # Handle errors gracefully
+                import traceback
+
+                error_details = traceback.format_exc()
+                return (
+                    gr.update(visible=False),  # window_info_output (hide on error)
+                    {"error": str(e)},
+                    None,
+                    None,
+                    f"<div style='color: red;'><strong>Error:</strong> {e}<br/><pre>{error_details}</pre></div>",
+                    gr.update(visible=False),  # midi_warning_box
+                    gr.update(
+                        visible=True, open=True
+                    ),  # parsing_log_accordion (show on error)
+                    f"❌ Error during processing:\n{error_details}",  # parsing_log_output
+                )
+
+        # Event handlers
         search_btn.click(
             search_glossary_term, inputs=[glossary_search], outputs=[glossary_output]
+        )
+
+        # Mutual exclusion: Auto checkbox toggles slider interactivity
+        auto_window_check.change(
+            fn=lambda auto: gr.update(interactive=not auto),
+            inputs=[auto_window_check],
+            outputs=[window_size_slider],
+        )
+
+        upload_analyze_btn.click(
+            process_uploaded_file_wrapper,
+            inputs=[
+                file_upload,
+                add_chordify_check,
+                label_chords_check,
+                run_analysis_check,
+                process_full_file_check,
+                upload_profile,
+                auto_window_check,
+                window_size_slider,
+                key_mode_preference,  # Major or Minor key preference
+            ],
+            outputs=[
+                window_info_output,  # Window size display (prominent)
+                upload_info_output,
+                upload_notation_output,
+                upload_download_output,
+                upload_analysis_output,
+                midi_warning_box,  # Show/hide MIDI warning
+                parsing_log_accordion,  # Show/hide parsing log accordion
+                parsing_log_output,  # Parsing log text
+            ],
         )
 
         analyze_btn.click(
@@ -2257,12 +1587,14 @@ def launch_gradio_demo(default_key: Optional[str], default_profile: str) -> None
             ],
         )
 
+    server_port = port or int(os.getenv("GRADIO_SERVER_PORT", "7860"))
     demo.launch(
         server_name="127.0.0.1",
-        server_port=7860,
+        server_port=server_port,
         share=False,
-        debug=True,
+        debug=False,
         show_error=True,
+        inline=False,
     )
 
 
@@ -2314,6 +1646,11 @@ def main() -> None:
         help="Launch the Gradio UI instead of the CLI summary.",
     )
     parser.add_argument(
+        "--gradio-port",
+        type=int,
+        help="Optional port for Gradio UI (default: 7860). Only used with --gradio.",
+    )
+    parser.add_argument(
         "--api",
         action="store_true",
         help="Launch the FastAPI server (requires fastapi and uvicorn).",
@@ -2347,7 +1684,12 @@ def main() -> None:
         return
 
     if args.gradio:
-        launch_gradio_demo(default_key=args.key, default_profile=args.profile)
+        import os
+
+        gradio_port = args.gradio_port or int(os.getenv("GRADIO_SERVER_PORT", "7860"))
+        launch_gradio_demo(
+            default_key=args.key, default_profile=args.profile, port=gradio_port
+        )
         return
 
     try:

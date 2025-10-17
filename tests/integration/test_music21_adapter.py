@@ -24,9 +24,9 @@ def import_adapter_module():
     return module
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def adapter_module():
-    """Load adapter module once per test session."""
+    """Load adapter module once per test module."""
     mock_music21 = MagicMock()
     # Setup all the nested modules and classes that adapter uses
     mock_music21.converter = MagicMock()
@@ -453,3 +453,136 @@ class TestMusic21AdapterStructureExtraction:
         assert result["measure_count"] == 16
         assert result["part_count"] == 2
         assert result["sections"] == []
+
+
+class TestMusic21AdapterTempoDetection:
+    """Test tempo detection from scores."""
+
+    @pytest.fixture
+    def adapter(self, adapter_module, mock_music21_module):
+        """Create adapter with mocked music21."""
+        adapter = adapter_module.Music21Adapter()
+        adapter._music21 = mock_music21_module
+        return adapter
+
+    def test_detect_tempo_from_explicit_marking(self, adapter):
+        """Should detect tempo from explicit MetronomeMark."""
+        mock_score = MagicMock()
+        mock_flattened = MagicMock()
+
+        # Mock tempo marking
+        mock_tempo = MagicMock()
+        mock_tempo.number = 120
+        mock_flattened.getElementsByClass.return_value = [mock_tempo]
+        mock_score.flatten.return_value = mock_flattened
+
+        result = adapter.detect_tempo_from_score(mock_score)
+        assert result == 120.0
+
+    def test_detect_tempo_fallback_to_default(self, adapter):
+        """Should fallback to 100 BPM when no tempo found."""
+        mock_score = MagicMock()
+        mock_flattened = MagicMock()
+        mock_flattened.getElementsByClass.return_value = []
+        mock_score.flatten.return_value = mock_flattened
+        mock_score.parts = []  # No parts for density estimation
+
+        result = adapter.detect_tempo_from_score(mock_score)
+        assert result == 100.0
+
+
+class TestMusic21AdapterChordifyScore:
+    """Test chordify_score method."""
+
+    @pytest.fixture
+    def adapter(self, adapter_module, mock_music21_module):
+        """Create adapter with mocked music21."""
+        adapter = adapter_module.Music21Adapter()
+        adapter._music21 = mock_music21_module
+        return adapter
+
+    def test_chordify_score_returns_new_score(self, adapter):
+        """Should return a new Score object with chord staff added."""
+        # Create minimal mock score
+        mock_score = MagicMock()
+        mock_score.parts = []
+        mock_score.metadata = None
+
+        mock_flattened = MagicMock()
+        mock_flattened.highestTime = 4.0
+        mock_flattened.getElementsByClass.return_value = []
+        mock_score.flatten.return_value = mock_flattened
+
+        # Mock the Part class to return objects with proper methods
+        mock_part_instance = MagicMock()
+        mock_part_instance.insert = MagicMock()
+        mock_part_instance.flatten.return_value.notesAndRests = []
+        adapter._music21.stream.Part = MagicMock(return_value=mock_part_instance)
+
+        # Mock the Score class
+        mock_new_score = MagicMock()
+        adapter._music21.stream.Score = MagicMock(return_value=mock_new_score)
+
+        # Mock other music21 components needed
+        adapter._music21.clef = MagicMock()
+        adapter._music21.key = MagicMock()
+        adapter._music21.meter = MagicMock()
+        adapter._music21.layout = MagicMock()
+        adapter._music21.instrument = MagicMock()
+        adapter._music21.chord = MagicMock()
+
+        result = adapter.chordify_score(
+            mock_score,
+            analysis_window=2.0,
+            sample_interval=0.25,
+            process_full_file=True,
+            max_measures=20,
+        )
+
+        # Should return a score object
+        assert result is not None
+
+
+class TestMusic21AdapterLabelChords:
+    """Test label_chords method."""
+
+    @pytest.fixture
+    def adapter(self, adapter_module, mock_music21_module):
+        """Create adapter with mocked music21."""
+        adapter = adapter_module.Music21Adapter()
+        adapter._music21 = mock_music21_module
+        return adapter
+
+    def test_label_chords_returns_chord_data(self, adapter):
+        """Should return list of chord data with measures."""
+        # Create minimal mock score with chord part
+        mock_score = MagicMock()
+        mock_chord_part = MagicMock()
+        mock_score.parts = [MagicMock(), mock_chord_part]  # Last part is chord analysis
+
+        # Mock flattened elements
+        mock_flattened_part = MagicMock()
+        mock_chord_element = MagicMock()
+        mock_chord_element.isChord = True
+        mock_chord_element.offset = 0.0
+
+        # Mock pitch data
+        mock_pitch = MagicMock()
+        mock_pitch.midi = 60  # Middle C
+        mock_chord_element.pitches = [mock_pitch]
+
+        mock_flattened_part.notesAndRests = [mock_chord_element]
+        mock_chord_part.flatten.return_value = mock_flattened_part
+
+        # Mock time signature
+        mock_time_sig = MagicMock()
+        mock_time_sig.numerator = 4
+        mock_time_sig.denominator = 4
+        mock_score.flatten.return_value.getElementsByClass.return_value = [
+            mock_time_sig
+        ]
+
+        result = adapter.label_chords(mock_score)
+
+        # Should return a list
+        assert isinstance(result, list)
