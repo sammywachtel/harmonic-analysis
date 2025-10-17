@@ -129,6 +129,14 @@ Think of it as having three music theory professors analyze your work simultaneo
 pip install harmonic-analysis
 ```
 
+## 📚 Documentation
+
+- **[API Quick Reference](docs/reference/api-quick-reference.md)** - Complete function signatures, parameters, and examples
+- **[Getting Started Tutorial](docs/tutorials/getting-started.md)** - Step-by-step introduction
+- **[How-to Guides](docs/how-to/)** - Task-specific solutions
+- **[API Guide](docs/API_GUIDE.md)** - Comprehensive API documentation
+- **[Development Guide](docs/DEVELOPMENT.md)** - Contributing and development workflow
+
 ## 📁 Project Structure
 
 ```
