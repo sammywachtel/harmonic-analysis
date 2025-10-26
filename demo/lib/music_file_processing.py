@@ -46,7 +46,7 @@ MAX_MEASURES_FOR_DISPLAY = 20
 # ============================================================================
 
 
-def analyze_uploaded_file(
+async def analyze_uploaded_file(
     file_path: str,
     add_chordify: bool = True,
     label_chords: bool = True,
@@ -590,6 +590,11 @@ def analyze_uploaded_file(
     analysis_result = None
     analysis_chord_data = None  # Will contain chord symbols with measure numbers
 
+    # Opening move: add diagnostic logging to trace analysis execution
+    print(
+        f"DEBUG: run_analysis parameter received: {run_analysis} (type: {type(run_analysis)})"
+    )
+
     if run_analysis:
         # Use chordified symbols if we created them, otherwise use original
         if chordified_symbols_with_measures:
@@ -606,18 +611,90 @@ def analyze_uploaded_file(
         else:
             analysis_chords = []
 
+        # Main play: log chord data prepared for analysis
+        print(f"DEBUG: Analysis chords prepared: {len(analysis_chords)} chords")
+        print(
+            f"DEBUG: First 3 chords: {analysis_chords[:3] if analysis_chords else 'None'}"
+        )
+
         if analysis_chords:
             service = get_service()
             try:
-                analysis_result = asyncio.run(
-                    service.analyze_with_patterns_async(
-                        chord_symbols=analysis_chords,
-                        key_hint=key_hint_for_analysis,  # Use converted key based on user preference
-                        profile=profile,
-                    )
+                # Big play: kick off the harmonic analysis pipeline
+                print(
+                    f"DEBUG: Starting harmonic analysis with key_hint: {key_hint_for_analysis}, profile: {profile}"
+                )
+                analysis_result = await service.analyze_with_patterns_async(
+                    chord_symbols=analysis_chords,
+                    key_hint=key_hint_for_analysis,  # Use converted key based on user preference
+                    profile=profile,
+                )
+                print(
+                    f"DEBUG: Analysis completed successfully. Result type: {type(analysis_result)}"
                 )
             except Exception as e:
-                warnings.warn(f"Analysis failed: {e}", UserWarning)
+                # Victory lap gone wrong: surface the error properly for debugging
+                import traceback
+
+                error_msg = f"Analysis failed: {e}"
+                print(f"ERROR: {error_msg}")
+                traceback.print_exc()
+
+                # Add to parsing logs so frontend users can see what happened
+                parsing_logs.append(f"\n❌ Analysis Error: {error_msg}")
+                parsing_logs.append(
+                    f"   File processing succeeded, but harmonic analysis failed"
+                )
+
+                warnings.warn(error_msg, UserWarning)
+
+    # Transform analysis result to match frontend's expected structure
+    # Frontend expects: { summary, analysis: { primary, alternatives }, enhanced_summaries }
+    # Backend provides: AnalysisEnvelope with { primary, alternatives }
+    transformed_analysis = None
+    if analysis_result:
+        result_dict = asdict(analysis_result)
+
+        # Transform primary and alternatives: change 'key_signature' to 'key'
+        def transform_interpretation(interp):
+            """Transform interpretation to match frontend structure."""
+            transformed = interp.copy()
+            # Rename key_signature to key
+            if "key_signature" in transformed:
+                transformed["key"] = transformed.pop("key_signature")
+            return transformed
+
+        primary = transform_interpretation(result_dict["primary"])
+        alternatives = [
+            transform_interpretation(alt) for alt in result_dict.get("alternatives", [])
+        ]
+
+        # Create summary text (convert enum to string if needed)
+        analysis_type = primary["type"]
+        if hasattr(analysis_type, "value"):
+            analysis_type = analysis_type.value
+        elif isinstance(analysis_type, str) and "." in analysis_type:
+            # Handle "AnalysisType.FUNCTIONAL" string format
+            analysis_type = analysis_type.split(".")[-1].lower()
+        summary = f"{analysis_type} analysis in {primary.get('key', 'unknown key')} with {(primary['confidence'] * 100):.1f}% confidence"
+
+        # Build enhanced_summaries from patterns
+        enhanced_summaries = {}
+        if primary.get("patterns"):
+            # Extract pattern names
+            enhanced_summaries["patterns_detected"] = [
+                p.get("name", "Unknown pattern") for p in primary["patterns"]
+            ]
+
+        # Build final structure matching frontend expectations
+        transformed_analysis = {
+            "summary": summary,
+            "analysis": {
+                "primary": primary,
+                "alternatives": alternatives,
+            },
+            "enhanced_summaries": enhanced_summaries if enhanced_summaries else None,
+        }
 
     # Victory lap: return comprehensive results
     return {
@@ -627,7 +704,7 @@ def analyze_uploaded_file(
         "metadata": metadata,
         "notation_url": notation_xml_path,  # MusicXML file for OSMD viewer (always 20 measures)
         "download_url": download_xml_path,  # MusicXML file for download (full or preview)
-        "analysis_result": asdict(analysis_result) if analysis_result else None,
+        "analysis_result": transformed_analysis,
         "measure_count": measure_count,  # Total measures in score
         "truncated_for_display": measure_count
         > MAX_MEASURES_FOR_DISPLAY,  # Whether notation was truncated

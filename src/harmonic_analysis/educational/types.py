@@ -11,11 +11,22 @@ from typing import Dict, List, Optional
 
 
 class LearningLevel(Enum):
-    """Learning level for educational content presentation."""
+    """
+    TODO -- remove this -- learning level is not going to be implemented
+    Learning level for educational content presentation.
+    """
 
     BEGINNER = "beginner"
     INTERMEDIATE = "intermediate"
     ADVANCED = "advanced"
+
+
+@dataclass
+class VisualizationHints:
+    """Visual representation hints for chord progressions."""
+
+    chord_colors: List[str]  # ["PD", "D", "T"] for predominant, dominant, tonic
+    bracket_range: Dict[str, int]  # {"start": 1, "end": 2} for pattern bracket
 
 
 @dataclass
@@ -27,6 +38,7 @@ class ProgressionExample:
     roman_numerals: str  # "ii V7 I"
     context: str  # "Classic jazz turnaround"
     audio_file: Optional[str] = None  # Future: actual audio
+    visualization: Optional[VisualizationHints] = None  # Visual hints for frontend
 
 
 @dataclass
@@ -56,6 +68,94 @@ class RelatedConcept:
     concept_id: str
     relationship: str  # "builds_from", "contrasts_with", "leads_to"
     description: str
+
+
+@dataclass
+class PatternSummary:
+    """
+    Lightweight summary for pattern cards (frontend MVP).
+
+    Provides just the essential info for a card-sized educational display.
+    """
+
+    pattern_id: str
+    title: str  # Display name (e.g., "Perfect Authentic Cadence (PAC)")
+    summary: str  # Two-sentence Bernstein-style summary
+    category: Optional[str] = None  # Pattern family (e.g., "cadential")
+    difficulty: Optional[str] = None  # "beginner", "intermediate", "advanced"
+
+
+@dataclass
+class TechnicalNotes:
+    """
+    Optional Layer 2 technical details for deep dives.
+
+    Provides voice leading mechanics, theoretical context, and historical evolution.
+    """
+
+    voice_leading: Optional[str] = None  # Voice leading mechanics
+    theoretical_depth: Optional[str] = None  # Advanced theoretical analysis
+    historical_context: Optional[str] = None  # Historical evolution and context
+
+
+@dataclass
+class FullExplanation:
+    """
+    Complete Bernstein-style explanation with progressive disclosure.
+
+    Opening move: Hook grabs attention, breakdown provides structure.
+    Main play: Story gives context, composers show usage, examples prove it.
+    Victory lap: Try-this makes it actionable, technical notes go deeper.
+    """
+
+    pattern_id: str
+    title: str
+
+    # Layer 1: Core Bernstein-style explanation (always visible)
+    hook: str  # Opening 1-2 sentences that grab attention
+    breakdown: List[str]  # Hierarchical bullet points explaining the pattern
+    story: str  # Narrative 3-4 paragraphs with musical context
+    composers: str  # Who uses this pattern and why
+    examples: List[str]  # Specific pieces with measure numbers
+    try_this: str  # Actionable suggestion for practicing/composing
+
+    # Layer 2: Optional technical depth (progressive disclosure)
+    technical_notes: Optional[TechnicalNotes] = None
+
+
+@dataclass
+class EducationalCard:
+    """
+    Frontend-ready card representation for educational content.
+
+    Serializable format for REST API responses.
+    """
+
+    pattern_id: str
+    title: str
+    summary: str
+    category: Optional[str] = None
+    difficulty: Optional[str] = None
+    visualization: Optional[VisualizationHints] = None
+
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for JSON serialization."""
+        result = {
+            "pattern_id": self.pattern_id,
+            "title": self.title,
+            "summary": self.summary,
+            "category": self.category,
+            "difficulty": self.difficulty,
+        }
+
+        # Big play: Include visualization hints if present
+        if self.visualization:
+            result["visualization"] = {
+                "chord_colors": self.visualization.chord_colors,
+                "bracket_range": self.visualization.bracket_range,
+            }
+
+        return result
 
 
 @dataclass

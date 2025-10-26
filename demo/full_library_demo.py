@@ -956,16 +956,18 @@ def launch_gradio_demo(
                     file_obj.name if hasattr(file_obj, "name") else str(file_obj)
                 )
 
-                result = analyze_uploaded_file(
-                    file_path=file_path,
-                    add_chordify=add_chordify,
-                    label_chords=label_chords,
-                    run_analysis=run_analysis,
-                    profile=profile,
-                    process_full_file=process_full_file,
-                    auto_window=auto_window,
-                    manual_window_size=manual_window_size,
-                    key_mode_preference=key_mode_preference,
+                result = asyncio.run(
+                    analyze_uploaded_file(
+                        file_path=file_path,
+                        add_chordify=add_chordify,
+                        label_chords=label_chords,
+                        run_analysis=run_analysis,
+                        profile=profile,
+                        process_full_file=process_full_file,
+                        auto_window=auto_window,
+                        manual_window_size=manual_window_size,
+                        key_mode_preference=key_mode_preference,
+                    )
                 )
 
                 # Format info JSON

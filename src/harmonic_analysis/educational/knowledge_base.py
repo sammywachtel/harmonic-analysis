@@ -16,13 +16,17 @@ try:
 except ImportError:
     HAS_JSONSCHEMA = False
 
+from .types import LearningLevel  # TODO: remove LearningLevel -- not needed
 from .types import (
     EducationalContext,
-    LearningLevel,
+    FullExplanation,
     Misconception,
+    PatternSummary,
     ProgressionExample,
     RelatedConcept,
     RepertoireExample,
+    TechnicalNotes,
+    VisualizationHints,
 )
 
 
@@ -141,6 +145,15 @@ class KnowledgeBase:
         # Build progression examples
         musical_examples = []
         for prog in concept.get("musical_examples", {}).get("progressions", []):
+            # Big play: Extract visualization hints if present
+            visualization = None
+            if "visualization" in prog:
+                vis_data = prog["visualization"]
+                visualization = VisualizationHints(
+                    chord_colors=vis_data.get("chord_colors", []),
+                    bracket_range=vis_data.get("bracket_range", {}),
+                )
+
             musical_examples.append(
                 ProgressionExample(
                     chords=prog["chords"],
@@ -148,6 +161,7 @@ class KnowledgeBase:
                     roman_numerals=prog.get("roman_numerals", ""),
                     context=prog["context"],
                     audio_file=None,
+                    visualization=visualization,
                 )
             )
 
@@ -223,6 +237,15 @@ class KnowledgeBase:
         for prog in (
             concepts[pattern_id].get("musical_examples", {}).get("progressions", [])
         ):
+            # Victory lap: Include visualization hints if present
+            visualization = None
+            if "visualization" in prog:
+                vis_data = prog["visualization"]
+                visualization = VisualizationHints(
+                    chord_colors=vis_data.get("chord_colors", []),
+                    bracket_range=vis_data.get("bracket_range", {}),
+                )
+
             examples.append(
                 ProgressionExample(
                     chords=prog["chords"],
@@ -230,6 +253,7 @@ class KnowledgeBase:
                     roman_numerals=prog.get("roman_numerals", ""),
                     context=prog["context"],
                     audio_file=None,
+                    visualization=visualization,
                 )
             )
         return examples
@@ -304,3 +328,149 @@ class KnowledgeBase:
         families = self.data.get("pattern_families", {})
         result: Optional[Dict[str, Any]] = families.get(family)
         return result
+
+    def get_summary(
+        self, pattern_id: str, level: LearningLevel = LearningLevel.BEGINNER
+    ) -> Optional[PatternSummary]:
+        """
+        Get lightweight pattern summary with fallback hierarchy.
+
+        Opening move: Try exact pattern match.
+        Big play: Fall back to parent pattern (trim last segment).
+        Final whistle: Fall back to pattern family metadata.
+
+        Args:
+            pattern_id: Pattern ID (e.g., "cadence.authentic.perfect")
+            level: Learning level (default: BEGINNER)
+
+        Returns:
+            PatternSummary if found, None otherwise
+
+        Fallback hierarchy:
+            1. Exact match: "cadence.authentic.perfect"
+            2. Parent match: "cadence.authentic"
+            3. Family match: pattern_families["cadential"]
+        """
+        # Opening move: normalize pattern ID (handle delimiters)
+        # Keep underscores and case as-is since they're used in actual pattern IDs
+        normalized_id = pattern_id.replace(":", ".").replace("-", ".")
+
+        # Main play: try exact match first (case-insensitive)
+        concepts = self.data.get("concepts", {})
+        # Build lowercase lookup map for case-insensitive matching
+        concepts_lower = {k.lower(): k for k in concepts.keys()}
+        normalized_lower = normalized_id.lower()
+
+        if normalized_lower in concepts_lower:
+            actual_id = concepts_lower[normalized_lower]
+            concept = concepts[actual_id]
+            level_data = concept.get("learning_levels", {}).get(level.value)
+            if level_data:
+                return PatternSummary(
+                    pattern_id=actual_id,
+                    title=concept.get("display_name", actual_id),
+                    summary=level_data.get("summary", ""),
+                    category=concept.get("category"),
+                    difficulty=level.value,
+                )
+
+        # Big play: try parent pattern (trim last segment)
+        if "." in normalized_id:
+            parent_id = ".".join(normalized_id.split(".")[:-1])
+            parent_lower = parent_id.lower()
+            if parent_lower in concepts_lower:
+                actual_parent_id = concepts_lower[parent_lower]
+                concept = concepts[actual_parent_id]
+                level_data = concept.get("learning_levels", {}).get(level.value)
+                if level_data:
+                    return PatternSummary(
+                        pattern_id=actual_parent_id,
+                        title=concept.get("display_name", actual_parent_id),
+                        summary=level_data.get("summary", ""),
+                        category=concept.get("category"),
+                        difficulty=level.value,
+                    )
+
+        # Final whistle: try pattern family fallback
+        # Extract family from pattern ID (first segment or category)
+        family_candidates = []
+        if "." in normalized_id:
+            family_candidates.append(normalized_id.split(".")[0])
+
+        # Also check if any concept has a category matching our pattern prefix
+        for concept_id, concept_data in concepts.items():
+            category = concept_data.get("category")
+            if category and normalized_id.startswith(category):
+                family_candidates.append(category)
+
+        families = self.data.get("pattern_families", {})
+        for family in family_candidates:
+            if family in families:
+                family_info = families[family]
+                return PatternSummary(
+                    pattern_id=family,
+                    title=f"{family.title()} Patterns",
+                    summary=family_info.get("overview", ""),
+                    category=family,
+                    difficulty=level.value,
+                )
+
+        # Victory lap: no match found
+        return None
+
+    def get_full_explanation(self, pattern_id: str) -> Optional[FullExplanation]:
+        """
+        Get complete Bernstein-style explanation for a pattern.
+
+        Opening move: Check if explanation exists in knowledge base.
+        Main play: Build FullExplanation with Layer 1 and optional Layer 2.
+        Victory lap: Return complete explanation or None.
+
+        Args:
+            pattern_id: Pattern ID (e.g., "cadence.authentic.perfect")
+
+        Returns:
+            FullExplanation if found, None otherwise
+        """
+        # Opening move: locate the concept
+        concepts = self.data.get("concepts", {})
+        if pattern_id not in concepts:
+            return None
+
+        concept = concepts[pattern_id]
+        explanation_data = concept.get("explanation")
+
+        if not explanation_data:
+            return None
+
+        # Main play: extract Layer 1 (core explanation)
+        hook = explanation_data.get("hook", "")
+        breakdown = explanation_data.get("breakdown", [])
+        story = explanation_data.get("story", "")
+        composers = explanation_data.get("composers", "")
+        examples = explanation_data.get("examples", [])
+        try_this = explanation_data.get("try_this", "")
+        title = concept.get("display_name", pattern_id)
+
+        # Big play: extract Layer 2 (optional technical notes)
+        technical_notes = None
+        tech_data = explanation_data.get("technical_notes")
+        if tech_data:
+            technical_notes = TechnicalNotes(
+                voice_leading=tech_data.get("voice_leading"),
+                theoretical_depth=tech_data.get("theoretical_depth"),
+                historical_context=tech_data.get("historical_context"),
+            )
+
+        # Victory lap: return the complete explanation
+        return FullExplanation(
+            pattern_id=pattern_id,
+            title=title,
+            hook=hook,
+            breakdown=breakdown,
+            story=story,
+            composers=composers,
+            examples=examples,
+            try_this=try_this,
+            technical_notes=technical_notes,
+        )

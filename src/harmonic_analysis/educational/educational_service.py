@@ -9,7 +9,15 @@ from typing import Any, Dict, List, Optional
 
 from ..core.pattern_engine.glossary_service import GlossaryService
 from .knowledge_base import KnowledgeBase
-from .types import EducationalContext, LearningLevel, ProgressionExample, RelatedConcept
+from .types import (
+    EducationalCard,
+    EducationalContext,
+    FullExplanation,
+    LearningLevel,
+    PatternSummary,
+    ProgressionExample,
+    RelatedConcept,
+)
 
 
 class EducationalService:
@@ -45,6 +53,21 @@ class EducationalService:
             EducationalContext with level-appropriate content
         """
         return self.kb.get_concept(pattern_id, level)
+
+    def explain_pattern_full(self, pattern_id: str) -> Optional[FullExplanation]:
+        """
+        Get complete Bernstein-style explanation with progressive disclosure.
+
+        Opening move: Delegate to knowledge base for full explanation.
+        Victory lap: Return complete explanation with Layer 1 and optional Layer 2.
+
+        Args:
+            pattern_id: Pattern identifier (e.g., "cadence.authentic.perfect")
+
+        Returns:
+            FullExplanation if found, None otherwise
+        """
+        return self.kb.get_full_explanation(pattern_id)
 
     def get_related_learning(
         self, pattern_id: str, relationship_type: str = "all"
@@ -205,3 +228,116 @@ class EducationalService:
     def get_pattern_family_overview(self, family: str) -> Optional[Dict]:
         """Get educational overview of a pattern family."""
         return self.kb.get_pattern_family_info(family)
+
+    def get_summary(
+        self, pattern_id: str, level: LearningLevel = LearningLevel.BEGINNER
+    ) -> Optional[PatternSummary]:
+        """
+        Get lightweight pattern summary for card display.
+
+        Opening move: Delegate to knowledge base with fallback logic.
+
+        Args:
+            pattern_id: Pattern identifier (e.g., "cadence.authentic.perfect")
+            level: Learning level for summary
+
+        Returns:
+            PatternSummary if found, None otherwise
+        """
+        return self.kb.get_summary(pattern_id, level)
+
+    def enrich_analysis(
+        self,
+        detected_patterns: List[Any],
+        level: LearningLevel = LearningLevel.BEGINNER,
+    ) -> List[EducationalCard]:
+        """
+        Map detected pattern IDs to educational cards.
+
+        Opening move: Extract pattern IDs from analysis results.
+        Main play: Look up summaries with normalization and logging.
+        Victory lap: Return list of educational cards.
+
+        Args:
+            detected_patterns: List of pattern match objects or dicts with 'pattern_id'
+            level: Learning level for summaries
+
+        Returns:
+            List of EducationalCard objects for matched patterns
+        """
+        # Opening move: extract pattern IDs and positions from various input formats
+        pattern_data = []
+        for pattern in detected_patterns:
+            pattern_id = None
+            pattern_start = 0  # Default to 0 if no position info
+
+            if isinstance(pattern, dict):
+                pattern_id = pattern.get("pattern_id") or pattern.get("id")
+                pattern_start = pattern.get("start", 0)
+            elif hasattr(pattern, "pattern_id"):
+                pattern_id = pattern.pattern_id
+                pattern_start = getattr(pattern, "start", 0)
+            elif hasattr(pattern, "id"):
+                pattern_id = pattern.id
+                pattern_start = getattr(pattern, "start", 0)
+            else:
+                # Time to tackle the tricky bit - try str conversion
+                pattern_id = str(pattern)
+
+            if pattern_id:
+                pattern_data.append({"id": pattern_id, "start": pattern_start})
+
+        # Main play: look up summaries for each pattern
+        cards = []
+        for pdata in pattern_data:
+            pattern_id = pdata["id"]
+            pattern_start = pdata["start"]
+
+            summary = self.get_summary(pattern_id, level)
+            if summary:
+                # Big play: Get visualization hints from first progression example
+                visualization = None
+                progression_examples = self.kb.get_progression_examples(pattern_id)
+                if progression_examples and progression_examples[0].visualization:
+                    raw_viz = progression_examples[0].visualization
+
+                    # Critical: Adjust bracket range based on pattern position
+                    # Knowledge base uses indices relative to the example progression,
+                    # but we need indices relative to the user's full chord progression
+                    from harmonic_analysis.educational.types import VisualizationHints
+
+                    # Adjust bracket indices by pattern start position
+                    if raw_viz.bracket_range:
+                        # bracket_range is a dict with 'start' and 'end' keys
+                        original_range = raw_viz.bracket_range
+                        adjusted_range = {
+                            "start": original_range["start"] + pattern_start,
+                            "end": original_range["end"] + pattern_start,
+                        }
+                        # Create new VisualizationHints with adjusted bracket
+                        visualization = VisualizationHints(
+                            chord_colors=raw_viz.chord_colors,
+                            bracket_range=adjusted_range,
+                        )
+                    else:
+                        visualization = raw_viz
+
+                cards.append(
+                    EducationalCard(
+                        pattern_id=summary.pattern_id,
+                        title=summary.title,
+                        summary=summary.summary,
+                        category=summary.category,
+                        difficulty=summary.difficulty,
+                        visualization=visualization,
+                    )
+                )
+            else:
+                # Here's where we log unmatched IDs for observability
+                # (This looks odd, but it saves us from silent failures)
+                import logging
+
+                logging.debug(f"No educational content found for pattern: {pattern_id}")
+
+        # Victory lap: return the educational cards
+        return cards

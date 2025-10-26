@@ -19,6 +19,15 @@ from harmonic_analysis.api.analysis import analyze_melody, analyze_scale
 from harmonic_analysis.core.pattern_engine.glossary_service import GlossaryService
 from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
+# Educational imports with graceful fallback
+try:
+    from harmonic_analysis.educational import EducationalService, is_available
+
+    EDUCATIONAL_AVAILABLE = is_available()
+except ImportError:
+    EDUCATIONAL_AVAILABLE = False
+    EducationalService = None  # type: ignore
+
 from .models import MelodyRequest, ProgressionRequest, ScaleRequest
 
 # Kickoff: Constants from demo
@@ -86,7 +95,9 @@ def summarize_envelope(envelope: Any, include_raw: bool = False) -> str:
     return "\n".join(lines) if lines else "Analysis complete."
 
 
-def _serialize_envelope(envelope: Any) -> Dict[str, Any]:
+def _serialize_envelope(
+    envelope: Any, include_educational: bool = True
+) -> Dict[str, Any]:
     """
     Serialize analysis envelope to JSON-compatible dictionary.
 
@@ -123,11 +134,76 @@ def _serialize_envelope(envelope: Any) -> Dict[str, Any]:
                 "leading_tone_resolutions": melody.leading_tone_resolutions,
             }
 
-    return {
+    # Big play: add educational content if requested and available
+    educational_payload = None
+    if include_educational and EDUCATIONAL_AVAILABLE and EducationalService:
+        try:
+            edu_service = EducationalService()
+            # Extract patterns from primary analysis
+            patterns = []
+            if envelope.primary and hasattr(envelope.primary, "patterns"):
+                patterns = envelope.primary.patterns
+
+            # Enrich with educational cards
+            cards = edu_service.enrich_analysis(patterns)
+
+            # Time to tackle the tricky bit: fetch full explanations for each pattern
+            explanations = {}
+            for pattern in patterns:
+                pattern_id = None
+                if isinstance(pattern, dict):
+                    pattern_id = pattern.get("pattern_id") or pattern.get("id")
+                elif hasattr(pattern, "pattern_id"):
+                    pattern_id = pattern.pattern_id
+                elif hasattr(pattern, "id"):
+                    pattern_id = pattern.id
+
+                if pattern_id:
+                    full_explanation = edu_service.explain_pattern_full(pattern_id)
+                    if full_explanation:
+                        # Serialize FullExplanation to dict
+                        exp_dict = {
+                            "pattern_id": full_explanation.pattern_id,
+                            "title": full_explanation.title,
+                            "hook": full_explanation.hook,
+                            "breakdown": full_explanation.breakdown,
+                            "story": full_explanation.story,
+                            "composers": full_explanation.composers,
+                            "examples": full_explanation.examples,
+                            "try_this": full_explanation.try_this,
+                        }
+                        # Add technical notes if present (Layer 2)
+                        if full_explanation.technical_notes:
+                            tech = full_explanation.technical_notes
+                            exp_dict["technical_notes"] = {
+                                "voice_leading": tech.voice_leading,
+                                "theoretical_depth": tech.theoretical_depth,
+                                "historical_context": tech.historical_context,
+                            }
+                        explanations[pattern_id] = exp_dict
+
+            educational_payload = {
+                "available": True,
+                "content": [card.to_dict() for card in cards],
+                "explanations": explanations,
+            }
+        except Exception:
+            # Final whistle: educational failed, return unavailable
+            educational_payload = {"available": False, "content": None}
+    elif include_educational:
+        # Educational requested but not installed
+        educational_payload = {"available": False, "content": None}
+
+    result = {
         "summary": summarize_envelope(envelope, include_raw=False),
         "analysis": analysis_dict,
         "enhanced_summaries": summary_fields,
     }
+
+    if educational_payload is not None:
+        result["educational"] = educational_payload
+
+    return result
 
 
 # Kickoff: Create router
@@ -196,7 +272,9 @@ async def analyze_progression_endpoint(request: ProgressionRequest) -> Dict[str,
                 detail="Must provide chords, romans, melody, or scale input",
             )
 
-        return _serialize_envelope(envelope)
+        return _serialize_envelope(
+            envelope, include_educational=request.include_educational
+        )
 
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -286,7 +364,7 @@ async def analyze_file_endpoint(
         # Process the file using library's file processing
         from demo.lib.music_file_processing import analyze_uploaded_file
 
-        result = analyze_uploaded_file(
+        result = await analyze_uploaded_file(
             file_path=temp_file_path,
             add_chordify=add_chordify,
             label_chords=label_chords,

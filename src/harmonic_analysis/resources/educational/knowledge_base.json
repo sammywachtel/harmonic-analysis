@@ -4,9 +4,10 @@
     "cadence.authentic.perfect": {
       "id": "cadence.authentic.perfect",
       "display_name": "Perfect Authentic Cadence (PAC)",
+      "category": "cadential",
       "learning_levels": {
         "beginner": {
-          "summary": "The strongest way to end a musical phrase - like a period at the end of a sentence",
+          "summary": "The strongest way to end a musical phrase - like a period at the end of a sentence. It uses V-I chords in root position with the melody ending on the home note, creating the most satisfying sense of resolution.",
           "key_points": [
             "Uses V → I chords (the most powerful progression)",
             "Both chords in strongest position (root position)",
@@ -70,19 +71,31 @@
             "chords": "G7 C",
             "key": "C major",
             "context": "Simplest PAC",
-            "roman_numerals": "V7 I"
+            "roman_numerals": "V7 I",
+            "visualization": {
+              "chord_colors": ["D", "T"],
+              "bracket_range": {"start": 0, "end": 1}
+            }
           },
           {
             "chords": "Dm G7 C",
             "key": "C major",
             "context": "PAC with predominant",
-            "roman_numerals": "ii V7 I"
+            "roman_numerals": "ii V7 I",
+            "visualization": {
+              "chord_colors": ["PD", "D", "T"],
+              "bracket_range": {"start": 1, "end": 2}
+            }
           },
           {
             "chords": "F C/E Dm G7 C",
             "key": "C major",
             "context": "Extended approach to PAC",
-            "roman_numerals": "IV I6 ii V7 I"
+            "roman_numerals": "IV I6 ii V7 I",
+            "visualization": {
+              "chord_colors": ["PD", "T", "PD", "D", "T"],
+              "bracket_range": {"start": 3, "end": 4}
+            }
           }
         ],
         "repertoire": [
@@ -126,11 +139,36 @@
         "Identify PACs vs IACs in Bach chorales",
         "Compose parallel periods using PAC endings",
         "Analyze Haydn string quartets for PAC placement in formal structure"
-      ]
+      ],
+      "explanation": {
+        "hook": "Picture this: you're listening to a symphony, and suddenly—*there it is*—that unmistakable moment when everything clicks into place, the tension melts away, and the music feels complete. That's the Perfect Authentic Cadence, the strongest punctuation mark in all of Western music.",
+        "breakdown": [
+          "**The Three Non-Negotiables**: A PAC demands three things working together—first, the V-I harmonic progression (dominant resolving to tonic); second, both chords in root position (bass playing the root note); and third, the melody ending on scale degree 1 (the tonic note in the soprano voice).",
+          "  - **Why root position matters**: When both chords have their roots in the bass, you get maximum clarity and stability—like a building with its foundation firmly on the ground, not teetering on upper floors.",
+          "  - **Why the soprano's tonic matters**: The highest voice is what our ears track most closely. When it lands on the home note simultaneously with the harmonic resolution, you get a one-two punch of closure that's unmatched.",
+          "**The Power Hierarchy**: Not all cadences are created equal. The PAC sits at the top of the cadential food chain—stronger than the Imperfect Authentic Cadence (which weakens closure through inversion or melodic displacement), miles ahead of the Half Cadence (which doesn't even try to resolve), and dramatically different from the Deceptive Cadence (which actively *avoids* resolution).",
+          "**Functional Harmony in Action**: The V-I progression embodies the fundamental cycle of tonal music—dominant function (tension) resolving to tonic function (stability). This isn't just theory; it's the gravitational pull that's governed Western music for centuries."
+        ],
+        "story": "Let's travel back to the Classical period, when composers like Haydn and Mozart were writing symphonies for aristocratic audiences. Imagine you're in the audience at the premiere of Mozart's Symphony No. 40—you've just heard eight measures of the opening theme, with its restless energy and chromatic twists. Then, at measure 4, the music arrives at a PAC, and for just a moment, everything feels settled. But here's the genius: Mozart *knows* you're not satisfied yet. That PAC was just a checkpoint, not the destination.\n\nFast-forward through the movement, and when you finally reach the end of the exposition, there it is again—another PAC, but this time in the *new* key. Same formula (V-I, root position, soprano on tonic), different tonal center. The PAC isn't just an ending; it's a structural landmark that tells you, \"We've completed a formal unit here. Time to move forward.\"\n\nNow jump to the 20th century. Duke Ellington is at the piano, comping behind a saxophone solo. The changes? ii-V7-I, over and over—classic PAC material, just dressed up with jazz extensions and syncopation. Same harmonic foundation that Mozart used, same gravitational pull toward tonic, but now it's swinging at 140 BPM with a walking bass line. The PAC adapted, survived, and thrived across completely different musical worlds.",
+        "composers": "**Beethoven** wielded PACs like punctuation in a dramatic argument—listen to Symphony No. 5, first movement, where the PAC at measure 21 arrives like a hammer blow after all that rising tension. **Mozart** used them to delineate formal structure with clockwork precision—his sonata expositions and recapitulations are practically *defined* by their strategic PAC placements. **Bach** embedded them in chorale harmonizations where they mark the ends of poetic lines, making the theology and the music align perfectly. In jazz, **Cole Porter** and **George Gershwin** built entire songs around chains of ii-V-I progressions, each one a mini-PAC waiting to resolve.",
+        "examples": [
+          "**Beethoven, Symphony No. 5, mvt. 1, m. 21**: The first PAC in Eb major after the famous opening motive—impossible to miss, like the period after an exclamation point.",
+          "**Mozart, Piano Sonata K. 545, mvt. 1, m. 4**: Textbook PAC ending the opening four-bar phrase—this is what music theory teachers point to when they say \"perfect authentic cadence.\"",
+          "**Bach, Chorale \"Jesu, Joy of Man's Desiring\", multiple locations**: Every phrase ends with either a PAC or an IAC, creating a rhythmic hierarchy of closure that matches the hymn text.",
+          "**Gershwin, \"I Got Rhythm\", throughout**: Jazz standard built on repeating ii-V-I (PAC) turnarounds—you can't escape the pattern, and that's the point."
+        ],
+        "try_this": "**Composer's Challenge**: Take a simple four-bar melody you know (like \"Mary Had a Little Lamb\" or \"Twinkle Twinkle\") and harmonize it with a PAC at the end. First, identify where the melody ends—hopefully on the tonic note. Then work backward: place a V or V7 chord before the final I, making sure both are in root position. Finally, add a ii or IV chord before the V to complete the approach. Play it, and notice how *final* it feels compared to stopping anywhere else. That's the PAC doing its job—signaling \"this phrase is complete.\"",
+        "technical_notes": {
+          "voice_leading": "**The Mechanics**: In a four-part texture, the PAC requires careful voice leading to avoid parallel fifths and octaves between V and I. The leading tone (scale degree 7) in the V chord *must* resolve up to the tonic (scale degree 1)—this is non-negotiable in strict counterpoint. The chordal seventh in V7 (scale degree 4) typically resolves down to the third of the I chord (scale degree 3). When the soprano has the tonic at the cadence, the bass also has the tonic (root position requirement), which means you need to distribute the other chord tones (3 and 5) across the inner voices. Common-tone retention between chords (like holding the tonic note from V to I if it appears in an inner voice) helps smooth the resolution.",
+          "theoretical_depth": "**Schenkerian Analysis**: From the perspective of Heinrich Schenker's theory of tonal structure, the PAC represents the surface manifestation of the *Ursatz* (fundamental structure)—the background progression from I through V back to I that governs all tonal pieces. Every PAC you hear is a small-scale replica of the large-scale tonal journey from stability through tension back to stability. The soprano's descent to scale degree 1 (*Urlinie* completion) combined with the bass's motion from V to I (*Bassbrechung*) creates what Schenker called \"structural closure\"—not just an ending, but the fulfillment of the tonal contract established at the piece's beginning.",
+          "historical_context": "**Evolution Through History**: The PAC as we define it crystallized during the Classical period (1750-1820), but its roots go back to Baroque practice. Bach's chorales codified the V-I resolution as the standard phrase ending, though he often used inverted chords for smoother voice leading in inner phrases. By Mozart's time, theorists like Heinrich Christoph Koch were explicitly differentiating \"perfect\" from \"imperfect\" cadences based on bass position and soprano scale degree. The Romantic era (1820-1900) began to weaken cadential syntax—Chopin, Wagner, and Brahms used chromaticism and deceptive resolutions to undermine the PAC's finality. By the 20th century, Debussy and Stravinsky abandoned functional cadences altogether, though the PAC lived on in popular music and jazz, where its structural clarity remained essential."
+        }
+      }
     },
     "cadence.authentic.imperfect": {
       "id": "cadence.authentic.imperfect",
       "display_name": "Imperfect Authentic Cadence (IAC)",
+      "category": "cadential",
       "learning_levels": {
         "beginner": {
           "summary": "A slightly weaker ending than PAC - still feels resolved but not as final",
@@ -240,6 +278,7 @@
     "functional.ii_V_I": {
       "id": "functional.ii_V_I",
       "display_name": "ii-V-I Progression",
+      "category": "functional",
       "learning_levels": {
         "beginner": {
           "summary": "The most fundamental progression in Western music - a complete journey home",

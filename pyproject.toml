@@ -59,6 +59,9 @@ api = [
 music21 = [
     "music21>=9.1.0",
 ]
+educational = [
+    # Educational features (currently no external dependencies needed)
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov",
@@ -117,6 +120,7 @@ markers = [
     "chromatic: Chromatic analysis tests",
     "asyncio: Mark a test as an asyncio test",
     "regression: Regression tests to ensure existing functionality unchanged",
+    "educational: marks tests requiring educational extra (skip if not installed)",
 ]
 
 [tool.black]
@@ -190,6 +194,10 @@ disallow_untyped_decorators = false
 [[tool.mypy.overrides]]
 module = "harmonic_analysis.integrations.music21_adapter"
 warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "harmonic_analysis.educational.__init__"
+disallow_untyped_defs = false
 
 [tool.coverage.run]
 source = [

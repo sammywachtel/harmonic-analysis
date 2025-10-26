@@ -125,11 +125,56 @@ Think of it as having three music theory professors analyze your work simultaneo
 
 ## Installation
 
+### Standard Installation (Core Features)
+
 ```bash
 pip install harmonic-analysis
+```
 
-# Optional: Install with REST API support
+This installs the core harmonic analysis library with full pattern detection,
+confidence scoring, and analysis capabilities.
+
+### With Optional Features
+
+```bash
+# With REST API support
 pip install harmonic-analysis[api]
+
+# With educational features (Bernstein-style explanations)
+pip install harmonic-analysis[educational]
+
+# With music21 integration (file upload support)
+pip install harmonic-analysis[music21]
+
+# Multiple features
+pip install harmonic-analysis[api,educational,music21]
+```
+
+### Development Installation
+
+```bash
+git clone https://github.com/sammywachtel/harmonic-analysis.git
+cd harmonic-analysis
+pip install -e .[dev]
+```
+
+The `dev` extra includes all optional features plus development tools (pytest, black, mypy, etc.).
+
+### Checking Feature Availability
+
+You can check at runtime whether optional features are installed:
+
+```python
+from harmonic_analysis.educational import is_available, get_missing_dependencies
+
+if is_available():
+    print("Educational features are installed!")
+    from harmonic_analysis.educational import EducationalService
+    service = EducationalService(level="intermediate")
+else:
+    missing = get_missing_dependencies()
+    print(f"Educational features not available.")
+    print(f"Install with: pip install harmonic-analysis[educational]")
 ```
 
 ## 📚 Documentation

@@ -81,6 +81,273 @@ async def test_analyze_chords_with_csv_string(async_client):
 
 
 @pytest.mark.asyncio
+async def test_analyze_chords_with_educational(async_client):
+    """Test chord analysis with educational content enabled."""
+    response = await async_client.post(
+        "/api/analyze",
+        json={
+            "chords": ["Dm", "G7", "C"],
+            "key": "C major",
+            "profile": "classical",
+            "include_educational": True,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "summary" in data
+    assert "analysis" in data
+    assert "educational" in data
+    assert "available" in data["educational"]
+
+
+@pytest.mark.asyncio
+async def test_analyze_chords_educational_default(async_client):
+    """Test that educational is enabled by default."""
+    response = await async_client.post(
+        "/api/analyze",
+        json={
+            "chords": ["Dm", "G7", "C"],
+            "key": "C major",
+            "profile": "classical",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Educational should be present by default
+    assert "educational" in data
+
+
+@pytest.mark.asyncio
+async def test_analyze_chords_without_educational(async_client):
+    """Test chord analysis with educational content disabled."""
+    response = await async_client.post(
+        "/api/analyze",
+        json={
+            "chords": ["Dm", "G7", "C"],
+            "key": "C major",
+            "profile": "classical",
+            "include_educational": False,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "summary" in data
+    assert "analysis" in data
+    # Educational should not be in response when disabled
+    assert "educational" not in data
+
+
+@pytest.mark.asyncio
+@pytest.mark.educational
+async def test_educational_content_structure(async_client):
+    """Test structure of educational content in response (if available)."""
+    response = await async_client.post(
+        "/api/analyze",
+        json={
+            "chords": ["Dm", "G7", "C"],
+            "key": "C major",
+            "profile": "classical",
+            "include_educational": True,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    educational = data.get("educational")
+    if educational and educational.get("available"):
+        # If educational features are available, validate structure
+        assert "content" in educational
+        if educational["content"]:
+            # Check first card structure
+            card = educational["content"][0]
+            assert "pattern_id" in card
+            assert "title" in card
+            assert "summary" in card
+            # Optional fields
+            if "category" in card:
+                assert isinstance(card["category"], (str, type(None)))
+            if "difficulty" in card:
+                assert isinstance(card["difficulty"], (str, type(None)))
+
+
+@pytest.mark.asyncio
+@pytest.mark.educational
+async def test_educational_content_pac_card(async_client):
+    """
+    Test that PAC card is returned for ii-V-I progression (Criterion 2).
+
+    Victory lap: End-to-end test ensuring educational content appears for
+    the classic ii-V-I progression in C major (Dm G7 C).
+    """
+    response = await async_client.post(
+        "/api/analyze",
+        json={
+            "chords": ["Dm", "G7", "C"],
+            "key": "C major",
+            "profile": "classical",
+            "include_educational": True,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    # Educational content should be available
+    educational = data.get("educational")
+    assert educational is not None, "Educational data should be present in response"
+    assert (
+        educational.get("available") is True
+    ), "Educational features should be available"
+
+    # Should have educational content
+    content = educational.get("content")
+    assert content is not None, "Educational content should not be None"
+    assert len(content) > 0, "Educational content should contain at least one card"
+
+    # Find PAC card in content
+    pac_card = None
+    for card in content:
+        if card.get("pattern_id") == "cadence.authentic.perfect":
+            pac_card = card
+            break
+
+    assert (
+        pac_card is not None
+    ), "PAC card (cadence.authentic.perfect) should be in educational content"
+
+    # Validate PAC card structure
+    assert pac_card["pattern_id"] == "cadence.authentic.perfect"
+    assert "title" in pac_card
+    assert len(pac_card["title"]) > 0
+    assert "summary" in pac_card
+    assert len(pac_card["summary"]) > 0
+    assert "category" in pac_card
+
+
+@pytest.mark.asyncio
+@pytest.mark.educational
+async def test_educational_full_explanations_included(async_client):
+    """
+    Test that full explanations are included in educational payload.
+
+    Opening move: Verify explanations dict is present in response.
+    Main play: Validate PAC full explanation structure (Layer 1 + Layer 2).
+    Victory lap: Confirm all required fields present and non-empty.
+    """
+    response = await async_client.post(
+        "/api/analyze",
+        json={
+            "chords": ["Dm", "G7", "C"],
+            "key": "C major",
+            "profile": "classical",
+            "include_educational": True,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    # Opening move: verify educational payload structure
+    educational = data.get("educational")
+    assert educational is not None
+    assert educational.get("available") is True
+
+    # Main play: check explanations dict exists
+    explanations = educational.get("explanations")
+    assert (
+        explanations is not None
+    ), "Explanations dict should be in educational payload"
+    assert isinstance(explanations, dict), "Explanations should be a dictionary"
+
+    # Big play: verify PAC explanation is included
+    pac_explanation = explanations.get("cadence.authentic.perfect")
+    assert pac_explanation is not None, "PAC explanation should be in explanations dict"
+
+    # Validate Layer 1 fields (core Bernstein-style content)
+    assert "pattern_id" in pac_explanation
+    assert pac_explanation["pattern_id"] == "cadence.authentic.perfect"
+    assert "title" in pac_explanation
+    assert pac_explanation["title"] == "Perfect Authentic Cadence (PAC)"
+
+    # Check all required Layer 1 fields present and non-empty
+    assert "hook" in pac_explanation
+    assert len(pac_explanation["hook"]) > 0, "Hook should not be empty"
+
+    assert "breakdown" in pac_explanation
+    assert isinstance(pac_explanation["breakdown"], list)
+    assert len(pac_explanation["breakdown"]) > 0, "Breakdown should have items"
+
+    assert "story" in pac_explanation
+    assert len(pac_explanation["story"]) > 0, "Story should not be empty"
+
+    assert "composers" in pac_explanation
+    assert len(pac_explanation["composers"]) > 0, "Composers should not be empty"
+
+    assert "examples" in pac_explanation
+    assert isinstance(pac_explanation["examples"], list)
+    assert len(pac_explanation["examples"]) > 0, "Examples should have items"
+
+    assert "try_this" in pac_explanation
+    assert len(pac_explanation["try_this"]) > 0, "Try this should not be empty"
+
+    # Victory lap: validate Layer 2 technical notes
+    assert "technical_notes" in pac_explanation
+    tech_notes = pac_explanation["technical_notes"]
+    assert tech_notes is not None, "Technical notes should exist for PAC"
+
+    assert "voice_leading" in tech_notes
+    assert tech_notes["voice_leading"] is not None
+    assert len(tech_notes["voice_leading"]) > 0
+
+    assert "theoretical_depth" in tech_notes
+    assert tech_notes["theoretical_depth"] is not None
+    assert len(tech_notes["theoretical_depth"]) > 0
+
+    assert "historical_context" in tech_notes
+    assert tech_notes["historical_context"] is not None
+    assert len(tech_notes["historical_context"]) > 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.educational
+async def test_educational_explanations_only_for_available_patterns(async_client):
+    """
+    Test that explanations are only included for patterns that have them.
+
+    Time to tackle the tricky bit: Not all patterns will have full explanations.
+    Only PAC has one in iteration_01, so we verify graceful handling.
+    """
+    response = await async_client.post(
+        "/api/analyze",
+        json={
+            "chords": ["Dm", "G7", "C"],
+            "key": "C major",
+            "profile": "classical",
+            "include_educational": True,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    educational = data.get("educational")
+    explanations = educational.get("explanations", {})
+
+    # Opening move: PAC should have explanation
+    assert "cadence.authentic.perfect" in explanations
+
+    # Main play: Other patterns detected might not have explanations yet
+    # This is expected behavior - explanations are opt-in per pattern
+    for pattern_id, explanation in explanations.items():
+        # All explanations that exist should have required structure
+        assert "pattern_id" in explanation
+        assert "title" in explanation
+        assert "hook" in explanation
+        assert "breakdown" in explanation
+        assert "story" in explanation
+        assert "composers" in explanation
+        assert "examples" in explanation
+        assert "try_this" in explanation
+
+
+@pytest.mark.asyncio
 async def test_analyze_romans(async_client):
     """Test roman numeral analysis."""
     response = await async_client.post(

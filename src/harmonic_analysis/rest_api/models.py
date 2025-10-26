@@ -35,6 +35,9 @@ class ProgressionRequest(BaseModel):
         default=None,
         description="List of candidate scales (each scale is a list of notes)",
     )
+    include_educational: bool = Field(
+        default=True, description="Include educational content if available"
+    )
 
     @field_validator("chords", "romans", "melody", mode="before")
     @classmethod
@@ -122,12 +125,27 @@ class FileUploadRequest(BaseModel):
 
 
 # Victory lap: Response models (if needed for strict typing)
+class EducationalPayload(BaseModel):
+    """Educational content payload for analysis responses."""
+
+    available: bool = Field(
+        description="Whether educational features are installed and available"
+    )
+    content: Optional[List[dict]] = Field(
+        default=None,
+        description="List of educational cards for detected patterns",
+    )
+
+
 class AnalysisResponse(BaseModel):
     """Generic response model for analysis endpoints."""
 
     summary: dict
     analysis: dict
     enhanced_summaries: Optional[dict] = None
+    educational: Optional[EducationalPayload] = Field(
+        default=None, description="Educational enrichment for detected patterns"
+    )
 
 
 class FileAnalysisResponse(BaseModel):
