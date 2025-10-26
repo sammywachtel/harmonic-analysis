@@ -1,0 +1,9 @@
+# Validation Results - epic_02_first_pattern_mvp/iteration_01_b
+
+## Summary
+- Scoped validation (hook): PENDING
+- Manual verification: PENDING
+
+## Detailed Logs
+
+bash: .agent_process/scripts/after_edit/validate-first_pattern_mvp.sh: No such file or directory

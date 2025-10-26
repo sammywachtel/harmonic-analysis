@@ -51,19 +51,9 @@
         "display_name": {
           "type": "string"
         },
-        "learning_levels": {
-          "type": "object",
-          "properties": {
-            "beginner": {
-              "$ref": "#/$defs/learning_level_content"
-            },
-            "intermediate": {
-              "$ref": "#/$defs/learning_level_content"
-            },
-            "advanced": {
-              "$ref": "#/$defs/learning_level_content"
-            }
-          }
+        "category": {
+          "type": "string",
+          "description": "Pattern family category (e.g., 'cadential', 'functional')"
         },
         "musical_examples": {
           "$ref": "#/$defs/musical_examples"

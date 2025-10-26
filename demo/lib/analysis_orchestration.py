@@ -11,7 +11,13 @@ This module is the bridge between UI inputs and the analysis library.
 """
 
 import asyncio
-from typing import List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence
+
+if TYPE_CHECKING:
+    from harmonic_analysis.core.pattern_engine.pattern_engine import AnalysisContext
+    from harmonic_analysis.services.pattern_analysis_service import (
+        PatternAnalysisService,
+    )
 
 from demo.lib.constants import (
     MISSING_MELODY_KEY_MSG,
@@ -24,7 +30,7 @@ from demo.lib.constants import (
 _SERVICE = None
 
 
-def get_service():
+def get_service() -> "PatternAnalysisService":
     """Get or create the PatternAnalysisService singleton."""
     global _SERVICE
     if _SERVICE is None:
@@ -199,7 +205,7 @@ def analyze_progression(
     romans_text: Optional[str],
     melody_text: Optional[str],
     scales_input: Optional[str | Sequence[str]],
-):
+) -> "AnalysisContext":
     """
     Coordinate analysis of a musical progression.
 
@@ -270,7 +276,7 @@ def analyze_progression(
 
 async def run_analysis_async(
     chord_symbols: List[str], profile: str, key_hint: Optional[str]
-):
+) -> Any:
     """Run analysis asynchronously."""
     service = get_service()
     return await service.analyze_with_patterns_async(
@@ -278,6 +284,8 @@ async def run_analysis_async(
     )
 
 
-def run_analysis_sync(chord_symbols: List[str], profile: str, key_hint: Optional[str]):
+def run_analysis_sync(
+    chord_symbols: List[str], profile: str, key_hint: Optional[str]
+) -> Any:
     """Synchronous wrapper for CLI usage."""
     return asyncio.run(run_analysis_async(chord_symbols, profile, key_hint))

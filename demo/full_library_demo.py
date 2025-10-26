@@ -99,227 +99,23 @@ from harmonic_analysis.api.analysis import analyze_melody, analyze_scale
 
 
 def create_api_app() -> "FastAPI":
-    """Create a FastAPI app exposing analysis and glossary endpoints."""
+    """
+    Create a FastAPI app exposing analysis and glossary endpoints.
 
+    Opening move: Import the new standalone REST API.
+    This maintains backward compatibility with the demo while using
+    the extracted API from src/harmonic_analysis/rest_api/.
+    """
     try:
-        from fastapi import FastAPI, HTTPException
-        from pydantic import BaseModel, Field, field_validator
+        from harmonic_analysis.rest_api import create_app
     except ImportError as exc:  # pragma: no cover - optional dependency guard
         raise RuntimeError(
-            "FastAPI and pydantic are required for API mode. Install them with 'pip install fastapi uvicorn'."
+            "FastAPI and pydantic are required for API mode. "
+            "Install them with 'pip install fastapi uvicorn[standard] python-multipart'."
         ) from exc
 
-    from harmonic_analysis.core.pattern_engine.glossary_service import GlossaryService
-
-    service = get_service()
-    glossary_service = GlossaryService()
-
-    class ProgressionRequest(BaseModel):
-        key: Optional[str] = Field(
-            default=None, description="Optional key hint (e.g. 'C major')"
-        )
-        profile: Optional[str] = Field(default="classical", description="Style profile")
-        chords: Optional[List[str]] = Field(default=None, description="Chord symbols")
-        romans: Optional[List[str]] = Field(default=None, description="Roman numerals")
-        melody: Optional[List[str]] = Field(default=None, description="Melodic notes")
-        scales: Optional[List[List[str]]] = Field(
-            default=None,
-            description="List of candidate scales (each scale is a list of notes)",
-        )
-
-        @field_validator("chords", "romans", "melody", mode="before")
-        def _coerce_sequence(cls, value):  # type: ignore[override]
-            if value is None:
-                return None
-            if isinstance(value, str):
-                return [item.strip() for item in value.split(",") if item.strip()]
-            return value
-
-        @field_validator("scales", mode="before")
-        def _coerce_scales(cls, value):  # type: ignore[override]
-            if value is None:
-                return None
-            if isinstance(value, str):
-                lines = [line.strip() for line in value.splitlines() if line.strip()]
-                return [parse_csv(line) for line in lines]
-            if isinstance(value, list) and value and isinstance(value[0], str):
-                return [parse_csv(item) for item in value]
-            return value
-
-    class ScaleRequest(BaseModel):
-        notes: List[str]
-        key: Optional[str] = Field(default=None, description="Key context (required)")
-
-        @field_validator("notes", mode="before")
-        def _coerce_notes(cls, value):  # type: ignore[override]
-            if isinstance(value, str):
-                return [item.strip() for item in value.split(",") if item.strip()]
-            return value
-
-    class MelodyRequest(ScaleRequest):
-        """Identical shape; key required, notes treated as melody."""
-
-    app = FastAPI(title="Harmonic Analysis Demo API", version="1.0.0")
-
-    @app.get("/")
-    def root():
-        return {
-            "message": "Harmonic Analysis demo API is running",
-            "endpoints": {
-                "progression": "/analysis/progression",
-                "scale": "/analysis/scale",
-                "melody": "/analysis/melody",
-                "glossary": "/glossary/{term}",
-            },
-        }
-
-    def _serialize_envelope(envelope):
-        # Main play: serialize envelope with enhanced scale/melody summary extraction
-        try:
-            analysis_dict = envelope.to_dict()
-        except Exception as e:
-            analysis_dict = {"error": f"Serialization failed: {e}"}
-
-        # Victory lap: add convenient summary fields for scale/melody
-        summary_fields = {}
-        if envelope.primary:
-            if (
-                hasattr(envelope.primary, "scale_summary")
-                and envelope.primary.scale_summary
-            ):
-                summary_fields["scale_analysis"] = {
-                    "mode": envelope.primary.scale_summary.detected_mode,
-                    "parent_key": envelope.primary.scale_summary.parent_key,
-                    "characteristics": envelope.primary.scale_summary.characteristic_notes,
-                    "notes": envelope.primary.scale_summary.notes,
-                }
-            if (
-                hasattr(envelope.primary, "melody_summary")
-                and envelope.primary.melody_summary
-            ):
-                summary_fields["melody_analysis"] = {
-                    "contour": envelope.primary.melody_summary.contour,
-                    "range_semitones": envelope.primary.melody_summary.range_semitones,
-                    "characteristics": envelope.primary.melody_summary.melodic_characteristics,
-                    "leading_tone_resolutions": envelope.primary.melody_summary.leading_tone_resolutions,
-                }
-
-        return {
-            "summary": summarize_envelope(envelope, include_raw=False),
-            "analysis": analysis_dict,
-            "enhanced_summaries": summary_fields,  # NEW: convenient access to scale/melody data
-        }
-
-    def _lookup_glossary(term: str) -> Optional[Dict[str, Any]]:
-        cadence_info = glossary_service.get_cadence_explanation(term)
-        if cadence_info:
-            result = dict(cadence_info)
-            result.setdefault("term", term)
-            result.setdefault("type", "cadence")
-            return result
-
-        definition = glossary_service.get_term_definition(term)
-        if definition:
-            return {"term": term, "definition": definition}
-
-        sanitized = re.sub(r"[^A-Za-z0-9 ]+", " ", term).strip()
-        if sanitized and sanitized.lower() != term.lower():
-            definition = glossary_service.get_term_definition(sanitized)
-            if definition:
-                return {
-                    "term": term,
-                    "definition": definition,
-                    "lookup": sanitized,
-                }
-
-        return None
-
-    @app.post("/analysis/progression")
-    async def analyze_progression_endpoint(request: ProgressionRequest):
-        try:
-            chords_text = ", ".join(request.chords) if request.chords else None
-            romans_text = ", ".join(request.romans) if request.romans else None
-            melody_text = ", ".join(request.melody) if request.melody else None
-            scales_input = (
-                [", ".join(scale) for scale in request.scales]
-                if request.scales
-                else None
-            )
-
-            # Validate exclusive input for API
-            validate_exclusive_input(
-                chords_text,
-                romans_text,
-                melody_text,
-                scales_input[0] if scales_input else None,
-            )
-
-            # Use unified service for all analysis types
-            if request.chords:
-                envelope = await service.analyze_with_patterns_async(
-                    chord_symbols=request.chords,
-                    profile=request.profile or "classical",
-                    key_hint=resolve_key_input(request.key),
-                )
-            elif romans_text:
-                envelope = await service.analyze_with_patterns_async(
-                    romans=romans_text,
-                    profile=request.profile or "classical",
-                    key_hint=resolve_key_input(request.key),
-                )
-            elif melody_text:
-                envelope = await service.analyze_with_patterns_async(
-                    melody=melody_text,
-                    profile=request.profile or "classical",
-                    key_hint=resolve_key_input(request.key),
-                )
-            elif scales_input:
-                envelope = await service.analyze_with_patterns_async(
-                    notes=scales_input[0],
-                    profile=request.profile or "classical",
-                    key_hint=resolve_key_input(request.key),
-                )
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Must provide chords, romans, melody, or scale input",
-                )
-            return _serialize_envelope(envelope)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-
-    @app.post("/analysis/scale")
-    async def analyze_scale_endpoint(request: ScaleRequest):
-        try:
-            key_hint = resolve_key_input(request.key)
-            if key_hint is None:
-                raise ValueError(MISSING_SCALE_KEY_MSG)
-            result = await analyze_scale(request.notes, key=key_hint)
-            return asdict(result)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-
-    @app.post("/analysis/melody")
-    async def analyze_melody_endpoint(request: MelodyRequest):
-        try:
-            key_hint = resolve_key_input(request.key)
-            if key_hint is None:
-                raise ValueError(MISSING_MELODY_KEY_MSG)
-            result = await analyze_melody(request.notes, key=key_hint)
-            return asdict(result)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-
-    @app.get("/glossary/{term}")
-    def glossary_lookup(term: str):
-        result = _lookup_glossary(term)
-        if result:
-            return result
-        raise HTTPException(
-            status_code=404, detail=f"No glossary entry found for '{term}'."
-        )
-
-    return app
+    # Main play: create and return the API app
+    return create_app()
 
 
 # ---------------------------------------------------------------------------
@@ -1160,16 +956,18 @@ def launch_gradio_demo(
                     file_obj.name if hasattr(file_obj, "name") else str(file_obj)
                 )
 
-                result = analyze_uploaded_file(
-                    file_path=file_path,
-                    add_chordify=add_chordify,
-                    label_chords=label_chords,
-                    run_analysis=run_analysis,
-                    profile=profile,
-                    process_full_file=process_full_file,
-                    auto_window=auto_window,
-                    manual_window_size=manual_window_size,
-                    key_mode_preference=key_mode_preference,
+                result = asyncio.run(
+                    analyze_uploaded_file(
+                        file_path=file_path,
+                        add_chordify=add_chordify,
+                        label_chords=label_chords,
+                        run_analysis=run_analysis,
+                        profile=profile,
+                        process_full_file=process_full_file,
+                        auto_window=auto_window,
+                        manual_window_size=manual_window_size,
+                        key_mode_preference=key_mode_preference,
+                    )
                 )
 
                 # Format info JSON

@@ -123,3 +123,4 @@ tools/calibration/*.json
 
 # Docker development environment (local only)
 .docker-dev/
+/.agent_process/
