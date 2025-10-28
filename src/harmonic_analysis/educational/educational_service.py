@@ -339,5 +339,10 @@ class EducationalService:
 
                 logging.debug(f"No educational content found for pattern: {pattern_id}")
 
+        # Final whistle: apply pattern merging and prioritization before returning
+        from . import pattern_merger
+
+        cards = pattern_merger.merge_and_prioritize(cards)
+
         # Victory lap: return the educational cards
         return cards

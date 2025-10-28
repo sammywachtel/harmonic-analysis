@@ -136,7 +136,7 @@ def _serialize_envelope(
 
     # Big play: add educational content if requested and available
     educational_payload = None
-    if include_educational and EDUCATIONAL_AVAILABLE and EducationalService:
+    if include_educational and EDUCATIONAL_AVAILABLE:
         try:
             edu_service = EducationalService()
             # Extract patterns from primary analysis
@@ -144,25 +144,22 @@ def _serialize_envelope(
             if envelope.primary and hasattr(envelope.primary, "patterns"):
                 patterns = envelope.primary.patterns
 
-            # Enrich with educational cards
+            # Enrich with educational cards (includes pattern merging/prioritization)
             cards = edu_service.enrich_analysis(patterns)
 
-            # Time to tackle the tricky bit: fetch full explanations for each pattern
+            # Time to tackle the tricky bit: fetch full explanations
+            # for merged pattern IDs
+            # CRITICAL: Use pattern IDs from cards (post-merge), not original patterns
             explanations = {}
-            for pattern in patterns:
-                pattern_id = None
-                if isinstance(pattern, dict):
-                    pattern_id = pattern.get("pattern_id") or pattern.get("id")
-                elif hasattr(pattern, "pattern_id"):
-                    pattern_id = pattern.pattern_id
-                elif hasattr(pattern, "id"):
-                    pattern_id = pattern.id
+            for card in cards:
+                # Pattern ID comes from the merged card, not original pattern
+                pattern_id = card.pattern_id
 
                 if pattern_id:
                     full_explanation = edu_service.explain_pattern_full(pattern_id)
                     if full_explanation:
                         # Serialize FullExplanation to dict
-                        exp_dict = {
+                        exp_dict: Dict[str, Any] = {
                             "pattern_id": full_explanation.pattern_id,
                             "title": full_explanation.title,
                             "hook": full_explanation.hook,

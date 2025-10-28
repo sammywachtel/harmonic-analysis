@@ -656,7 +656,7 @@ async def analyze_uploaded_file(
         result_dict = asdict(analysis_result)
 
         # Transform primary and alternatives: change 'key_signature' to 'key'
-        def transform_interpretation(interp):
+        def transform_interpretation(interp: dict) -> dict:
             """Transform interpretation to match frontend structure."""
             transformed = interp.copy()
             # Rename key_signature to key

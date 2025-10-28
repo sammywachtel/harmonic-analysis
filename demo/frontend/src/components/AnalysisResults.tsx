@@ -21,17 +21,48 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
   const hasEducationalContent = educational?.available && educational?.content && educational.content.length > 0;
 
   // Main play: Get visualization hints - use first pattern with visualization data for default display
-  const getDefaultVisualizationHints = () => {
-    if (!educational?.content) return null;
+  // Big play: Collect ALL pattern visualizations for multiple bracket support
+  const getAllPatternVisualizations = () => {
+    if (!educational?.content) return [];
 
-    // Find first card with visualization hints
-    const cardWithViz = educational.content.find(c => c.visualization);
-    return cardWithViz?.visualization || null;
+    // Group cards by their bracket range
+    const visualizationGroups: Array<{
+      chordColors?: string[];
+      bracketRange: { start: number; end: number };
+      labels: string[];
+    }> = [];
+
+    // Main play: iterate through all cards and group by bracket range
+    educational.content.forEach(card => {
+      if (!card.visualization?.bracket_range) return;
+
+      const bracket = card.visualization.bracket_range;
+
+      // Find existing group with this bracket range
+      const existingGroup = visualizationGroups.find(g =>
+        g.bracketRange.start === bracket.start && g.bracketRange.end === bracket.end
+      );
+
+      if (existingGroup) {
+        // Add label to existing group
+        existingGroup.labels.push(card.title);
+      } else {
+        // Create new group
+        visualizationGroups.push({
+          chordColors: card.visualization.chord_colors,
+          bracketRange: bracket,
+          labels: [card.title]
+        });
+      }
+    });
+
+    // Victory lap: sort by start position for consistent rendering
+    return visualizationGroups.sort((a, b) => a.bracketRange.start - b.bracketRange.start);
   };
 
-  const defaultVisualizationHints = getDefaultVisualizationHints();
+  const allPatternVisualizations = getAllPatternVisualizations();
 
-  // Time to tackle the tricky bit: Determine which chords to highlight with yellow ring
+  // Time to tackle the tricky bit: Determine which chords and bracket to highlight
   const getHighlightedChords = () => {
     if (!hoveredPatternId || !educational?.content) return [];
 
@@ -47,6 +78,14 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
     return indices;
   };
 
+  // Big play: Get the hovered bracket range for selective bracket highlighting
+  const getHoveredBracketRange = () => {
+    if (!hoveredPatternId || !educational?.content) return null;
+
+    const hoveredCard = educational.content.find(c => c.pattern_id === hoveredPatternId);
+    return hoveredCard?.visualization?.bracket_range || null;
+  };
+
   return (
     <div className="space-y-6">
       {/* Summary section - high-level overview */}
@@ -55,15 +94,15 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
         <p className="text-info-800">{results.summary}</p>
       </div>
 
-      {/* Victory lap: Chord progression visualization */}
+      {/* Victory lap: Chord progression visualization with multiple pattern support */}
       {chords.length > 0 && (
         <div className="bg-white border border-slate-300 rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Chord Progression</h3>
           <ChordProgressionVisual
             chords={chords}
-            chordColors={defaultVisualizationHints?.chord_colors}
-            bracketRange={defaultVisualizationHints?.bracket_range}
+            patternVisualizations={allPatternVisualizations}
             highlightedChords={getHighlightedChords()}
+            hoveredBracketRange={getHoveredBracketRange()}
           />
         </div>
       )}

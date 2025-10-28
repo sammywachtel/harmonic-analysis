@@ -68,33 +68,19 @@
       "musical_examples": {
         "progressions": [
           {
-            "chords": "G7 C",
+            "chords": "G C",
             "key": "C major",
+            "roman_numerals": "V I",
             "context": "Simplest PAC",
-            "roman_numerals": "V7 I",
             "visualization": {
-              "chord_colors": ["D", "T"],
-              "bracket_range": {"start": 0, "end": 1}
-            }
-          },
-          {
-            "chords": "Dm G7 C",
-            "key": "C major",
-            "context": "PAC with predominant",
-            "roman_numerals": "ii V7 I",
-            "visualization": {
-              "chord_colors": ["PD", "D", "T"],
-              "bracket_range": {"start": 1, "end": 2}
-            }
-          },
-          {
-            "chords": "F C/E Dm G7 C",
-            "key": "C major",
-            "context": "Extended approach to PAC",
-            "roman_numerals": "IV I6 ii V7 I",
-            "visualization": {
-              "chord_colors": ["PD", "T", "PD", "D", "T"],
-              "bracket_range": {"start": 3, "end": 4}
+              "chord_colors": [
+                "D",
+                "T"
+              ],
+              "bracket_range": {
+                "start": 0,
+                "end": 1
+              }
             }
           }
         ],
@@ -229,16 +215,20 @@
       "musical_examples": {
         "progressions": [
           {
-            "chords": "G7 C",
+            "chords": "G C",
             "key": "C major",
-            "context": "IAC with soprano on 3rd (E)",
-            "roman_numerals": "V7 I"
-          },
-          {
-            "chords": "G7 C/E",
-            "key": "C major",
-            "context": "IAC with inverted tonic",
-            "roman_numerals": "V7 I6"
+            "roman_numerals": "V I",
+            "context": "Simple IAC",
+            "visualization": {
+              "chord_colors": [
+                "D",
+                "T"
+              ],
+              "bracket_range": {
+                "start": 0,
+                "end": 1
+              }
+            }
           }
         ],
         "repertoire": [
@@ -344,20 +334,19 @@
           {
             "chords": "Dm G7 C",
             "key": "C major",
-            "context": "Basic ii-V-I",
-            "roman_numerals": "ii V7 I"
-          },
-          {
-            "chords": "Dm7 G7 Cmaj7",
-            "key": "C major",
-            "context": "Jazz ii-V-I with 7ths",
-            "roman_numerals": "ii7 V7 Imaj7"
-          },
-          {
-            "chords": "D°7 G7 Cm",
-            "key": "C minor",
-            "context": "Minor ii-V-i",
-            "roman_numerals": "ii°7 V7 i"
+            "roman_numerals": "ii V7 I",
+            "context": "Classic ii-V-I",
+            "visualization": {
+              "chord_colors": [
+                "PD",
+                "D",
+                "T"
+              ],
+              "bracket_range": {
+                "start": 0,
+                "end": 2
+              }
+            }
           }
         ],
         "repertoire": [
@@ -401,6 +390,55 @@
         "Harmonize melodies using ii-V-I cadences",
         "Analyze jazz standards for ii-V-I occurrences and substitutions"
       ]
+    },
+    "cadence.half": {
+      "id": "cadence.half",
+      "display_name": "Half Cadence (HC)",
+      "category": "cadential",
+      "learning_levels": {
+        "beginner": {
+          "summary": "A pause point that creates expectation - like a comma instead of a period. Ends on the V chord, leaving the phrase feeling incomplete and wanting resolution.",
+          "key_points": [
+            "Ends on V chord (dominant)",
+            "Creates a sense of pause without resolution",
+            "Leaves listener expecting more music to follow",
+            "Common at middle of phrases or before repeats"
+          ],
+          "listen_for": "The 'wait, there's more' feeling at phrase endings",
+          "common_uses": [
+            "Middle of contrasting periods",
+            "Before repeat signs",
+            "Creating forward momentum"
+          ]
+        }
+      },
+      "musical_examples": {
+        "progressions": [
+          {
+            "chords": "F G",
+            "key": "C major",
+            "roman_numerals": "IV V",
+            "context": "Common HC with predominant approach",
+            "visualization": {
+              "chord_colors": [
+                "PD",
+                "D"
+              ],
+              "bracket_range": {
+                "start": 0,
+                "end": 1
+              }
+            }
+          }
+        ]
+      },
+      "explanation": {
+        "hook": "The Half Cadence is music's way of saying 'to be continued...'",
+        "breakdown": [
+          "**The Key Characteristic**: Unlike authentic cadences that resolve to I, the HC ends on V - creating expectation rather than closure.",
+          "**Functional Purpose**: Acts as a structural pause point, keeping energy moving forward rather than bringing it to rest."
+        ]
+      }
     }
   },
   "pattern_families": {
