@@ -7,7 +7,7 @@ and supporting educational materials for harmonic analysis.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 class LearningLevel(Enum):
@@ -138,9 +138,9 @@ class EducationalCard:
     difficulty: Optional[str] = None
     visualization: Optional[VisualizationHints] = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        result = {
+        result: Dict[str, Any] = {
             "pattern_id": self.pattern_id,
             "title": self.title,
             "summary": self.summary,

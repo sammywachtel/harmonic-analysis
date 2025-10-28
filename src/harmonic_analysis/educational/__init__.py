@@ -21,10 +21,11 @@ _EDUCATIONAL_AVAILABLE = True
 _IMPORT_ERROR: Exception | None = None
 
 try:
+    from . import pattern_merger  # noqa: F401
     from .educational_service import EducationalService
     from .formatter import EducationalFormatter
     from .knowledge_base import KnowledgeBase
-    from .types import (
+    from .types import (  # noqa: F401
         EducationalCard,
         EducationalContext,
         LearningLevel,
@@ -39,6 +40,7 @@ try:
         "EducationalService",
         "EducationalFormatter",
         "KnowledgeBase",
+        "pattern_merger",
         "EducationalContext",
         "EducationalCard",
         "PatternSummary",

@@ -146,15 +146,13 @@
       ],
       "matchers": {
         "roman_seq": [
-          ".*",
+          "IV",
           "V"
         ],
-        "constraints": {
-          "position": "end"
-        },
+        "constraints": {},
         "window": {
           "len": 2,
-          "overlap_ok": false
+          "overlap_ok": true
         }
       },
       "evidence": {
@@ -171,7 +169,7 @@
           "open"
         ],
         "priority": 65,
-        "description": "Movement to V, creates expectation",
+        "description": "IV-V half cadence creating expectation",
         "aliases": [
           "half_cadence"
         ]

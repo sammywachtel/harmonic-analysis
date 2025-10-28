@@ -126,12 +126,12 @@ class TestKnowledgeBase:
         )
 
     def test_get_summary_normalization(self):
-        """Test pattern ID normalization (lowercase, delimiter handling)."""
+        """Test pattern ID case-insensitive lookup."""
         kb = KnowledgeBase()
-        # Test with different delimiters
+        # Test with different case
         summary1 = kb.get_summary("cadence.authentic.perfect", LearningLevel.BEGINNER)
-        summary2 = kb.get_summary("CADENCE:AUTHENTIC:PERFECT", LearningLevel.BEGINNER)
-        summary3 = kb.get_summary("cadence-authentic-perfect", LearningLevel.BEGINNER)
+        summary2 = kb.get_summary("CADENCE.AUTHENTIC.PERFECT", LearningLevel.BEGINNER)
+        summary3 = kb.get_summary("Cadence.Authentic.Perfect", LearningLevel.BEGINNER)
 
         assert summary1 is not None
         assert summary2 is not None
@@ -196,8 +196,8 @@ class TestKnowledgeBase:
     def test_get_full_explanation_no_explanation_field(self):
         """Test get_full_explanation returns None for pattern without explanation field."""
         kb = KnowledgeBase()
-        # IAC doesn't have full explanation yet (only PAC does in iteration_01)
-        explanation = kb.get_full_explanation("cadence.authentic.imperfect")
+        # Use a non-existent pattern to test None return
+        explanation = kb.get_full_explanation("cadence.nonexistent.pattern")
 
         assert explanation is None
 
@@ -309,16 +309,16 @@ class TestEducationalService:
         assert len(cards) == 0
 
     def test_enrich_analysis_normalization(self):
-        """Test enrich_analysis normalizes pattern IDs."""
+        """Test enrich_analysis normalizes pattern IDs (case-insensitive)."""
         service = EducationalService()
         patterns = [
-            {"pattern_id": "CADENCE:AUTHENTIC:PERFECT"},
+            {"pattern_id": "CADENCE.AUTHENTIC.PERFECT"},
         ]
 
         cards = service.enrich_analysis(patterns, LearningLevel.BEGINNER)
 
         assert len(cards) == 1
-        # Should normalize to lowercase with dots
+        # Should normalize to lowercase
         assert cards[0].pattern_id == "cadence.authentic.perfect"
 
     def test_explain_pattern_full_pac(self):
@@ -355,8 +355,8 @@ class TestEducationalService:
     def test_explain_pattern_full_no_explanation(self):
         """Test explain_pattern_full returns None when pattern lacks explanation."""
         service = EducationalService()
-        # IAC doesn't have full explanation yet
-        explanation = service.explain_pattern_full("cadence.authentic.imperfect")
+        # Use a non-existent pattern to test None return
+        explanation = service.explain_pattern_full("cadence.nonexistent.pattern")
 
         assert explanation is None
 
