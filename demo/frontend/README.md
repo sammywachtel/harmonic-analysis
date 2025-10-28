@@ -39,7 +39,7 @@ VITE_API_ENDPOINT=http://localhost:8000
 ```bash
 # From the project root
 cd demo
-uvicorn harmonic_analysis.rest_api.main:app --reload
+uvicorn demo.backend.rest_api.main:app --reload
 ```
 
 ### Running the Frontend
