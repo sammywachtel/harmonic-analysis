@@ -17,9 +17,7 @@ from .matcher import Matcher, Pattern, PatternLibrary, Token, load_library
 from .pattern_engine import AnalysisContext, PatternEngine
 from .pattern_loader import PatternLoader
 from .plugin_registry import PatternEvaluator, PluginRegistry
-from .target_builder_unified import (
-    TargetAnnotation,
-)
+from .target_builder_unified import TargetAnnotation
 from .target_builder_unified import UnifiedTargetBuilder as TargetBuilder
 from .token_converter import TokenConverter
 

@@ -12,9 +12,10 @@ Comprehensive test coverage for all 36 chord templates including:
 """
 
 import pytest
+
 from harmonic_analysis.core.utils.chord_detection import (
-    detect_chord_from_pitches,
     _calculate_confidence,
+    detect_chord_from_pitches,
 )
 
 

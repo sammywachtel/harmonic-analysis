@@ -6,11 +6,7 @@ and handling of edge cases for the AnalysisSummary and AnalysisEnvelope classes.
 as expected when used in typical and boundary scenarios.
 """
 
-from harmonic_analysis.dto import (
-    AnalysisEnvelope,
-    AnalysisSummary,
-    AnalysisType,
-)
+from harmonic_analysis.dto import AnalysisEnvelope, AnalysisSummary, AnalysisType
 
 
 def test_summary_minimal_construction():

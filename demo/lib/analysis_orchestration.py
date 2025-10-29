@@ -72,8 +72,6 @@ def resolve_key_input(value: Optional[str]) -> Optional[str]:
             return None
         return normalized
 
-    return value
-
 
 def validate_list(kind: str, items: List[str]) -> List[str]:
     """

@@ -53,9 +53,7 @@ dependencies = [
 music21 = [
     "music21>=9.1.0",
 ]
-educational = [
-    # Educational features (currently no external dependencies needed)
-]
+educational = []
 dev = [
     "pytest>=7.0",
     "pytest-cov",
@@ -64,16 +62,16 @@ dev = [
     "flake8",
     "mypy",
     "pre-commit",
-    "httpx>=0.25.0",  # For testing FastAPI endpoints
-    "music21>=9.1.0",  # For music21 integration tests
+    "httpx>=0.25.0",
+    "music21>=9.1.0",
 ]
 test = [
     "pytest>=7.0",
     "pytest-cov",
     "pytest-xdist",
     "pytest-asyncio>=0.21",
-    "httpx>=0.25.0",  # For testing FastAPI endpoints
-    "music21>=9.1.0",  # For file upload tests
+    "httpx>=0.25.0",
+    "music21>=9.1.0",
 ]
 
 [project.urls]

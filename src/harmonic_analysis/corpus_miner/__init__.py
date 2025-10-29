@@ -14,11 +14,7 @@ from .pattern_labeler import (
     PatternLabeler,
     PatternMatch,
 )
-from .target_builder import (
-    CalibrationBucket,
-    TargetStatistics,
-    UnifiedTargetBuilder,
-)
+from .target_builder import CalibrationBucket, TargetStatistics, UnifiedTargetBuilder
 
 __all__ = [
     # Extraction

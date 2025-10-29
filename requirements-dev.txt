@@ -6,6 +6,7 @@ black>=24.0.0                    # Code formatting
 isort>=5.13.0                    # Import sorting
 flake8>=7.0.0                    # Linting
 mypy>=1.8.0                      # Type checking
+types-jsonschema>=4.20.0         # Type stubs for jsonschema
 
 # Testing Framework
 pytest>=8.0.0                   # Testing framework
