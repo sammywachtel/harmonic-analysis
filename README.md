@@ -137,9 +137,6 @@ confidence scoring, and analysis capabilities.
 ### With Optional Features
 
 ```bash
-# With REST API support
-pip install harmonic-analysis[api]
-
 # With educational features (Bernstein-style explanations)
 pip install harmonic-analysis[educational]
 
@@ -147,8 +144,10 @@ pip install harmonic-analysis[educational]
 pip install harmonic-analysis[music21]
 
 # Multiple features
-pip install harmonic-analysis[api,educational,music21]
+pip install harmonic-analysis[educational,music21]
 ```
+
+**Note:** The REST API is now part of the demo project (`demo/backend/rest_api/`) rather than the core library. See the [REST API Demo](#-rest-api-demo-new) section below for setup instructions.
 
 ### Development Installation
 
@@ -282,8 +281,14 @@ harmonic-analysis/
 │   └── character_analysis_demo.py      # Modal character analysis demo
 │
 ├── 📁 demo/                            # Interactive demo application
+│   ├── full_library_demo.py            # CLI demo - demonstrates Python library usage
+│   ├── start_demo.sh                   # Launcher script - starts backend + frontend servers
 │   ├── frontend/                       # React frontend demo
-│   └── backend/                        # FastAPI backend demo
+│   ├── backend/                        # FastAPI REST API (moved from core library)
+│   │   └── rest_api/                   # REST API endpoints and models
+│   ├── tests/                          # Demo-specific tests
+│   │   └── api/                        # REST API tests
+│   └── lib/                            # Demo helper modules
 │
 ├── 📄 test_stage_b.py                  # 🆕 Pattern engine Stage B tests
 ├── 📄 debug_stage_b.py                 # 🆕 Pattern debugging tools
@@ -338,16 +343,25 @@ async def analyze_my_progression():
 asyncio.run(analyze_my_progression())
 ```
 
-### 🌐 REST API Usage (NEW!)
+### 🌐 REST API Demo (NEW!)
 
-The library now includes a production-ready REST API built with FastAPI. Perfect for web applications, microservices, and remote analysis:
+The demo project includes a production-ready REST API built with FastAPI. Perfect for web applications, microservices, and remote analysis:
 
 ```bash
-# Install with API support
-pip install harmonic-analysis[api]
+# Clone the repository
+git clone https://github.com/sammywachtel/harmonic-analysis.git
+cd harmonic-analysis
 
-# Start the API server
-uvicorn harmonic_analysis.rest_api.main:app --reload
+# Install demo dependencies
+pip install -r demo/requirements.txt
+
+# Start both backend and frontend with the demo launcher
+cd demo
+./start_demo.sh
+
+# Or start the backend API server only:
+cd demo
+uvicorn demo.backend.rest_api.main:app --reload
 
 # API is now running at http://localhost:8000
 # OpenAPI docs available at http://localhost:8000/docs
@@ -454,14 +468,15 @@ console.log('Analysis:', result.summary);
 #### Running in Production
 
 ```bash
-# Production deployment with Gunicorn + Uvicorn
-gunicorn harmonic_analysis.rest_api.main:app \
+# Production deployment with Gunicorn + Uvicorn (from demo directory)
+cd demo
+gunicorn backend.rest_api.main:app \
   --workers 4 \
   --worker-class uvicorn.workers.UvicornWorker \
   --bind 0.0.0.0:8000
 ```
 
-See [API tests](tests/api/test_rest_api.py) for comprehensive usage examples.
+See [API tests](demo/tests/api/test_rest_api.py) for comprehensive usage examples.
 
 ### Analyzing Scales with Enhanced Summaries (NEW!)
 

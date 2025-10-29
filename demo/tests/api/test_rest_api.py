@@ -14,7 +14,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 
 # Kickoff: Import the app
-from harmonic_analysis.rest_api.main import create_app
+from demo.backend.rest_api.main import create_app
 
 
 @pytest.fixture
