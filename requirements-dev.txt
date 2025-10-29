@@ -6,12 +6,16 @@ black>=24.0.0                    # Code formatting
 isort>=5.13.0                    # Import sorting
 flake8>=7.0.0                    # Linting
 mypy>=1.8.0                      # Type checking
+types-jsonschema>=4.20.0         # Type stubs for jsonschema
 
 # Testing Framework
 pytest>=8.0.0                   # Testing framework
 pytest-asyncio>=0.23.0          # Async testing support
 pytest-cov>=4.1.0               # Coverage reporting
 pytest-mock>=3.12.0             # Mocking utilities
+
+# Integration Testing Dependencies
+music21>=9.1.0                  # Music notation library for integration tests
 
 # Development Tools
 pre-commit>=3.6.0               # Pre-commit hooks

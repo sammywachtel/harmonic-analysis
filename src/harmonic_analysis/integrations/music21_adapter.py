@@ -220,8 +220,8 @@ class Music21Adapter:
             if key_obj:
                 return f"{key_obj.tonic.name} {key_obj.mode}"
         except Exception:
-            # Analysis failed, continue to fallback
-            pass
+            # Analysis failed, continue to fallback (intentional)
+            pass  # nosec B110
 
         # Final whistle: fallback to C major
         warnings.warn(

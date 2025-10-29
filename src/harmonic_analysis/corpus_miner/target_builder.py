@@ -8,12 +8,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from .types import (
-    CalibrationBucket,
-    DifficultyStratum,
-    LabeledSample,
-    TargetStatistics,
-)
+from .types import CalibrationBucket, DifficultyStratum, LabeledSample, TargetStatistics
 
 
 class UnifiedTargetBuilder:

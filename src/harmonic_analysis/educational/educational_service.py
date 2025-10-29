@@ -290,8 +290,8 @@ class EducationalService:
         # Main play: look up summaries for each pattern
         cards = []
         for pdata in pattern_data:
-            pattern_id = pdata["id"]
-            pattern_start = pdata["start"]
+            pattern_id = str(pdata["id"])
+            pattern_start = int(pdata["start"])
 
             summary = self.get_summary(pattern_id, level)
             if summary:

@@ -655,13 +655,14 @@ async def analyze_uploaded_file(
     if analysis_result:
         result_dict = asdict(analysis_result)
 
-        # Transform primary and alternatives: change 'key_signature' to 'key'
+        # Transform primary and alternatives: add 'key' alias while preserving 'key_signature'
         def transform_interpretation(interp: dict) -> dict:
             """Transform interpretation to match frontend structure."""
             transformed = interp.copy()
-            # Rename key_signature to key
+            # Create 'key' alias for frontend compatibility while preserving canonical 'key_signature'
+            # Dual-field contract: API consumers expect 'key_signature', frontend UI expects 'key'
             if "key_signature" in transformed:
-                transformed["key"] = transformed.pop("key_signature")
+                transformed["key"] = transformed.get("key_signature")
             return transformed
 
         primary = transform_interpretation(result_dict["primary"])

@@ -49,16 +49,20 @@ repos:
     hooks:
       - id: flake8
         args: ["--max-line-length=88", "--extend-ignore=E203,W503"]
-        exclude: '^(tools/|demo/|\.local_docs/|\.venv/)'
+        exclude: '^(tools/|demo/|\.local_docs/)'
 
-  # MyPy type checking
+  # MyPy type checking (auto-configured based on requirements)
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v1.18.2
     hooks:
       - id: mypy
-        args: ["--config-file=pyproject.toml", "--disable-error-code=unreachable"]
-        additional_dependencies: [types-jsonschema, numpy, scikit-learn]
-        files: '^src/.*\.py$'
+        args: ["--config-file=pyproject.toml"]
+        additional_dependencies:
+          - numpy
+          - scipy
+          - scikit-learn
+          - types-jsonschema
+        files: '^(src|backend|app)/.*\.py$'
 
   # Security hooks
   - repo: https://github.com/Yelp/detect-secrets

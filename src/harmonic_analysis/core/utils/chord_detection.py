@@ -12,13 +12,13 @@ Comprehensive chord recognition supporting:
 Ported from demo/lib/chord_detection.py for library-wide use.
 """
 
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 # ============================================================================
 # Music Theory Constants
 # ============================================================================
 
-# Note names used for chord detection (prefer enharmonic equivalents that avoid double-sharps/flats)
+# Note names for detection (prefer enharmonics avoiding double-sharps/flats)
 NOTE_NAMES_FOR_DETECTION = [
     "C",
     "C#",

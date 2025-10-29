@@ -47,9 +47,9 @@ class TestAnalysisIntegration:
 
         # Verify primary interpretation exists and has required fields
         assert (
-            "primary" in result["analysis_result"]
+            "primary" in result["analysis_result"]["analysis"]
         ), "Should have primary interpretation"
-        primary = result["analysis_result"]["primary"]
+        primary = result["analysis_result"]["analysis"]["primary"]
 
         # Big play: verify all required fields are present and populated
         assert "key_signature" in primary, "Primary should have key_signature field"

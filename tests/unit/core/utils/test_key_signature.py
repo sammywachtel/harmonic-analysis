@@ -8,13 +8,10 @@ Tests both conversion directions:
 Covers all 30 major/minor keys (15 major + 15 minor) with comprehensive edge cases.
 """
 
-import pytest
-
 from harmonic_analysis.core.utils.key_signature import (
     convert_key_signature_to_mode,
     parse_key_signature_from_hint,
 )
-
 
 # ============================================================================
 # Test convert_key_signature_to_mode() - Sharps/Flats → Key Name
@@ -143,9 +140,9 @@ class TestParseKeySignatureFromHint:
 
         for key_name, expected_sharps_flats in major_keys:
             result = parse_key_signature_from_hint(key_name)
-            assert result == expected_sharps_flats, (
-                f"Expected {expected_sharps_flats} for '{key_name}', got {result}"
-            )
+            assert (
+                result == expected_sharps_flats
+            ), f"Expected {expected_sharps_flats} for '{key_name}', got {result}"
 
     # Main play: Test all 15 minor keys
     def test_all_minor_key_names(self):
@@ -170,9 +167,9 @@ class TestParseKeySignatureFromHint:
 
         for key_name, expected_sharps_flats in minor_keys:
             result = parse_key_signature_from_hint(key_name)
-            assert result == expected_sharps_flats, (
-                f"Expected {expected_sharps_flats} for '{key_name}', got {result}"
-            )
+            assert (
+                result == expected_sharps_flats
+            ), f"Expected {expected_sharps_flats} for '{key_name}', got {result}"
 
     # Tricky bit: Test explicit sharp/flat count patterns
     def test_explicit_sharp_count(self):
