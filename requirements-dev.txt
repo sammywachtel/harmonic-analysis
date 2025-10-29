@@ -14,6 +14,9 @@ pytest-asyncio>=0.23.0          # Async testing support
 pytest-cov>=4.1.0               # Coverage reporting
 pytest-mock>=3.12.0             # Mocking utilities
 
+# Integration Testing Dependencies
+music21>=9.1.0                  # Music notation library for integration tests
+
 # Development Tools
 pre-commit>=3.6.0               # Pre-commit hooks
 httpx>=0.27.0                   # HTTP client for testing
