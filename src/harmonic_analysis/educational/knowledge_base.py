@@ -371,7 +371,6 @@ class KnowledgeBase:
                     title=concept.get("display_name", actual_id),
                     summary=level_data.get("summary", ""),
                     category=concept.get("category"),
-                    difficulty=level.value,
                 )
 
         # Big play: try parent pattern (trim last segment)
@@ -388,7 +387,6 @@ class KnowledgeBase:
                         title=concept.get("display_name", actual_parent_id),
                         summary=level_data.get("summary", ""),
                         category=concept.get("category"),
-                        difficulty=level.value,
                     )
 
         # Final whistle: try pattern family fallback
@@ -412,7 +410,6 @@ class KnowledgeBase:
                     title=f"{family.title()} Patterns",
                     summary=family_info.get("overview", ""),
                     category=family,
-                    difficulty=level.value,
                 )
 
         # Victory lap: no match found

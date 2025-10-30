@@ -83,7 +83,6 @@ class TestKnowledgeBase:
         assert summary.title == "Perfect Authentic Cadence (PAC)"
         assert len(summary.summary) > 0
         assert summary.category == "cadential"
-        assert summary.difficulty == "beginner"
 
     def test_get_summary_parent_fallback(self):
         """Test get_summary falls back to parent when exact match missing."""

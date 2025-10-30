@@ -7,7 +7,7 @@ by providing context, examples, and practice suggestions.
 
 from typing import Any, Dict, List, Optional
 
-from ..core.pattern_engine.glossary_service import GlossaryService
+from ..core.pattern_engine.glossary_provider import GlossaryProvider
 from .knowledge_base import KnowledgeBase
 from .types import (
     EducationalCard,
@@ -37,7 +37,7 @@ class EducationalService:
         """
         # Opening move: set up our knowledge sources
         self.kb = knowledge_base if knowledge_base else KnowledgeBase()
-        self.glossary = GlossaryService()
+        self.glossary = GlossaryProvider()
 
     def explain_pattern(
         self, pattern_id: str, level: LearningLevel = LearningLevel.BEGINNER
@@ -328,7 +328,6 @@ class EducationalService:
                         title=summary.title,
                         summary=summary.summary,
                         category=summary.category,
-                        difficulty=summary.difficulty,
                         visualization=visualization,
                     )
                 )

@@ -22,7 +22,7 @@ unified scale analysis, roman numeral input, and advanced modal detection.
 ### Quick Pattern Analysis Example
 
 ```python
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis import PatternAnalysisService
 
 async def analyze_patterns():
     service = PatternAnalysisService()
@@ -86,7 +86,7 @@ result = await service.analyze_with_patterns_async(
 The pattern analysis service provides sophisticated configuration options:
 
 ```python
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis import PatternAnalysisService
 
 service = PatternAnalysisService()
 result = await service.analyze_with_patterns_async(
@@ -111,8 +111,8 @@ This library listens to your chord progressions, scales, and melodies and tells 
 - **What key you're in** and how confident it is about that
 - **The function of each chord** (tonic, dominant, subdominant, etc.) with full inversion analysis
 - **What mode you might be using** (Dorian, Mixolydian, Phrygian, etc.)
-- **Scale analysis with automatic mode detection** (NEW) - recognizes all 7 modes of major scale
-- **Roman numeral analysis with direct input** (NEW) - analyze progressions using roman numerals
+- **Scale analysis with automatic mode detection** - recognizes all 7 modes of major scale
+- **Roman numeral analysis with direct input** - analyze progressions using roman numerals
 - **Advanced harmonic techniques** you're employing (secondary dominants, borrowed chords, chromatic mediants)
 - **Chord inversions with proper figured bass notation** (⁶, ⁶⁴, ⁴²)
 - **Multiple valid interpretations** when your music is ambiguous (which is often!)
@@ -122,6 +122,19 @@ This library listens to your chord progressions, scales, and melodies and tells 
 - **Perfect bidirectional conversion** between chord symbols and Roman numerals
 
 Think of it as having three music theory professors analyze your work simultaneously - one specializing in classical harmony, one in modal jazz, and one in chromatic/contemporary techniques - each explaining their reasoning with evidence-based analysis.
+
+### User-Friendly API Design
+
+The library provides a clean, focused API that exports only what you need:
+- **Two main analysis services** for chord progressions (PatternAnalysisService, UnifiedPatternService)
+- **Simple analysis functions** for scales and melodies (analyze_scale, analyze_melody)
+- **Rich musical data access** for building UIs and applications (30+ helper functions)
+- **Character analysis** for emotional profiling of modes and progressions
+- **Result types** with comprehensive analysis information
+
+**Optional features** are cleanly separated:
+- Educational content: `from harmonic_analysis.educational import EducationalService`
+- File I/O: `from harmonic_analysis.integrations import Music21Adapter`
 
 ## Installation
 
@@ -158,6 +171,79 @@ pip install -e .[dev]
 ```
 
 The `dev` extra includes all optional features plus development tools (pytest, black, mypy, etc.).
+
+### Understanding What's Available
+
+The library has a **clean separation** between core features and optional extensions:
+
+#### ✅ **Always Available** (Standard Installation)
+
+Import directly from `harmonic_analysis`:
+
+```python
+from harmonic_analysis import (
+    # Analysis Services
+    PatternAnalysisService,          # Main chord progression analysis
+    UnifiedPatternService,            # Next-gen unified engine
+
+    # Simple Analysis Functions
+    analyze_melody,                   # Analyze melodic sequences
+    analyze_scale,                    # Analyze scale/mode
+
+    # Musical Data API (30+ functions)
+    get_circle_of_fifths,            # Circle of fifths data
+    get_scale_notes,                 # Get notes for any scale
+    get_relative_major_minor_pairs,  # Key relationships
+    get_all_scale_systems,           # All available scale systems
+
+    # Character Analysis
+    get_mode_emotional_profile,      # Emotional profiling
+    get_modes_by_brightness,         # Find modes by mood
+
+    # Music Theory Constants
+    MODAL_CHARACTERISTICS,           # Mode definitions
+    ALL_KEYS,                        # All major/minor keys
+
+    # Result Types
+    AnalysisEnvelope,                # Main result container
+    AnalysisSummary,                 # Analysis details
+    ScaleMelodyAnalysisResult,       # Scale/melody results
+)
+```
+
+#### 📦 **Optional Features** (Separate Installations)
+
+**Educational Content** (Bernstein-style explanations):
+```bash
+pip install harmonic-analysis[educational]
+```
+```python
+from harmonic_analysis.educational import EducationalService
+service = EducationalService(level="intermediate")
+```
+
+**Music21 Integration** (File I/O for MusicXML, MIDI):
+```bash
+pip install harmonic-analysis[music21]
+```
+```python
+from harmonic_analysis.integrations import Music21Adapter
+adapter = Music21Adapter()
+```
+
+#### 🔒 **Internal Components** (Not Exported)
+
+These are used internally by the library but not exposed in the public API:
+- Pattern engine internals (`PatternEngine`, `GlossaryProvider`, etc.)
+- Calibration systems
+- Corpus mining tools
+
+If you need advanced customization, you can still import these via their full paths:
+```python
+# Advanced usage only - not recommended for most users
+from harmonic_analysis.core.pattern_engine import PatternEngine
+from harmonic_analysis.corpus_miner import CorpusExtractor
+```
 
 ### Checking Feature Availability
 
@@ -202,8 +288,8 @@ harmonic-analysis/
 │   │   ├── validation_errors.py        # Input validation errors
 │   │   ├── telemetry.py                # Analysis telemetry
 │   │   │
-│   │   └── 📁 pattern_engine/          # Pattern matching system
-│   │       ├── pattern_engine.py       # Main pattern engine orchestrator
+│   │   └── 📁 pattern_engine/          # Pattern matching system (internal)
+│   │       ├── pattern_engine.py       # Main pattern engine (internal use only)
 │   │       ├── pattern_loader.py       # Pattern definition loader
 │   │       ├── matcher.py              # Core pattern matching logic
 │   │       ├── aggregator.py           # Evidence aggregation
@@ -214,7 +300,7 @@ harmonic-analysis/
 │   │       ├── target_builder_unified.py # Unified target building
 │   │       ├── plugin_registry.py      # Plugin system for evaluators
 │   │       ├── glossary.py             # Musical term definitions
-│   │       ├── glossary_service.py     # Glossary lookup service
+│   │       ├── glossary_provider.py    # Glossary lookup (internal)
 │   │       └── schemas/                # Pattern definition schemas
 │   │
 │   ├── 📁 services/                    # High-level analysis services
@@ -300,18 +386,24 @@ harmonic-analysis/
 
 ### Key Architecture Highlights
 
-#### 🎯 Unified Pattern Engine (Production)
-- **Location**: `src/harmonic_analysis/core/pattern_engine/`
-- **Purpose**: Complete harmonic, modal, and chromatic analysis through unified architecture
-- **Features**: 36 patterns, quality-gated calibration, evidence aggregation, plugin system
-- **Status**: ✅ Production ready (8 iterations completed, all tests passing)
-- **Migration**: Legacy analyzers fully replaced with backward-compatible API
+#### 🎯 Clean Public API
+- **Analysis Services**: `PatternAnalysisService` (legacy) and `UnifiedPatternService` (recommended)
+- **Simple Functions**: `analyze_scale()`, `analyze_melody()` for quick analysis
+- **Musical Data API**: 30+ helper functions for accessing musical theory data
+- **Result Types**: Rich DTOs with comprehensive analysis information
+- **Optional Features**: Educational and Music21 integration via separate imports
 
-#### 🧠 Multi-Engine Analysis
+#### 🔒 Internal Architecture (Not Exported)
+- **Unified Pattern Engine**: 36 patterns, quality-gated calibration, evidence aggregation
+- **Multi-Engine Analysis**: Functional, modal, and chromatic analyzers run in parallel
+- **Plugin System**: Extensible evaluator registry for custom patterns
+- **Location**: `src/harmonic_analysis/core/pattern_engine/` (internal use only)
+
+#### 🧠 Analysis Capabilities
 - **Functional**: Roman numerals, cadences, traditional harmony
 - **Modal**: Mode detection, modal interchange, characteristic tones
 - **Chromatic**: Secondary dominants, borrowed chords, advanced harmony
-- **Pattern**: Specific musical idioms and compositional techniques
+- **Character**: Emotional profiling and brightness classification
 
 #### 🔄 Bidirectional System
 - **Analysis → Patterns**: Detects patterns in chord progressions
@@ -324,7 +416,7 @@ harmonic-analysis/
 
 ```python
 import asyncio
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis import PatternAnalysisService
 
 async def analyze_my_progression():
     # Classic I-vi-IV-V progression
@@ -415,6 +507,8 @@ curl -X POST "http://localhost:8000/api/analyze/file" \
 curl "http://localhost:8000/glossary/half_cadence"
 ```
 
+> **Note**: The glossary endpoint is part of the demo REST API. The underlying `GlossaryProvider` is an internal component not exported in the main library API.
+
 #### Python Client Example
 
 ```python
@@ -483,7 +577,7 @@ See [API tests](demo/tests/api/test_rest_api.py) for comprehensive usage example
 The unified pattern service provides comprehensive scale analysis with mode detection and characteristic intervals:
 
 ```python
-from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
+from harmonic_analysis import UnifiedPatternService
 
 async def analyze_modal_scales():
     service = UnifiedPatternService()
@@ -514,7 +608,7 @@ asyncio.run(analyze_modal_scales())
 Melodies are special - the library tries to figure out what note feels like "home":
 
 ```python
-from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
+from harmonic_analysis import UnifiedPatternService
 
 async def analyze_my_melody():
     service = UnifiedPatternService()
@@ -552,7 +646,7 @@ The library provides comprehensive inversion analysis with proper figured bass n
 
 ```python
 import asyncio
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis import PatternAnalysisService
 
 async def analyze_inversions():
     # Progression with multiple inversions in F major
@@ -684,7 +778,7 @@ Music is often ambiguous, and good musicians can hear the same progression multi
 
 ```python
 import asyncio
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis import PatternAnalysisService
 
 async def explore_interpretations():
     # This progression can be heard multiple ways
@@ -957,7 +1051,7 @@ result.primary_analysis.modal_characteristics  # Character descriptions
 ### For Scales and Melodies
 
 ```python
-from harmonic_analysis.services.unified_pattern_service import UnifiedPatternService
+from harmonic_analysis import UnifiedPatternService
 
 service = UnifiedPatternService()
 
@@ -1030,7 +1124,7 @@ When no parent key is provided but one would unlock better analysis:
 
 ```python
 import asyncio
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis import PatternAnalysisService
 
 async def add_key_example():
     service = PatternAnalysisService()
@@ -1418,7 +1512,7 @@ final_result = synthesize_interpretations(
 ### Customizing Analysis
 
 ```python
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis import PatternAnalysisService
 
 # Initialize the service
 service = PatternAnalysisService()
@@ -1497,25 +1591,87 @@ Expected result: V/ii - ii⁶ - V/ii⁶⁴ - ii - I⁶⁴ - V - I
 🎉 ALL TESTS PASSED - Perfect bidirectional inversion conversion!
 ```
 
-## 🔧 Specialized Module Examples
+## 🔧 Common Usage Examples
 
-### MIDI Integration
+### Working with Musical Data API
 ```python
-from harmonic_analysis.midi import parse_chord, find_chords_from_midi
+from harmonic_analysis import (
+    get_circle_of_fifths,
+    get_relative_major_minor_pairs,
+    get_scale_notes,
+    get_all_scale_systems,
+    normalize_note_name
+)
 
-# Parse chord symbols
-chord_info = parse_chord('Cmaj7')
-print(chord_info['quality'])  # 'major7'
+# Get circle of fifths for UI display
+circle = get_circle_of_fifths()
+print(circle['major'])  # ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', ...]
 
-# Analyze MIDI notes
-midi_notes = [60, 64, 67]  # C major triad
-matches = find_chords_from_midi(midi_notes)
-print(matches[0].chord_name)  # 'Major'
+# Get relative major/minor pairs
+pairs = get_relative_major_minor_pairs()
+print(pairs['C major'])  # 'A minor'
+
+# Get scale notes for any mode
+notes = get_scale_notes('D', 'Dorian')
+print(notes)  # ['D', 'E', 'F', 'G', 'A', 'B', 'C']
+
+# Explore all scale systems
+systems = get_all_scale_systems()
+print(list(systems.keys()))  # ['major_scale', 'melodic_minor', 'harmonic_minor', ...]
+
+# Normalize user input
+normalized = normalize_note_name('Db')  # Returns 'D♭' with proper unicode
+```
+
+### Character and Emotional Analysis
+```python
+from harmonic_analysis import (
+    get_mode_emotional_profile,
+    get_modes_by_brightness,
+    analyze_progression_character
+)
+
+# Get emotional profile for a mode
+profile = get_mode_emotional_profile('Dorian')
+print(f"Brightness: {profile.brightness}")  # "neutral"
+print(f"Energy: {profile.energy}")  # "medium"
+print(f"Primary emotions: {profile.primary_emotions}")  # ["contemplative", "jazzy"]
+
+# Find modes by emotional quality
+bright_modes = get_modes_by_brightness('bright')
+print(bright_modes)  # ["Ionian", "Lydian", "Mixolydian"]
+
+dark_modes = get_modes_by_brightness('dark')
+print(dark_modes)  # ["Phrygian", "Aeolian", "Locrian"]
+```
+
+### Music Theory Utilities
+```python
+from harmonic_analysis import (
+    get_interval_name,
+    MODAL_CHARACTERISTICS,
+    get_modal_characteristics,
+    ALL_KEYS,
+    canonicalize_key_signature
+)
+
+# Interval analysis
+print(get_interval_name(7))  # "Perfect 5th"
+print(get_interval_name(3))  # "Minor 3rd"
+
+# Modal characteristics
+characteristics = get_modal_characteristics('Dorian')
+print(characteristics.brightness)  # "neutral"
+print(characteristics.characteristic_degrees)  # ['1', '♭3', '6', '♭7']
+
+# Key signature utilities
+print(ALL_KEYS[:5])  # ['C major', 'G major', 'D major', ...]
+canonical = canonicalize_key_signature('D♭ major')  # Standardizes notation
 ```
 
 ### Advanced Chromatic Analysis
 ```python
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+from harmonic_analysis import PatternAnalysisService
 
 async def chromatic_example():
     service = PatternAnalysisService()
@@ -1533,47 +1689,8 @@ async def chromatic_example():
         print(f"Chromatic elements found: {len(result.primary.chromatic_elements)}")
         for elem in result.primary.chromatic_elements:
             print(f"  {elem.type}: {elem.chord_symbol}")
-```
-
-### Music Theory Utilities
-```python
-from harmonic_analysis.theory import (
-    get_interval_name,
-    MODAL_CHARACTERISTICS,
-    get_modal_characteristics
-)
-
-# Interval analysis
-print(get_interval_name(7))  # "Perfect 5th"
-
-# Modal characteristics
-characteristics = get_modal_characteristics('Dorian')
-print(characteristics.brightness)  # "neutral"
-print(characteristics.characteristic_degrees)  # ['1', '♭3', '6', '♭7']
-```
-
-### Pattern-Based Analysis
-```python
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
-
-async def pattern_example():
-    service = PatternAnalysisService()
-    chords = ['Dm7', 'G7', 'Cmaj7']
-
-    # Analyze with pattern matching
-    result = await service.analyze_with_patterns_async(
-        chords,
-        key_hint='C major',
-        profile='jazz',
-        best_cover=True  # Find optimal pattern coverage
-    )
-
-    # Access matched patterns
-    if result.pattern_matches:
-        for match in result.pattern_matches:
-            print(f"Pattern: {match.name}")
-            print(f"Confidence: {match.score:.2f}")
-            print(f"Evidence: {match.evidence}")
+            if elem.resolution_to:
+                print(f"    → Resolves to: {elem.resolution_to}")
 ```
 
 ## Common Questions

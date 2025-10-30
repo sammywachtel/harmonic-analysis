@@ -135,9 +135,9 @@ class TestGlossaryHelpers:
         assert "unknown_feature" not in terms
 
     def test_load_glossary_uses_glossary_service(self):
-        """Test that load_glossary uses the existing GlossaryService."""
+        """Test that load_glossary uses the existing GlossaryProvider."""
         with patch(
-            "harmonic_analysis.core.pattern_engine.glossary.GlossaryService"
+            "harmonic_analysis.core.pattern_engine.glossary.GlossaryProvider"
         ) as mock_service:
             mock_instance = MagicMock()
             mock_instance.glossary = {"test": "data"}
@@ -167,7 +167,7 @@ class TestPatternEngineGlossaryIntegration:
     def test_pattern_engine_loads_glossary_on_init(self):
         """Test that pattern engine loads glossary on initialization."""
         with patch(
-            "harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryService"
+            "harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryProvider"
         ) as mock_service:
             instance = mock_service.return_value
             instance.glossary = {"test": "glossary"}
@@ -178,7 +178,7 @@ class TestPatternEngineGlossaryIntegration:
     def test_pattern_engine_handles_missing_glossary(self):
         """Test that pattern engine handles missing glossary gracefully."""
         with patch(
-            "harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryService"
+            "harmonic_analysis.core.pattern_engine.pattern_engine.GlossaryProvider"
         ) as mock_service:
             with patch(
                 "harmonic_analysis.core.pattern_engine.pattern_engine.load_default_glossary"
@@ -311,7 +311,7 @@ class TestPatternEngineGlossaryIntegration:
                 "pattern_weight": "Base pattern weight",
             }
         }
-        engine._glossary_service = type(
+        engine._glossary_provider = type(
             "StubGlossary",
             (),
             {
@@ -377,13 +377,13 @@ def mock_glossary():
     }
 
 
-class TestGlossaryServiceCompatibility:
-    """Test compatibility with existing GlossaryService."""
+class TestGlossaryProviderCompatibility:
+    """Test compatibility with existing GlossaryProvider."""
 
     def test_explain_feature_uses_existing_service_logic(self, mock_glossary):
-        """Test that explain_feature properly leverages GlossaryService."""
+        """Test that explain_feature properly leverages GlossaryProvider."""
         with patch(
-            "harmonic_analysis.core.pattern_engine.glossary.GlossaryService"
+            "harmonic_analysis.core.pattern_engine.glossary.GlossaryProvider"
         ) as mock_service_class:
             # Mock the service instance
             mock_service = MagicMock()
@@ -400,9 +400,9 @@ class TestGlossaryServiceCompatibility:
             assert tooltip == "System of chord functions"
 
     def test_fallback_when_service_returns_none(self, mock_glossary):
-        """Test fallback behavior when GlossaryService returns None."""
+        """Test fallback behavior when GlossaryProvider returns None."""
         with patch(
-            "harmonic_analysis.core.pattern_engine.glossary.GlossaryService"
+            "harmonic_analysis.core.pattern_engine.glossary.GlossaryProvider"
         ) as mock_service_class:
             mock_service = MagicMock()
             mock_service.get_term_definition.return_value = None

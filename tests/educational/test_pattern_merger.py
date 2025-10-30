@@ -19,14 +19,12 @@ class TestPrioritizePatterns:
             title="Perfect Authentic Cadence (PAC)",
             summary="Strongest cadence",
             category="cadential",
-            difficulty="beginner",
         )
         ii_v_i_card = EducationalCard(
             pattern_id="functional.ii_V_I",
             title="ii-V-I Progression",
             summary="Jazz progression",
             category="functional",
-            difficulty="beginner",
         )
 
         cards = [ii_v_i_card, pac_card]  # Reversed order
@@ -46,14 +44,12 @@ class TestPrioritizePatterns:
             title="ii-V-I Progression",
             summary="Jazz progression",
             category="functional",
-            difficulty="beginner",
         )
         functional_card = EducationalCard(
             pattern_id="function_dominant",
             title="Dominant Function",
             summary="Resolves to tonic",
             category="functional",
-            difficulty="beginner",
         )
 
         cards = [functional_card, ii_v_i_card]  # Reversed order
@@ -73,14 +69,12 @@ class TestPrioritizePatterns:
             title="Imperfect Authentic Cadence (IAC)",
             summary="Weaker cadence",
             category="cadential",
-            difficulty="beginner",
         )
         pac_card = EducationalCard(
             pattern_id="cadence.authentic.perfect",
             title="Perfect Authentic Cadence (PAC)",
             summary="Strongest cadence",
             category="cadential",
-            difficulty="beginner",
         )
 
         cards = [pac_card, iac_card]  # Both cadential, but reversed alphabetical
@@ -108,7 +102,6 @@ class TestPrioritizePatterns:
             title="Perfect Authentic Cadence (PAC)",
             summary="Strongest cadence",
             category="cadential",
-            difficulty="beginner",
         )
 
         result = pattern_merger.prioritize_patterns([pac_card])
@@ -123,21 +116,18 @@ class TestPrioritizePatterns:
             title="PAC",
             summary="Cadence",
             category="cadential",
-            difficulty="beginner",
         )
         functional_card_1 = EducationalCard(
             pattern_id="functional.ii_V_I",
             title="ii-V-I",
             summary="Progression",
             category="functional",
-            difficulty="beginner",
         )
         functional_card_2 = EducationalCard(
             pattern_id="function_dominant",
             title="Dominant",
             summary="Function",
             category="functional",
-            difficulty="beginner",
         )
 
         # Input in reverse priority order
@@ -165,21 +155,18 @@ class TestMergeAndPrioritize:
             title="PAC",
             summary="Cadence",
             category="cadential",
-            difficulty="beginner",
         )
         iac_card = EducationalCard(
             pattern_id="cadence.authentic.imperfect",
             title="IAC",
             summary="Cadence",
             category="cadential",
-            difficulty="beginner",
         )
         ii_v_i_card = EducationalCard(
             pattern_id="functional.ii_V_I",
             title="ii-V-I",
             summary="Progression",
             category="functional",
-            difficulty="beginner",
         )
 
         cards = [ii_v_i_card, iac_card, pac_card]  # Reversed order
@@ -201,14 +188,12 @@ class TestMergeAndPrioritize:
             title="PAC",
             summary="Cadence",
             category="cadential",
-            difficulty="beginner",
         )
         iac_card = EducationalCard(
             pattern_id="cadence.authentic.imperfect",
             title="IAC",
             summary="Cadence",
             category="cadential",
-            difficulty="beginner",
         )
 
         cards = [pac_card, iac_card]
