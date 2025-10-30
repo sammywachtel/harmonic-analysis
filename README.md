@@ -367,14 +367,10 @@ harmonic-analysis/
 │   └── character_analysis_demo.py      # Modal character analysis demo
 │
 ├── 📁 demo/                            # Interactive demo application
-│   ├── full_library_demo.py            # CLI demo - demonstrates Python library usage
 │   ├── start_demo.sh                   # Launcher script - starts backend + frontend servers
 │   ├── frontend/                       # React frontend demo
 │   ├── backend/                        # FastAPI REST API (moved from core library)
 │   │   └── rest_api/                   # REST API endpoints and models
-│   ├── tests/                          # Demo-specific tests
-│   │   └── api/                        # REST API tests
-│   └── lib/                            # Demo helper modules
 │
 ├── 📄 test_stage_b.py                  # 🆕 Pattern engine Stage B tests
 ├── 📄 debug_stage_b.py                 # 🆕 Pattern debugging tools

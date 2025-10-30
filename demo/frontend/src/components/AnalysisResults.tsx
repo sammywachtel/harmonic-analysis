@@ -14,6 +14,7 @@ interface AnalysisResultsProps {
 
 const AnalysisResults = ({ results, showEducational = true, chords = [] }: AnalysisResultsProps) => {
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
   const [hoveredPatternId, setHoveredPatternId] = useState<string | null>(null);
 
   const { analysis, enhanced_summaries, educational } = results;
@@ -86,6 +87,20 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
     return hoveredCard?.visualization?.bracket_range || null;
   };
 
+  // Helper: Get analysis type badge color
+  const getTypeBadgeColor = (type?: string) => {
+    switch (type) {
+      case 'functional':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'modal':
+        return 'bg-purple-100 text-purple-800 border-purple-300';
+      case 'chromatic':
+        return 'bg-orange-100 text-orange-800 border-orange-300';
+      default:
+        return 'bg-slate-100 text-slate-800 border-slate-300';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Summary section - high-level overview */}
@@ -110,7 +125,14 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
       {/* Primary interpretation - the main event */}
       <div className="bg-white border border-slate-300 rounded-lg p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-slate-900">Primary Interpretation</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-xl font-bold text-slate-900">Primary Interpretation</h3>
+            {analysis.primary.type && (
+              <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getTypeBadgeColor(analysis.primary.type)}`}>
+                {analysis.primary.type.charAt(0).toUpperCase() + analysis.primary.type.slice(1)}
+              </span>
+            )}
+          </div>
           <span className="text-sm font-medium text-slate-600">
             Confidence: {(analysis.primary.confidence * 100).toFixed(1)}%
           </span>
@@ -120,6 +142,9 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
           <div>
             <span className="font-semibold text-slate-700">Key: </span>
             <span className="text-slate-900 text-lg">{analysis.primary.key_signature}</span>
+            {analysis.primary.mode && (
+              <span className="ml-2 text-slate-600">({analysis.primary.mode})</span>
+            )}
           </div>
 
           <div>
@@ -136,6 +161,48 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
             </div>
           </div>
 
+          {/* Confidence breakdown */}
+          {(analysis.primary.functional_confidence !== undefined ||
+            analysis.primary.modal_confidence !== undefined ||
+            analysis.primary.chromatic_confidence !== undefined) && (
+            <div className="border-t border-slate-200 pt-3 mt-3">
+              <span className="font-semibold text-slate-700 block mb-2">Confidence Breakdown:</span>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                {analysis.primary.functional_confidence !== undefined && (
+                  <div>
+                    <span className="text-slate-600">Functional: </span>
+                    <span className="font-medium text-blue-700">
+                      {(analysis.primary.functional_confidence * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+                {analysis.primary.modal_confidence !== undefined && (
+                  <div>
+                    <span className="text-slate-600">Modal: </span>
+                    <span className="font-medium text-purple-700">
+                      {(analysis.primary.modal_confidence * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+                {analysis.primary.chromatic_confidence !== undefined && (
+                  <div>
+                    <span className="text-slate-600">Chromatic: </span>
+                    <span className="font-medium text-orange-700">
+                      {(analysis.primary.chromatic_confidence * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {analysis.primary.reasoning && (
+            <div className="border-t border-slate-200 pt-3 mt-3">
+              <span className="font-semibold text-slate-700">Reasoning: </span>
+              <p className="text-slate-900 mt-1 text-sm">{analysis.primary.reasoning}</p>
+            </div>
+          )}
+
           {analysis.primary.interpretation && (
             <div>
               <span className="font-semibold text-slate-700">Interpretation: </span>
@@ -151,6 +218,109 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
           )}
         </div>
       </div>
+
+      {/* Detected Patterns - detailed view */}
+      {analysis.primary.patterns && analysis.primary.patterns.length > 0 && (
+        <div className="bg-white border border-slate-300 rounded-lg shadow-sm">
+          <button
+            onClick={() => setShowDetailedAnalysis(!showDetailedAnalysis)}
+            className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition"
+          >
+            <h4 className="font-semibold text-slate-900">
+              Detected Patterns ({analysis.primary.patterns.length})
+            </h4>
+            <svg
+              className={`w-5 h-5 text-slate-600 transition-transform ${
+                showDetailedAnalysis ? 'rotate-180' : ''
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showDetailedAnalysis && (
+            <div className="border-t border-slate-300 p-4 space-y-3">
+              {analysis.primary.patterns.map((pattern, idx) => (
+                <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h5 className="font-semibold text-slate-900">{pattern.name}</h5>
+                      <span className="text-xs text-slate-600 font-mono">{pattern.pattern_id}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-slate-900">
+                        Score: {(pattern.score * 100).toFixed(0)}%
+                      </div>
+                      <div className="text-xs text-slate-600">
+                        Chords {pattern.start}–{pattern.end}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={`px-2 py-0.5 rounded ${
+                      pattern.family === 'functional' ? 'bg-blue-100 text-blue-800' :
+                      pattern.family === 'modal' ? 'bg-purple-100 text-purple-800' :
+                      'bg-orange-100 text-orange-800'
+                    }`}>
+                      {pattern.family}
+                    </span>
+                    {pattern.is_section_closure && (
+                      <span className="px-2 py-0.5 rounded bg-green-100 text-green-800">
+                        Section Closure
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal characteristics */}
+      {analysis.primary.modal_characteristics && analysis.primary.modal_characteristics.length > 0 && (
+        <div className="bg-purple-50 border border-purple-300 rounded-lg p-4">
+          <h4 className="font-semibold text-purple-900 mb-2">Modal Characteristics</h4>
+          <ul className="list-disc list-inside space-y-1 text-purple-800">
+            {analysis.primary.modal_characteristics.map((char, idx) => (
+              <li key={idx}>{char}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Modal evidence */}
+      {analysis.primary.modal_evidence && analysis.primary.modal_evidence.length > 0 && (
+        <div className="bg-purple-50 border border-purple-300 rounded-lg p-4">
+          <h4 className="font-semibold text-purple-900 mb-2">Modal Evidence</h4>
+          <div className="space-y-2">
+            {analysis.primary.modal_evidence.map((evidence, idx) => (
+              <div key={idx} className="text-sm">
+                <span className="font-medium text-purple-900">{evidence.type}:</span>
+                <span className="text-purple-800 ml-2">{evidence.description}</span>
+                <span className="text-purple-700 ml-2">
+                  (strength: {(evidence.strength * 100).toFixed(0)}%)
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Chromatic elements */}
+      {analysis.primary.chromatic_elements && analysis.primary.chromatic_elements.length > 0 && (
+        <div className="bg-orange-50 border border-orange-300 rounded-lg p-4">
+          <h4 className="font-semibold text-orange-900 mb-2">Chromatic Elements</h4>
+          <ul className="list-disc list-inside space-y-1 text-orange-800">
+            {analysis.primary.chromatic_elements.map((element, idx) => (
+              <li key={idx}>{element}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Pattern detection - extra insights */}
       {enhanced_summaries?.patterns_detected && enhanced_summaries.patterns_detected.length > 0 && (

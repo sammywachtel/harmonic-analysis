@@ -40,6 +40,12 @@ class ModalEvidenceRecord:
     strength: float
     description: str
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary with enum serialized as string."""
+        from harmonic_analysis.dto import serialize_dataclass
+
+        return serialize_dataclass(self)
+
 
 @dataclass
 class AnalysisContext:

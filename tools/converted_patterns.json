@@ -1,0 +1,488 @@
+{
+  "converted_patterns": [
+    {
+      "id": "functional.cadence_deceptive",
+      "name": "Deceptive Cadence",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "V",
+          "vi"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "cadence"
+        ],
+        "priority": 75,
+        "description": "Deceptive Cadence - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "modal.pop_bVI_bVII_I",
+      "name": "♭VI–♭VII–I (rock lift)",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "modal"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "♭VI",
+          "♭VII",
+          "I"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 3,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "modal",
+          "mixture_modal"
+        ],
+        "priority": 75,
+        "description": "♭VI–♭VII–I (rock lift) - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.jazz_iiviV",
+      "name": "I–vi–ii–V turnaround",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "I",
+          "vi",
+          "ii",
+          "V"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 4,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "I–vi–ii–V turnaround - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.jazz_iiV_I",
+      "name": "ii–V–I (major/minor)",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "ii",
+          "V",
+          "I"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "ii–V–I (major/minor) - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.jazz_backdoor",
+      "name": "Backdoor cadence (iv^maj6–♭VII7–I)",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "iv^maj6",
+          "♭VII7",
+          "I"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "Backdoor cadence (iv^maj6–♭VII7–I) - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.jazz_backdoor_variant",
+      "name": "Backdoor variant (ii–♭VII7–I)",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "ii",
+          "♭VII7",
+          "I"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 3,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "Backdoor variant (ii–♭VII7–I) - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.jazz_tritone_sub_chain",
+      "name": "ii – ♭II7 – I (tritone sub)",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "ii",
+          "♭II7",
+          "I"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 2,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "ii – ♭II7 – I (tritone sub) - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.blues_cadence",
+      "name": "Blues V–IV–I cadence",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "V7",
+          "IV7",
+          "I7"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 3,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "Blues V–IV–I cadence - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.pop_I_V_vi_IV",
+      "name": "Pop loop I–V–vi–IV",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "I",
+          "V",
+          "vi",
+          "IV"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 4,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "Pop loop I–V–vi–IV - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.pop_I_vi_IV_V",
+      "name": "I–vi–IV–V loop",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "I",
+          "vi",
+          "IV",
+          "V"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 4,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "I–vi–IV–V loop - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.pop_vi_IV_I_V",
+      "name": "vi–IV–I–V",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "vi",
+          "IV",
+          "I",
+          "V"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 4,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "vi–IV–I–V - converted from legacy patterns.json",
+        "aliases": []
+      }
+    },
+    {
+      "id": "functional.ii_V_I_root_macro",
+      "name": "ii–V–I",
+      "scope": [
+        "harmonic"
+      ],
+      "track": [
+        "functional"
+      ],
+      "matchers": {
+        "roman_seq": [
+          "ii",
+          "V",
+          "I"
+        ],
+        "constraints": {
+          "key_context": "diatonic"
+        },
+        "window": {
+          "len": 3,
+          "overlap_ok": false
+        }
+      },
+      "evidence": {
+        "weight": 0.8,
+        "features": [
+          "pattern_match"
+        ],
+        "confidence_fn": "logistic_default"
+      },
+      "metadata": {
+        "tags": [
+          "functional",
+          "jazz_pop"
+        ],
+        "priority": 75,
+        "description": "ii–V–I - converted from legacy patterns.json",
+        "aliases": []
+      }
+    }
+  ],
+  "count": 12
+}

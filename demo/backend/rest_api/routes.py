@@ -209,7 +209,7 @@ router = APIRouter()
 
 
 # Route: Root endpoint
-@router.get("/")
+@router.get("/api/")
 def root() -> Dict[str, Any]:
     """Root endpoint showing available API endpoints."""
     return {
@@ -220,8 +220,8 @@ def root() -> Dict[str, Any]:
             "scale": "/api/analyze/scale (POST)",
             "melody": "/api/analyze/melody (POST)",
             "file": "/api/analyze/file (POST)",
-            "glossary": "/glossary/{term} (GET)",
-            "docs": "/docs (GET)",
+            "glossary": "/api/glossary/{term} (GET)",
+            "docs": "/api/docs (GET)",
         },
     }
 
@@ -408,7 +408,7 @@ async def analyze_file_endpoint(
 
 
 # Route: Glossary lookup
-@router.get("/glossary/{term}")
+@router.get("/api/glossary/{term}")
 def glossary_lookup(term: str) -> Dict[str, Any]:
     """
     Look up music theory terms in the glossary.
@@ -448,7 +448,7 @@ def glossary_lookup(term: str) -> Dict[str, Any]:
 
 
 # Route: Glossary lookup
-@router.get("/constants/keys")
+@router.get("/api/constants/keys")
 def glossary_lookup() -> Dict[str, Any]:
     """
     Get a list of all keys

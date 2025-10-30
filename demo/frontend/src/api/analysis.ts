@@ -42,6 +42,6 @@ export const analyzeFile = async (
 
 // Victory lap: Fetch available musical keys from backend
 export const fetchKeys = async (): Promise<KeysResponse> => {
-  const response = await apiClient.get<KeysResponse>('/constants/keys');
+  const response = await apiClient.get<KeysResponse>('/api/constants/keys');
   return response.data;
 };

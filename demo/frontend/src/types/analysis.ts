@@ -8,6 +8,36 @@ export interface AnalysisRequest {
   include_educational?: boolean;
 }
 
+// Pattern match details from the unified pattern engine
+export interface PatternMatch {
+  start: number;
+  end: number;
+  pattern_id: string;
+  name: string;
+  family: string;
+  score: number;
+  evidence: Array<{
+    features: Record<string, number>;
+  }>;
+  glossary: string | null;
+  section: string | null;
+  cadence_role: string | null;
+  is_section_closure: boolean;
+}
+
+// Modal evidence details
+export interface ModalEvidence {
+  type: string;
+  strength: number;
+  description: string;
+}
+
+// Glossary term definition
+export interface GlossaryTerm {
+  label: string;
+  tooltip: string;
+}
+
 export interface PrimaryInterpretation {
   key_signature: string;
   roman_numerals: string[];
@@ -15,13 +45,20 @@ export interface PrimaryInterpretation {
   interpretation?: string;
   reasoning?: string;
   type?: string;
-  mode?: string;
+  mode?: string | null;
   scale_degrees?: string[];
   functional_analysis?: string;
   cadence_detection?: string;
   functional_confidence?: number;
   modal_confidence?: number;
   chromatic_confidence?: number;
+  // New fields from unified pattern engine
+  patterns?: PatternMatch[];
+  modal_characteristics?: string[];
+  modal_evidence?: ModalEvidence[];
+  chromatic_elements?: string[];
+  chromatic_summary?: string | null;
+  terms?: Record<string, GlossaryTerm>;
 }
 
 // Victory lap: Educational content types
