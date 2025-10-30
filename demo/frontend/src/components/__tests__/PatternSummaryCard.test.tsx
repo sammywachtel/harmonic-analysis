@@ -14,7 +14,6 @@ describe('PatternSummaryCard', () => {
     title: 'Perfect Authentic Cadence (PAC)',
     summary: 'The strongest way to end a musical phrase',
     category: 'cadential',
-    difficulty: 'beginner',
   };
 
   // Main play: Test basic rendering

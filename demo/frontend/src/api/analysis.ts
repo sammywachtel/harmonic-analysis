@@ -2,7 +2,7 @@
 // This is where we make the magic happen - send chords, get back harmonic insights
 
 import apiClient from './client';
-import type { AnalysisRequest, AnalysisResponse, FileAnalysisResponse } from '../types/analysis';
+import type { AnalysisRequest, AnalysisResponse, FileAnalysisResponse, KeysResponse } from '../types/analysis';
 
 export const analyzeChords = async (
   request: AnalysisRequest
@@ -37,5 +37,11 @@ export const analyzeFile = async (
       },
     }
   );
+  return response.data;
+};
+
+// Victory lap: Fetch available musical keys from backend
+export const fetchKeys = async (): Promise<KeysResponse> => {
+  const response = await apiClient.get<KeysResponse>('/constants/keys');
   return response.data;
 };

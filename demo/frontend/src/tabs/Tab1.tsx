@@ -1,8 +1,8 @@
 // Tab 1: Manual chord entry - the main interface for testing the analysis engine
 // Users enter chords, pick a key/profile, hit analyze, and see the results
 
-import { useState } from 'react';
-import { analyzeChords } from '../api/analysis';
+import { useState, useEffect } from 'react';
+import { analyzeChords, fetchKeys } from '../api/analysis';
 import type { AnalysisResponse } from '../types/analysis';
 import AnalysisResults from '../components/AnalysisResults';
 import { isDemoMode } from '../config/environment';
@@ -20,21 +20,41 @@ const Tab1 = () => {
 
   const demoMode = isDemoMode();
 
-  // Key options for the dropdown - common keys plus "auto-detect"
-  const keyOptions = [
+  // Key options for the dropdown - fetched from backend on mount
+  const [keyOptions, setKeyOptions] = useState<Array<{ value: string; label: string }>>([
     { value: '', label: 'Auto-detect' },
-    { value: 'C major', label: 'C major' },
-    { value: 'G major', label: 'G major' },
-    { value: 'D major', label: 'D major' },
-    { value: 'A major', label: 'A major' },
-    { value: 'E major', label: 'E major' },
-    { value: 'F major', label: 'F major' },
-    { value: 'Bb major', label: 'B♭ major' },
-    { value: 'Eb major', label: 'E♭ major' },
-    { value: 'A minor', label: 'A minor' },
-    { value: 'E minor', label: 'E minor' },
-    { value: 'D minor', label: 'D minor' },
-  ];
+  ]);
+
+  // Opening move: fetch available keys when component mounts
+  useEffect(() => {
+    const loadKeys = async () => {
+      try {
+        const keysData = await fetchKeys();
+        console.log('Keys response:', keysData); // Debug what we got back
+
+        // Guard: make sure we have the keys array
+        if (!keysData || !keysData.keys || !Array.isArray(keysData.keys)) {
+          console.error('Invalid keys response - expected {keys: string[]}:', keysData);
+          return;
+        }
+
+        // Build dropdown options from API response
+        const options = [
+          { value: '', label: 'Auto-detect' },
+          ...keysData.keys.map((key) => ({
+            value: key,
+            label: key,
+          })),
+        ];
+        setKeyOptions(options);
+      } catch (err) {
+        console.error('Failed to load keys:', err);
+        // Keep the default "Auto-detect" option if fetch fails
+      }
+    };
+
+    loadKeys();
+  }, []);
 
   // Profile options - different analysis approaches
   const profileOptions = [

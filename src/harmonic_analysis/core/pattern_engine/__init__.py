@@ -12,7 +12,7 @@ from .calibration import CalibrationMapping, CalibrationMetrics, Calibrator
 from .evidence import Evidence
 
 # Legacy components (to be migrated)
-from .glossary_service import GlossaryService
+from .glossary_provider import GlossaryProvider
 from .matcher import Matcher, Pattern, PatternLibrary, Token, load_library
 from .pattern_engine import AnalysisContext, PatternEngine
 from .pattern_loader import PatternLoader
@@ -29,7 +29,7 @@ __all__ = [
     "Matcher",
     "load_library",
     "TokenConverter",
-    "GlossaryService",
+    "GlossaryProvider",
     # New unified engine
     "PatternEngine",
     "AnalysisContext",

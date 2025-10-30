@@ -15,8 +15,9 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
+from harmonic_analysis import ALL_KEYS
 from harmonic_analysis.api.analysis import analyze_melody, analyze_scale
-from harmonic_analysis.core.pattern_engine.glossary_service import GlossaryService
+from harmonic_analysis.core.pattern_engine.glossary_provider import GlossaryProvider
 from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
 # Educational imports with graceful fallback
@@ -45,9 +46,9 @@ def get_service() -> PatternAnalysisService:
     return PatternAnalysisService()
 
 
-def get_glossary_service() -> GlossaryService:
+def get_glossary_provider() -> GlossaryProvider:
     """Get or create the glossary service."""
-    return GlossaryService()
+    return GlossaryProvider()
 
 
 # Helper functions
@@ -414,7 +415,7 @@ def glossary_lookup(term: str) -> Dict[str, Any]:
 
     Big play: Search cadence explanations and general term definitions.
     """
-    glossary_service = get_glossary_service()
+    glossary_service = get_glossary_provider()
 
     # Try cadence explanation first
     cadence_info = glossary_service.get_cadence_explanation(term)
@@ -444,3 +445,12 @@ def glossary_lookup(term: str) -> Dict[str, Any]:
     raise HTTPException(
         status_code=404, detail=f"No glossary entry found for '{term}'."
     )
+
+
+# Route: Glossary lookup
+@router.get("/constants/keys")
+def glossary_lookup() -> Dict[str, Any]:
+    """
+    Get a list of all keys
+    """
+    return {"keys": ALL_KEYS}

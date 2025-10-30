@@ -26,7 +26,7 @@ from .aggregator import Aggregator
 from .calibration import CalibrationMapping, Calibrator
 from .evidence import Evidence
 from .glossary import enrich_features, get_summary_terms, load_default_glossary
-from .glossary_service import GlossaryService
+from .glossary_provider import GlossaryProvider
 from .pattern_loader import PatternLoader
 from .plugin_registry import PluginRegistry
 from .target_builder_unified import UnifiedTargetBuilder as TargetBuilder
@@ -115,18 +115,18 @@ class PatternEngine:
         self._patterns: Dict[str, Any] = {}
         self._calibration_mapping: Optional[CalibrationMapping] = None
         self._glossary: Dict[str, Any] = {}
-        self._glossary_service: Optional[GlossaryService] = None
+        self._glossary_provider: Optional[GlossaryProvider] = None
         self.logger = logging.getLogger(__name__)
 
         # Load glossary on initialization with graceful fallback
         try:
-            service = GlossaryService()
+            provider = GlossaryProvider()
         except Exception:
-            service = None
+            provider = None
 
-        if service is not None:
-            self._glossary_service = service
-            self._glossary = dict(service.glossary)
+        if provider is not None:
+            self._glossary_provider = provider
+            self._glossary = dict(provider.glossary)
         else:
             try:
                 self._glossary = load_default_glossary()
@@ -916,12 +916,12 @@ class PatternEngine:
     ) -> Optional[Dict[str, Any]]:
         """Return glossary information for a detected pattern if available."""
 
-        if not self._glossary_service:
+        if not self._glossary_provider:
             return None
 
         # Highest priority: cadence explanations for cadence families
         if family == "cadence":
-            cadence_info = self._glossary_service.get_cadence_explanation(pattern_name)
+            cadence_info = self._glossary_provider.get_cadence_explanation(pattern_name)
             if cadence_info:
                 result = dict(cadence_info)
                 result.setdefault("term", pattern_name)
@@ -929,14 +929,14 @@ class PatternEngine:
                 return result
 
         # General term lookup (matches handle case/spacing)
-        definition = self._glossary_service.get_term_definition(pattern_name)
+        definition = self._glossary_provider.get_term_definition(pattern_name)
         if definition:
             return {"term": pattern_name, "definition": definition, "type": "term"}
 
         # Retry with sanitized name (remove punctuation) for broader matches
         sanitized = re.sub(r"[^A-Za-z0-9 ]+", " ", pattern_name).strip()
         if sanitized and sanitized.lower() != pattern_name.lower():
-            definition = self._glossary_service.get_term_definition(sanitized)
+            definition = self._glossary_provider.get_term_definition(sanitized)
             if definition:
                 return {
                     "term": pattern_name,
@@ -946,7 +946,7 @@ class PatternEngine:
                 }
 
         # Fall back to family-level definition if available
-        family_definition = self._glossary_service.get_term_definition(family)
+        family_definition = self._glossary_provider.get_term_definition(family)
         if family_definition:
             return {
                 "term": pattern_name,
@@ -1195,8 +1195,8 @@ class PatternEngine:
                 "tooltip": "Evidence-driven harmonic pattern analysis pipeline",
             }
         }
-        if self._glossary_service:
-            method_definition = self._glossary_service.get_term_definition(
+        if self._glossary_provider:
+            method_definition = self._glossary_provider.get_term_definition(
                 "unified_pattern_engine"
             )
             if method_definition:

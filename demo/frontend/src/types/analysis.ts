@@ -33,12 +33,15 @@ export interface VisualizationHints {
   };
 }
 
+/**
+ * Educational card for pattern summaries.
+ * Progressive disclosure model: Users explore depth through interaction, not skill level labels.
+ */
 export interface EducationalCard {
   pattern_id: string;
   title: string;
   summary: string;
   category?: string;
-  difficulty?: string;
   visualization?: VisualizationHints;
 }
 
@@ -111,4 +114,9 @@ export interface FileAnalysisResponse {
   is_midi: boolean;
   parsing_logs?: string;
   window_size_used?: number;
+}
+
+// Keys endpoint response type
+export interface KeysResponse {
+  keys: string[];
 }

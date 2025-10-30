@@ -12,14 +12,21 @@ Legacy Service (stable):
 Next-Generation Unified Engine (recommended for new projects):
     from harmonic_analysis import UnifiedPatternService
 
-This is the main API layer providing essential functions for 90% of users.
-For specialized functionality, see:
-- harmonic_analysis.chromatic - Advanced chromatic analysis
-- harmonic_analysis.midi - MIDI integration and chord parsing
-- harmonic_analysis.scales - Complete scale matrix system
-- harmonic_analysis.theory - Music theory utilities
-- harmonic_analysis.algorithms - Advanced algorithmic analysis
-- harmonic_analysis.character - Musical character and emotional analysis
+User-Facing API:
+This module exports only user-facing functionality. Internal components
+(pattern engine internals, calibration, corpus mining) are not exposed.
+
+Exported functionality:
+- Analysis Services (PatternAnalysisService, UnifiedPatternService)
+- Simple Analysis Functions (analyze_melody, analyze_scale)
+- Music Theory Constants (MODAL_CHARACTERISTICS, ALL_KEYS, etc.)
+- Character & Emotional Analysis (get_mode_emotional_profile, etc.)
+- Musical Data Access (get_scale_notes, get_circle_of_fifths, etc.)
+- Result Types (AnalysisEnvelope, AnalysisSummary, etc.)
+
+Optional Features (separate imports):
+- Educational Content: from harmonic_analysis.educational import EducationalService
+- File Integration: from harmonic_analysis.integrations import Music21Adapter
 """
 
 __version__ = "0.2.0rc4"
@@ -79,17 +86,38 @@ from .api.musical_data import (
     validate_musical_input,
 )
 
-# Import utility functions from core
-from .core.scale_melody_analysis import ScaleMelodyAnalysisResult, analyze_scale_melody
+# Import result types from core analysis
+from .core.scale_melody_analysis import ScaleMelodyAnalysisResult
 
 # Music theory constants
 from .core.utils.music_theory_constants import (
+    ALL_KEYS,
     ALL_MAJOR_KEYS,
     ALL_MINOR_KEYS,
     ALL_MODES,
+    CANONICAL_KEY_MAP,
+    INTERVAL_ABBREVIATIONS,
     MODAL_CHARACTERISTICS,
+    SCALE_TO_CHORD_MAPPINGS,
+    SEMITONE_TO_INTERVAL_NAME,
+    ScaleDegree,
+    canonicalize_key_signature,
+    describe_step_pattern,
+    get_characteristic_degrees,
+    get_harmonic_implications,
     get_interval_name,
     get_modal_characteristics,
+    get_scale_applications,
+)
+
+# Scale and pitch constants
+from .core.utils.scales import (
+    HARMONIC_MINOR_MODES,
+    MAJOR_SCALE_MODES,
+    MELODIC_MINOR_MODES,
+    MODAL_PARENT_KEYS,
+    NOTE_TO_PITCH_CLASS,
+    PITCH_CLASS_NAMES,
 )
 
 # Import DTO types for pattern analysis
@@ -115,7 +143,7 @@ from .utils.analysis_helpers import describe_contour
 __all__ = [
     # Version
     "__version__",
-    # 🆕 Advanced Pattern Analysis
+    # 🆕 Advanced Pattern Analysis Services
     "PatternAnalysisService",  # Legacy service
     "UnifiedPatternService",  # Next-generation unified engine
     # DTO types for pattern analysis
@@ -129,19 +157,23 @@ __all__ = [
     # Core analysis functions
     "analyze_melody",
     "analyze_scale",
-    # Configuration (2)
+    # Configuration
     "AnalysisOptions",
     "PedagogicalLevel",
     # Common result types
     "ScaleMelodyAnalysisResult",
     "AnalysisSuggestions",
     "KeySuggestion",
-    # Utility functions (4)
-    "analyze_scale_melody",
+    # Music Theory Utility Functions
     "get_interval_name",
     "get_modal_characteristics",
+    "get_characteristic_degrees",
+    "get_harmonic_implications",
+    "get_scale_applications",
+    "describe_step_pattern",
+    "canonicalize_key_signature",
     "describe_contour",
-    # Character and Emotional Analysis (8)
+    # Character and Emotional Analysis
     "EmotionalProfile",
     "ProgressionCharacter",
     "CharacterSuggestion",
@@ -150,11 +182,24 @@ __all__ = [
     "get_character_suggestions",
     "get_modes_by_brightness",
     "describe_emotional_contour",
-    # Constants (4)
+    # Music Theory Constants
+    "ALL_KEYS",
     "ALL_MAJOR_KEYS",
     "ALL_MINOR_KEYS",
     "ALL_MODES",
     "MODAL_CHARACTERISTICS",
+    "CANONICAL_KEY_MAP",
+    "SEMITONE_TO_INTERVAL_NAME",
+    "INTERVAL_ABBREVIATIONS",
+    "SCALE_TO_CHORD_MAPPINGS",
+    "ScaleDegree",
+    # Scale and Pitch Constants
+    "NOTE_TO_PITCH_CLASS",
+    "PITCH_CLASS_NAMES",
+    "MAJOR_SCALE_MODES",
+    "MELODIC_MINOR_MODES",
+    "HARMONIC_MINOR_MODES",
+    "MODAL_PARENT_KEYS",
     # Musical Data API (comprehensive data access)
     "get_all_degree_to_mode_mappings",
     "get_all_notes",

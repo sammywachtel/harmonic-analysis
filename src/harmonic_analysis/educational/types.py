@@ -76,13 +76,14 @@ class PatternSummary:
     Lightweight summary for pattern cards (frontend MVP).
 
     Provides just the essential info for a card-sized educational display.
+    Progressive disclosure model: Summary → Full explanation → Technical details
+    (depth controlled by user interaction, not skill level assignments)
     """
 
     pattern_id: str
     title: str  # Display name (e.g., "Perfect Authentic Cadence (PAC)")
     summary: str  # Two-sentence Bernstein-style summary
     category: Optional[str] = None  # Pattern family (e.g., "cadential")
-    difficulty: Optional[str] = None  # "beginner", "intermediate", "advanced"
 
 
 @dataclass
@@ -129,13 +130,14 @@ class EducationalCard:
     Frontend-ready card representation for educational content.
 
     Serializable format for REST API responses.
+    Progressive disclosure model: Users explore depth through interaction,
+    not skill level labels.
     """
 
     pattern_id: str
     title: str
     summary: str
     category: Optional[str] = None
-    difficulty: Optional[str] = None
     visualization: Optional[VisualizationHints] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -145,7 +147,6 @@ class EducationalCard:
             "title": self.title,
             "summary": self.summary,
             "category": self.category,
-            "difficulty": self.difficulty,
         }
 
         # Big play: Include visualization hints if present

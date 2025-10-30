@@ -296,10 +296,10 @@ class PatternAnalysisService:
 
     @property
     def glossary_service(self) -> Any:
-        """Access to glossary service for backward compatibility."""
+        """Access to glossary provider for backward compatibility."""
         # Import here to avoid circular dependencies
-        from ..core.pattern_engine.glossary_service import GlossaryService
+        from ..core.pattern_engine.glossary_provider import GlossaryProvider
 
-        if not hasattr(self, "_glossary_service"):
-            self._glossary_service = GlossaryService()
-        return self._glossary_service
+        if not hasattr(self, "_glossary_provider"):
+            self._glossary_provider = GlossaryProvider()
+        return self._glossary_provider

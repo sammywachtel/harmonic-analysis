@@ -1,7 +1,7 @@
 """
 Glossary helper functions for feature term enrichment.
 
-This module provides pure helper functions that work with the existing GlossaryService
+This module provides pure helper functions that work with the existing GlossaryProvider
 to enrich backend feature names with human-readable labels, tooltips, and definitions
 for UI presentation. No UI dependencies - pure data transformation.
 """
@@ -9,12 +9,12 @@ for UI presentation. No UI dependencies - pure data transformation.
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from .glossary_service import GlossaryService
+from .glossary_provider import GlossaryProvider
 
 
 def load_glossary(path: Optional[Path] = None) -> Dict[str, Any]:
     """
-    Load glossary data using the existing GlossaryService.
+    Load glossary data using the existing GlossaryProvider.
 
     Args:
         path: Optional path to glossary.json file. If None, uses default.
@@ -26,19 +26,19 @@ def load_glossary(path: Optional[Path] = None) -> Dict[str, Any]:
         FileNotFoundError: If glossary file doesn't exist
     """
     if path:
-        service = GlossaryService(str(path))
+        service = GlossaryProvider(str(path))
     else:
-        service = GlossaryService()
+        service = GlossaryProvider()
 
     return service.glossary
 
 
 def explain_feature(glossary: Dict[str, Any], key: str) -> Tuple[str, str]:
     """
-    Get human-readable label and tooltip for a feature key using GlossaryService logic.
+    Get human-readable label and tooltip for a feature key using GlossaryProvider logic.
 
     Args:
-        glossary: Loaded glossary data (from GlossaryService)
+        glossary: Loaded glossary data (from GlossaryProvider)
         key: Feature key to explain (e.g., "lt_suppression", "raised6_ratio")
 
     Returns:
@@ -46,7 +46,7 @@ def explain_feature(glossary: Dict[str, Any], key: str) -> Tuple[str, str]:
         to provide graceful fallback without exceptions.
     """
     # Create a temporary service instance to use existing lookup logic
-    service = GlossaryService()
+    service = GlossaryProvider()
     service.glossary = glossary
 
     # Use existing get_term_definition method
@@ -251,7 +251,7 @@ def describe_feature(glossary: Dict[str, Any], key: str) -> Dict[str, Any]:
 
 def load_default_glossary() -> Dict[str, Any]:
     """
-    Load glossary from default location using GlossaryService.
+    Load glossary from default location using GlossaryProvider.
 
     Returns:
         Loaded glossary data

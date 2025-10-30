@@ -1,5 +1,5 @@
 """
-Glossary Service - Educational context for pattern analysis terms.
+Glossary Provider - Educational context for pattern analysis terms.
 
 Provides definitions, examples, and educational context for music theory
 terms used in pattern analysis results.
@@ -15,11 +15,11 @@ except ImportError:
     from pathlib import Path
 
 
-class GlossaryService:
-    """Service for providing educational context about music theory terms."""
+class GlossaryProvider:
+    """Provider for educational context about music theory terms."""
 
     def __init__(self, glossary_path: Optional[str] = None):
-        """Initialize glossary service.
+        """Initialize glossary provider.
 
         Args:
             glossary_path: Path to glossary JSON file. If None, uses resource loader.
