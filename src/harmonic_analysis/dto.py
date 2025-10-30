@@ -7,9 +7,102 @@ They should evolve carefully to maintain backwards compatibility.
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
+
+# -----------------------------
+# Serialization Utilities
+# -----------------------------
+#
+# DESIGN PHILOSOPHY:
+# Rather than manually handling each field in to_dict() methods, we use a
+# centralized recursive serializer that automatically handles:
+# - Enums → string values
+# - Nested dataclasses → dictionaries
+# - Lists/dicts → recursively serialized
+#
+# BENEFITS:
+# 1. DRY: One place to define serialization logic
+# 2. Robust: New fields with enums/dataclasses work automatically
+# 3. Maintainable: No need to update to_dict() when adding fields
+# 4. Consistent: All DTOs serialize the same way
+#
+# USAGE:
+# Just call serialize_dataclass(self) in your to_dict() method.
+# No need to manually convert enums or nested objects!
+#
+# EXAMPLE:
+#   @dataclass
+#   class MyDTO:
+#       status: MyEnum
+#       nested: OtherDTO
+#
+#       def to_dict(self) -> Dict[str, Any]:
+#           return serialize_dataclass(self)  # That's it!
+
+
+def _serialize_value(obj: Any) -> Any:
+    """
+    Recursively serialize a value to JSON-compatible types.
+
+    Handles:
+    - Enums: Convert to their string value
+    - Dataclasses with to_dict(): Call their to_dict() method
+    - Other dataclasses: Recursively convert via asdict
+    - Lists: Recursively serialize each element
+    - Dicts: Recursively serialize each value
+    - Everything else: Pass through as-is
+
+    This centralized approach prevents brittle manual serialization code.
+    """
+    # Enums: extract the string value
+    if isinstance(obj, Enum):
+        return obj.value
+
+    # Dataclasses with custom to_dict: use it
+    if hasattr(obj, "to_dict") and callable(getattr(obj, "to_dict")):
+        return obj.to_dict()
+
+    # Other dataclasses: recursively convert
+    if hasattr(obj, "__dataclass_fields__"):
+        return asdict(
+            obj, dict_factory=lambda items: {k: _serialize_value(v) for k, v in items}
+        )
+
+    # Lists: recursively serialize elements
+    if isinstance(obj, list):
+        return [_serialize_value(item) for item in obj]
+
+    # Dicts: recursively serialize values
+    if isinstance(obj, dict):
+        return {k: _serialize_value(v) for k, v in obj.items()}
+
+    # Everything else: pass through
+    return obj
+
+
+def serialize_dataclass(obj: Any) -> Dict[str, Any]:
+    """
+    Convert any dataclass to a JSON-serializable dictionary.
+
+    This is the main entry point for serialization. It handles all nested
+    structures, enums, and custom types automatically.
+
+    Args:
+        obj: A dataclass instance to serialize
+
+    Returns:
+        A dictionary with all values converted to JSON-compatible types
+    """
+    if not hasattr(obj, "__dataclass_fields__"):
+        raise TypeError(f"Expected a dataclass, got {type(obj)}")
+
+    return asdict(
+        obj, dict_factory=lambda items: {k: _serialize_value(v) for k, v in items}
+    )
+
 
 # -----------------------------
 # Enums
@@ -54,6 +147,9 @@ class FunctionalChordDTO:
     is_chromatic: Optional[bool] = None
     bass_note: Optional[str] = None  # e.g., "G" if slash chord
 
+    def to_dict(self) -> Dict[str, Any]:
+        return serialize_dataclass(self)
+
 
 @dataclass
 class SectionDTO:
@@ -63,6 +159,9 @@ class SectionDTO:
     start: int  # inclusive chord index
     end: int  # exclusive chord index
     label: Optional[str] = None  # optional display name
+
+    def to_dict(self) -> Dict[str, Any]:
+        return serialize_dataclass(self)
 
 
 @dataclass
@@ -83,6 +182,9 @@ class PatternMatchDTO:
         None  # Cadence type
     )
     is_section_closure: Optional[bool] = None  # True if pattern closes a section
+
+    def to_dict(self) -> Dict[str, Any]:
+        return serialize_dataclass(self)
 
 
 @dataclass
@@ -145,6 +247,9 @@ class ChromaticSummaryDTO:
     borrowed_key_area: Optional[str] = None
     notes: List[str] = field(default_factory=list)  # observations
 
+    def to_dict(self) -> Dict[str, Any]:
+        return serialize_dataclass(self)
+
 
 @dataclass
 class ScaleSummaryDTO:
@@ -161,6 +266,9 @@ class ScaleSummaryDTO:
     notes: List[str] = field(
         default_factory=list
     )  # Actual note names ["C", "D", "E♭", ...]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return serialize_dataclass(self)
 
 
 @dataclass
@@ -179,6 +287,9 @@ class MelodySummaryDTO:
         default_factory=list
     )  # ["stepwise motion", "leap emphasis"]
 
+    def to_dict(self) -> Dict[str, Any]:
+        return serialize_dataclass(self)
+
 
 @dataclass
 class EvidenceDTO:
@@ -186,6 +297,9 @@ class EvidenceDTO:
 
     reason: str  # short reason code, e.g., "modal-vamp"
     details: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return serialize_dataclass(self)
 
 
 # -----------------------------
@@ -262,10 +376,19 @@ class AnalysisSummary:
 
     # Convenience (std-lib) serialization without extra deps
     def to_dict(self) -> Dict[str, Any]:
-        d = asdict(self)
-        # Convert enum to its string value before serialization
-        d["type"] = self.type.value
-        return d
+        return serialize_dataclass(self)
+
+    def to_json(self, indent: Optional[int] = None) -> str:
+        """
+        Serialize to JSON string.
+
+        Args:
+            indent: If provided, pretty-print with the specified indent level
+
+        Returns:
+            JSON string representation
+        """
+        return json.dumps(self.to_dict(), indent=indent)
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "AnalysisSummary":
@@ -400,6 +523,19 @@ class AnalysisSummary:
             final_cadence=_pm(d["final_cadence"]) if d.get("final_cadence") else None,
         )
 
+    @staticmethod
+    def from_json(json_str: str) -> "AnalysisSummary":
+        """
+        Deserialize from JSON string.
+
+        Args:
+            json_str: JSON string to deserialize
+
+        Returns:
+            AnalysisSummary object
+        """
+        return AnalysisSummary.from_dict(json.loads(json_str))
+
 
 # -----------------------------
 # Envelope (top-level result)
@@ -429,14 +565,19 @@ class AnalysisEnvelope:
     schema_version: str = "1.0"
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            "primary": self.primary.to_dict(),
-            "alternatives": [a.to_dict() for a in self.alternatives],
-            "analysis_time_ms": self.analysis_time_ms,
-            "chord_symbols": list(self.chord_symbols),
-            "evidence": [asdict(e) for e in self.evidence],
-            "schema_version": self.schema_version,
-        }
+        return serialize_dataclass(self)
+
+    def to_json(self, indent: Optional[int] = None) -> str:
+        """
+        Serialize to JSON string.
+
+        Args:
+            indent: If provided, pretty-print with the specified indent level
+
+        Returns:
+            JSON string representation
+        """
+        return json.dumps(self.to_dict(), indent=indent)
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "AnalysisEnvelope":
@@ -475,6 +616,19 @@ class AnalysisEnvelope:
             schema_version=d.get("schema_version", "1.0"),
         )
 
+    @staticmethod
+    def from_json(json_str: str) -> "AnalysisEnvelope":
+        """
+        Deserialize from JSON string.
+
+        Args:
+            json_str: JSON string to deserialize
+
+        Returns:
+            AnalysisEnvelope object
+        """
+        return AnalysisEnvelope.from_dict(json.loads(json_str))
+
 
 # -----------------------------
 # Arbitration DTOs
@@ -492,3 +646,49 @@ class ArbitrationResult:
     progression_type: ProgressionType
     rationale: str
     warnings: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return serialize_dataclass(self)
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "ArbitrationResult":
+        """Deserialize a dictionary into an ArbitrationResult object."""
+        ptype = d.get("progression_type", ProgressionType.UNKNOWN)
+        if isinstance(ptype, str):
+            ptype = ProgressionType(ptype)
+
+        return ArbitrationResult(
+            primary=AnalysisSummary.from_dict(d["primary"]),
+            alternatives=[
+                AnalysisSummary.from_dict(x) for x in d.get("alternatives", [])
+            ],
+            confidence_gap=float(d.get("confidence_gap", 0.0)),
+            progression_type=ptype,
+            rationale=d.get("rationale", ""),
+            warnings=list(d.get("warnings", [])),
+        )
+
+    def to_json(self, indent: Optional[int] = None) -> str:
+        """
+        Serialize to JSON string.
+
+        Args:
+            indent: If provided, pretty-print with the specified indent level
+
+        Returns:
+            JSON string representation
+        """
+        return json.dumps(self.to_dict(), indent=indent)
+
+    @staticmethod
+    def from_json(json_str: str) -> "ArbitrationResult":
+        """
+        Deserialize from JSON string.
+
+        Args:
+            json_str: JSON string to deserialize
+
+        Returns:
+            ArbitrationResult object
+        """
+        return ArbitrationResult.from_dict(json.loads(json_str))
