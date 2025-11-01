@@ -1104,11 +1104,23 @@ class PatternEngine:
                     pattern_def, evidence.pattern_id
                 )
 
-                family = (
-                    evidence.pattern_id.split(".")[0]
-                    if "." in evidence.pattern_id
-                    else "general"
-                )
+                # Extract family from pattern ID using track-based schema
+                # Schema: {track}.{family}.{specifics}
+                # Examples: functional.cadence.authentic.perfect -> "cadence"
+                #           modal.dorian.i_IV -> "dorian"
+                #           chromatic.secondary_dominant -> "secondary_dominant"
+                #           cadence.test (legacy) -> "cadence"
+                parts = evidence.pattern_id.split(".")
+                known_tracks = {"functional", "chromatic", "modal"}
+
+                if len(parts) >= 2 and parts[0] in known_tracks:
+                    # Track-based schema: second level is the family
+                    family = parts[1]
+                elif len(parts) >= 1:
+                    # Legacy pattern or single-level: first part is family
+                    family = parts[0]
+                else:
+                    family = "general"
                 pattern_match = PatternMatchDTO(
                     start=evidence.span[0],
                     end=evidence.span[1],

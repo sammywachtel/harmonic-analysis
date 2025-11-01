@@ -1,0 +1,101 @@
+{
+  "metadata": {
+    "description": "Multi-style analysis profile definitions",
+    "version": "1.0",
+    "created": "2025-10-31",
+    "author": "Harmonic Analysis Library"
+  },
+  "profiles": [
+    {
+      "name": "jazz",
+      "display_name": "Jazz",
+      "enabled": true,
+      "substitutions": {
+        "V": ["♭II7", "V7", "V9", "V13"],
+        "ii": ["♭II7", "ii7", "iiø7"]
+      },
+      "typicality_weights": {
+        "functional.jazz_iiviV": 0.95,
+        "functional.jazz_turnaround": 0.95,
+        "cadence.turnaround": 0.90,
+        "cadence.tritone_substitution": 0.95,
+        "functional.extended_dominants": 0.90,
+        "functional.altered_dominants": 0.90,
+        "chromatic.tritone_sub": 0.95,
+        "chromatic.secondary_dominant": 0.85,
+        "functional.circle_of_fifths": 0.80,
+        "modal.*": 0.30,
+        "cadence.authentic.*": 0.75,
+        "cadence.plagal": 0.60
+      }
+    },
+    {
+      "name": "classical",
+      "display_name": "Classical",
+      "enabled": true,
+      "substitutions": {
+        "IV": ["ii6"]
+      },
+      "typicality_weights": {
+        "cadence.authentic.perfect": 0.95,
+        "cadence.authentic.imperfect": 0.90,
+        "cadence.half": 0.90,
+        "cadence.plagal": 0.85,
+        "cadence.deceptive": 0.85,
+        "functional.predominant_dominant": 0.90,
+        "functional.circle_of_fifths": 0.85,
+        "chromatic.secondary_dominant": 0.80,
+        "chromatic.applied_leading": 0.75,
+        "functional.jazz_iiviV": 0.40,
+        "functional.jazz_turnaround": 0.30,
+        "modal.*": 0.35,
+        "chromatic.tritone_sub": 0.20
+      }
+    },
+    {
+      "name": "pop",
+      "display_name": "Pop",
+      "enabled": true,
+      "substitutions": {
+        "IV": ["ii", "ii6", "IV6"]
+      },
+      "typicality_weights": {
+        "functional.pop_progression": 0.95,
+        "functional.axis_progression": 0.90,
+        "cadence.plagal": 0.90,
+        "functional.subdominant_loop": 0.85,
+        "chromatic.borrowed_chord": 0.85,
+        "modal.mixolydian_cadence": 0.80,
+        "cadence.authentic.*": 0.75,
+        "functional.circle_of_fifths": 0.70,
+        "chromatic.secondary_dominant": 0.65,
+        "functional.jazz_iiviV": 0.50,
+        "modal.*": 0.60,
+        "chromatic.tritone_sub": 0.30
+      }
+    },
+    {
+      "name": "modal",
+      "display_name": "Modal",
+      "enabled": true,
+      "substitutions": {
+        "bVII": ["V"]
+      },
+      "typicality_weights": {
+        "modal.dorian_vamp": 0.95,
+        "modal.mixolydian_cadence": 0.95,
+        "modal.phrygian_cadence": 0.95,
+        "modal.lydian_characteristic": 0.95,
+        "modal.aeolian_progression": 0.90,
+        "modal.locrian_pattern": 0.85,
+        "modal.*": 0.90,
+        "functional.subdominant_emphasis": 0.70,
+        "cadence.plagal": 0.65,
+        "functional.circle_of_fifths": 0.50,
+        "cadence.authentic.*": 0.40,
+        "functional.jazz_iiviV": 0.25,
+        "chromatic.tritone_sub": 0.15
+      }
+    }
+  ]
+}

@@ -46,7 +46,8 @@ class EducationalService:
         Get comprehensive educational explanation for a pattern.
 
         Args:
-            pattern_id: Pattern identifier (e.g., "cadence.authentic.perfect")
+            pattern_id: Pattern identifier
+                       (e.g., "functional.cadence.authentic.perfect")
             level: Learning level for explanation
 
         Returns:
@@ -59,10 +60,12 @@ class EducationalService:
         Get complete Bernstein-style explanation with progressive disclosure.
 
         Opening move: Delegate to knowledge base for full explanation.
-        Victory lap: Return complete explanation with Layer 1 and optional Layer 2.
+        Victory lap: Return complete explanation with Layer 1 and optional
+        Layer 2.
 
         Args:
-            pattern_id: Pattern identifier (e.g., "cadence.authentic.perfect")
+            pattern_id: Pattern identifier
+                       (e.g., "functional.cadence.authentic.perfect")
 
         Returns:
             FullExplanation if found, None otherwise
@@ -238,7 +241,8 @@ class EducationalService:
         Opening move: Delegate to knowledge base with fallback logic.
 
         Args:
-            pattern_id: Pattern identifier (e.g., "cadence.authentic.perfect")
+            pattern_id: Pattern identifier
+                       (e.g., "functional.cadence.authentic.perfect")
             level: Learning level for summary
 
         Returns:

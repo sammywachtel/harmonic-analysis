@@ -1,8 +1,8 @@
 {
   "version": 1,
   "concepts": {
-    "cadence.authentic.perfect": {
-      "id": "cadence.authentic.perfect",
+    "functional.cadence.authentic.perfect": {
+      "id": "functional.cadence.authentic.perfect",
       "display_name": "Perfect Authentic Cadence (PAC)",
       "category": "cadential",
       "learning_levels": {
@@ -151,8 +151,8 @@
         }
       }
     },
-    "cadence.authentic.imperfect": {
-      "id": "cadence.authentic.imperfect",
+    "functional.cadence.authentic.imperfect": {
+      "id": "functional.cadence.authentic.imperfect",
       "display_name": "Imperfect Authentic Cadence (IAC)",
       "category": "cadential",
       "learning_levels": {
@@ -391,8 +391,8 @@
         "Analyze jazz standards for ii-V-I occurrences and substitutions"
       ]
     },
-    "cadence.half": {
-      "id": "cadence.half",
+    "functional.cadence.half": {
+      "id": "functional.cadence.half",
       "display_name": "Half Cadence (HC)",
       "category": "cadential",
       "learning_levels": {

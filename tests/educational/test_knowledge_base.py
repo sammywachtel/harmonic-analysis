@@ -26,10 +26,12 @@ class TestKnowledgeBase:
     def test_get_pac_concept_beginner(self):
         """Main play: retrieve PAC concept at beginner level."""
         kb = KnowledgeBase()
-        context = kb.get_concept("cadence.authentic.perfect", LearningLevel.BEGINNER)
+        context = kb.get_concept(
+            "functional.cadence.authentic.perfect", LearningLevel.BEGINNER
+        )
 
         assert context is not None
-        assert context.pattern_id == "cadence.authentic.perfect"
+        assert context.pattern_id == "functional.cadence.authentic.perfect"
         assert context.level == LearningLevel.BEGINNER
         assert len(context.summary) > 0
         assert len(context.key_points) > 0
@@ -38,10 +40,10 @@ class TestKnowledgeBase:
         """Test advanced level content differs from beginner."""
         kb = KnowledgeBase()
         beginner_ctx = kb.get_concept(
-            "cadence.authentic.perfect", LearningLevel.BEGINNER
+            "functional.cadence.authentic.perfect", LearningLevel.BEGINNER
         )
         advanced_ctx = kb.get_concept(
-            "cadence.authentic.perfect", LearningLevel.ADVANCED
+            "functional.cadence.authentic.perfect", LearningLevel.ADVANCED
         )
 
         assert beginner_ctx.summary != advanced_ctx.summary
@@ -49,7 +51,7 @@ class TestKnowledgeBase:
     def test_get_progression_examples(self):
         """Verify progression examples are loaded."""
         kb = KnowledgeBase()
-        examples = kb.get_progression_examples("cadence.authentic.perfect")
+        examples = kb.get_progression_examples("functional.cadence.authentic.perfect")
 
         assert len(examples) > 0
         assert examples[0].chords
@@ -59,7 +61,9 @@ class TestKnowledgeBase:
     def test_get_related_concepts(self):
         """Test relationship extraction."""
         kb = KnowledgeBase()
-        related = kb.get_related_concepts("cadence.authentic.perfect", "contrasts_with")
+        related = kb.get_related_concepts(
+            "functional.cadence.authentic.perfect", "contrasts_with"
+        )
 
         assert len(related) > 0
         assert any("imperfect" in r.concept_id for r in related)
@@ -70,16 +74,18 @@ class TestKnowledgeBase:
         concepts = kb.list_all_concepts()
 
         assert len(concepts) > 0
-        assert "cadence.authentic.perfect" in concepts
+        assert "functional.cadence.authentic.perfect" in concepts
         assert "functional.ii_V_I" in concepts
 
     def test_get_summary_exact_match(self):
         """Test get_summary with exact pattern ID match."""
         kb = KnowledgeBase()
-        summary = kb.get_summary("cadence.authentic.perfect", LearningLevel.BEGINNER)
+        summary = kb.get_summary(
+            "functional.cadence.authentic.perfect", LearningLevel.BEGINNER
+        )
 
         assert summary is not None
-        assert summary.pattern_id == "cadence.authentic.perfect"
+        assert summary.pattern_id == "functional.cadence.authentic.perfect"
         assert summary.title == "Perfect Authentic Cadence (PAC)"
         assert len(summary.summary) > 0
         assert summary.category == "cadential"
@@ -128,9 +134,15 @@ class TestKnowledgeBase:
         """Test pattern ID case-insensitive lookup."""
         kb = KnowledgeBase()
         # Test with different case
-        summary1 = kb.get_summary("cadence.authentic.perfect", LearningLevel.BEGINNER)
-        summary2 = kb.get_summary("CADENCE.AUTHENTIC.PERFECT", LearningLevel.BEGINNER)
-        summary3 = kb.get_summary("Cadence.Authentic.Perfect", LearningLevel.BEGINNER)
+        summary1 = kb.get_summary(
+            "functional.cadence.authentic.perfect", LearningLevel.BEGINNER
+        )
+        summary2 = kb.get_summary(
+            "FUNCTIONAL.CADENCE.AUTHENTIC.PERFECT", LearningLevel.BEGINNER
+        )
+        summary3 = kb.get_summary(
+            "Functional.Cadence.Authentic.Perfect", LearningLevel.BEGINNER
+        )
 
         assert summary1 is not None
         assert summary2 is not None
@@ -150,7 +162,9 @@ class TestKnowledgeBase:
     def test_get_summary_two_sentence_requirement(self):
         """Test that PAC summary meets two-sentence requirement."""
         kb = KnowledgeBase()
-        summary = kb.get_summary("cadence.authentic.perfect", LearningLevel.BEGINNER)
+        summary = kb.get_summary(
+            "functional.cadence.authentic.perfect", LearningLevel.BEGINNER
+        )
 
         assert summary is not None
         # Count sentences (simple heuristic: count periods)
@@ -162,11 +176,11 @@ class TestKnowledgeBase:
     def test_get_full_explanation_pac(self):
         """Test retrieval of full Bernstein-style explanation for PAC."""
         kb = KnowledgeBase()
-        explanation = kb.get_full_explanation("cadence.authentic.perfect")
+        explanation = kb.get_full_explanation("functional.cadence.authentic.perfect")
 
         # Opening move: verify explanation exists
         assert explanation is not None
-        assert explanation.pattern_id == "cadence.authentic.perfect"
+        assert explanation.pattern_id == "functional.cadence.authentic.perfect"
         assert explanation.title == "Perfect Authentic Cadence (PAC)"
 
         # Main play: verify Layer 1 content (core Bernstein-style)
@@ -208,7 +222,7 @@ class TestEducationalService:
         """Test pattern explanation retrieval."""
         service = EducationalService()
         context = service.explain_pattern(
-            "cadence.authentic.perfect", LearningLevel.INTERMEDIATE
+            "functional.cadence.authentic.perfect", LearningLevel.INTERMEDIATE
         )
 
         assert context is not None
@@ -217,7 +231,7 @@ class TestEducationalService:
     def test_get_musical_examples(self):
         """Test musical example retrieval."""
         service = EducationalService()
-        examples = service.get_musical_examples("cadence.authentic.perfect")
+        examples = service.get_musical_examples("functional.cadence.authentic.perfect")
 
         assert len(examples) > 0
 
@@ -225,7 +239,8 @@ class TestEducationalService:
         """Test practice suggestion generation."""
         service = EducationalService()
         suggestions = service.generate_practice_suggestions(
-            ["cadence.authentic.perfect", "functional.ii_V_I"], LearningLevel.BEGINNER
+            ["functional.cadence.authentic.perfect", "functional.ii_V_I"],
+            LearningLevel.BEGINNER,
         )
 
         assert len(suggestions) > 0
@@ -233,34 +248,34 @@ class TestEducationalService:
     def test_create_learning_path(self):
         """Test learning path generation."""
         service = EducationalService()
-        path = service.create_learning_path("cadence.authentic.perfect")
+        path = service.create_learning_path("functional.cadence.authentic.perfect")
 
         assert len(path) > 0
-        assert "cadence.authentic.perfect" in path
+        assert "functional.cadence.authentic.perfect" in path
 
     def test_get_summary(self):
         """Test get_summary method delegates to knowledge base."""
         service = EducationalService()
         summary = service.get_summary(
-            "cadence.authentic.perfect", LearningLevel.BEGINNER
+            "functional.cadence.authentic.perfect", LearningLevel.BEGINNER
         )
 
         assert summary is not None
-        assert summary.pattern_id == "cadence.authentic.perfect"
+        assert summary.pattern_id == "functional.cadence.authentic.perfect"
         assert len(summary.summary) > 0
 
     def test_enrich_analysis_with_dict_patterns(self):
         """Test enrich_analysis with dict-based pattern matches."""
         service = EducationalService()
         patterns = [
-            {"pattern_id": "cadence.authentic.perfect"},
+            {"pattern_id": "functional.cadence.authentic.perfect"},
             {"pattern_id": "functional.ii_V_I"},
         ]
 
         cards = service.enrich_analysis(patterns, LearningLevel.BEGINNER)
 
         assert len(cards) == 2
-        assert cards[0].pattern_id == "cadence.authentic.perfect"
+        assert cards[0].pattern_id == "functional.cadence.authentic.perfect"
         assert cards[1].pattern_id == "functional.ii_V_I"
         assert all(len(card.summary) > 0 for card in cards)
 
@@ -273,7 +288,7 @@ class TestEducationalService:
             PatternMatchDTO(
                 start=0,
                 end=3,
-                pattern_id="cadence.authentic.perfect",
+                pattern_id="functional.cadence.authentic.perfect",
                 name="PAC",
                 family="cadential",
                 score=0.9,
@@ -283,14 +298,14 @@ class TestEducationalService:
         cards = service.enrich_analysis(patterns, LearningLevel.BEGINNER)
 
         assert len(cards) == 1
-        assert cards[0].pattern_id == "cadence.authentic.perfect"
+        assert cards[0].pattern_id == "functional.cadence.authentic.perfect"
         assert cards[0].title == "Perfect Authentic Cadence (PAC)"
 
     def test_enrich_analysis_filters_unmatched(self):
         """Test enrich_analysis filters out patterns not in knowledge base."""
         service = EducationalService()
         patterns = [
-            {"pattern_id": "cadence.authentic.perfect"},
+            {"pattern_id": "functional.cadence.authentic.perfect"},
             {"pattern_id": "nonexistent.pattern"},
         ]
 
@@ -298,7 +313,7 @@ class TestEducationalService:
 
         # Only the PAC should be in results
         assert len(cards) == 1
-        assert cards[0].pattern_id == "cadence.authentic.perfect"
+        assert cards[0].pattern_id == "functional.cadence.authentic.perfect"
 
     def test_enrich_analysis_empty_input(self):
         """Test enrich_analysis with empty pattern list."""
@@ -311,23 +326,25 @@ class TestEducationalService:
         """Test enrich_analysis normalizes pattern IDs (case-insensitive)."""
         service = EducationalService()
         patterns = [
-            {"pattern_id": "CADENCE.AUTHENTIC.PERFECT"},
+            {"pattern_id": "FUNCTIONAL.CADENCE.AUTHENTIC.PERFECT"},
         ]
 
         cards = service.enrich_analysis(patterns, LearningLevel.BEGINNER)
 
         assert len(cards) == 1
         # Should normalize to lowercase
-        assert cards[0].pattern_id == "cadence.authentic.perfect"
+        assert cards[0].pattern_id == "functional.cadence.authentic.perfect"
 
     def test_explain_pattern_full_pac(self):
         """Test explain_pattern_full returns full Bernstein-style explanation."""
         service = EducationalService()
-        explanation = service.explain_pattern_full("cadence.authentic.perfect")
+        explanation = service.explain_pattern_full(
+            "functional.cadence.authentic.perfect"
+        )
 
         # Opening move: verify explanation exists and has correct structure
         assert explanation is not None
-        assert explanation.pattern_id == "cadence.authentic.perfect"
+        assert explanation.pattern_id == "functional.cadence.authentic.perfect"
         assert explanation.title == "Perfect Authentic Cadence (PAC)"
 
         # Main play: verify all required Layer 1 fields
@@ -369,7 +386,7 @@ class TestEducationalFormatter:
         formatter = EducationalFormatter()
 
         context = service.explain_pattern(
-            "cadence.authentic.perfect", LearningLevel.BEGINNER
+            "functional.cadence.authentic.perfect", LearningLevel.BEGINNER
         )
         text = formatter.format_text(context)
 
@@ -382,7 +399,7 @@ class TestEducationalFormatter:
         formatter = EducationalFormatter()
 
         context = service.explain_pattern(
-            "cadence.authentic.perfect", LearningLevel.ADVANCED
+            "functional.cadence.authentic.perfect", LearningLevel.ADVANCED
         )
         text = formatter.format_text(context)
 
@@ -395,7 +412,7 @@ class TestEducationalFormatter:
         formatter = EducationalFormatter()
 
         context = service.explain_pattern(
-            "cadence.authentic.perfect", LearningLevel.INTERMEDIATE
+            "functional.cadence.authentic.perfect", LearningLevel.INTERMEDIATE
         )
         html = formatter.format_html(context)
 

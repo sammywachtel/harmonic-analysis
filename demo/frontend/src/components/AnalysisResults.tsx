@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import type { AnalysisResponse } from '../types/analysis';
-import { PatternSummaryCard } from './PatternSummaryCard';
+import { EnhancedPatternCard } from './EnhancedPatternCard';
 import { ChordProgressionVisual } from './ChordProgressionVisual';
 
 interface AnalysisResultsProps {
@@ -14,18 +14,14 @@ interface AnalysisResultsProps {
 
 const AnalysisResults = ({ results, showEducational = true, chords = [] }: AnalysisResultsProps) => {
   const [showAlternatives, setShowAlternatives] = useState(false);
-  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
   const [hoveredPatternId, setHoveredPatternId] = useState<string | null>(null);
 
   const { analysis, enhanced_summaries, educational } = results;
   const hasAlternatives = analysis.alternatives && analysis.alternatives.length > 0;
-  const hasEducationalContent = educational?.available && educational?.content && educational.content.length > 0;
 
   // Main play: Get visualization hints - use first pattern with visualization data for default display
   // Big play: Collect ALL pattern visualizations for multiple bracket support
   const getAllPatternVisualizations = () => {
-    if (!educational?.content) return [];
-
     // Group cards by their bracket range
     const visualizationGroups: Array<{
       chordColors?: string[];
@@ -33,29 +29,40 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
       labels: string[];
     }> = [];
 
-    // Main play: iterate through all cards and group by bracket range
-    educational.content.forEach(card => {
-      if (!card.visualization?.bracket_range) return;
+    // Opening move: Create visualizations from ALL patterns (educational or not)
+    if (analysis.primary.patterns && analysis.primary.patterns.length > 0) {
+      analysis.primary.patterns.forEach(pattern => {
+        // Find matching educational content if available
+        const eduContent = educational?.content?.find(
+          card => card.pattern_id === pattern.pattern_id
+        );
 
-      const bracket = card.visualization.bracket_range;
+        // Use educational visualization if available, otherwise create from pattern data
+        const bracket = eduContent?.visualization?.bracket_range
+          ? eduContent.visualization.bracket_range
+          : { start: pattern.start, end: pattern.end };
 
-      // Find existing group with this bracket range
-      const existingGroup = visualizationGroups.find(g =>
-        g.bracketRange.start === bracket.start && g.bracketRange.end === bracket.end
-      );
+        const label = eduContent?.title || pattern.name;
+        const chordColors = eduContent?.visualization?.chord_colors;
 
-      if (existingGroup) {
-        // Add label to existing group
-        existingGroup.labels.push(card.title);
-      } else {
-        // Create new group
-        visualizationGroups.push({
-          chordColors: card.visualization.chord_colors,
-          bracketRange: bracket,
-          labels: [card.title]
-        });
-      }
-    });
+        // Find existing group with this bracket range
+        const existingGroup = visualizationGroups.find(g =>
+          g.bracketRange.start === bracket.start && g.bracketRange.end === bracket.end
+        );
+
+        if (existingGroup) {
+          // Add label to existing group
+          existingGroup.labels.push(label);
+        } else {
+          // Create new group
+          visualizationGroups.push({
+            chordColors: chordColors,
+            bracketRange: bracket,
+            labels: [label]
+          });
+        }
+      });
+    }
 
     // Victory lap: sort by start position for consistent rendering
     return visualizationGroups.sort((a, b) => a.bracketRange.start - b.bracketRange.start);
@@ -65,13 +72,23 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
 
   // Time to tackle the tricky bit: Determine which chords and bracket to highlight
   const getHighlightedChords = () => {
-    if (!hoveredPatternId || !educational?.content) return [];
+    if (!hoveredPatternId) return [];
 
-    // Find the hovered pattern's bracket range
-    const hoveredCard = educational.content.find(c => c.pattern_id === hoveredPatternId);
-    if (!hoveredCard?.visualization?.bracket_range) return [];
+    // Try to find bracket range from educational content first
+    const hoveredCard = educational?.content?.find(c => c.pattern_id === hoveredPatternId);
+    let bracket = hoveredCard?.visualization?.bracket_range;
 
-    const { start, end } = hoveredCard.visualization.bracket_range;
+    // Fallback: find bracket range from pattern data
+    if (!bracket && analysis.primary.patterns) {
+      const hoveredPattern = analysis.primary.patterns.find(p => p.pattern_id === hoveredPatternId);
+      if (hoveredPattern) {
+        bracket = { start: hoveredPattern.start, end: hoveredPattern.end };
+      }
+    }
+
+    if (!bracket) return [];
+
+    const { start, end } = bracket;
     const indices: number[] = [];
     for (let i = start; i <= end; i++) {
       indices.push(i);
@@ -81,10 +98,23 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
 
   // Big play: Get the hovered bracket range for selective bracket highlighting
   const getHoveredBracketRange = () => {
-    if (!hoveredPatternId || !educational?.content) return null;
+    if (!hoveredPatternId) return null;
 
-    const hoveredCard = educational.content.find(c => c.pattern_id === hoveredPatternId);
-    return hoveredCard?.visualization?.bracket_range || null;
+    // Try educational content first
+    const hoveredCard = educational?.content?.find(c => c.pattern_id === hoveredPatternId);
+    if (hoveredCard?.visualization?.bracket_range) {
+      return hoveredCard.visualization.bracket_range;
+    }
+
+    // Fallback: use pattern data
+    if (analysis.primary.patterns) {
+      const hoveredPattern = analysis.primary.patterns.find(p => p.pattern_id === hoveredPatternId);
+      if (hoveredPattern) {
+        return { start: hoveredPattern.start, end: hoveredPattern.end };
+      }
+    }
+
+    return null;
   };
 
   // Helper: Get analysis type badge color
@@ -219,64 +249,32 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
         </div>
       </div>
 
-      {/* Detected Patterns - detailed view */}
-      {analysis.primary.patterns && analysis.primary.patterns.length > 0 && (
-        <div className="bg-white border border-slate-300 rounded-lg shadow-sm">
-          <button
-            onClick={() => setShowDetailedAnalysis(!showDetailedAnalysis)}
-            className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition"
-          >
-            <h4 className="font-semibold text-slate-900">
-              Detected Patterns ({analysis.primary.patterns.length})
-            </h4>
-            <svg
-              className={`w-5 h-5 text-slate-600 transition-transform ${
-                showDetailedAnalysis ? 'rotate-180' : ''
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+      {/* Pattern Analysis - unified view combining educational and technical information */}
+      {analysis.primary.patterns && analysis.primary.patterns.length > 0 && showEducational && (
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-slate-900">
+            Pattern Analysis ({analysis.primary.patterns.length})
+          </h3>
+          {analysis.primary.patterns.map((pattern, idx) => {
+            // Match pattern with educational content and explanation
+            const eduContent = educational?.content?.find(
+              card => card.pattern_id === pattern.pattern_id
+            );
+            const explanation = eduContent
+              ? educational?.explanations?.[pattern.pattern_id]
+              : undefined;
 
-          {showDetailedAnalysis && (
-            <div className="border-t border-slate-300 p-4 space-y-3">
-              {analysis.primary.patterns.map((pattern, idx) => (
-                <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h5 className="font-semibold text-slate-900">{pattern.name}</h5>
-                      <span className="text-xs text-slate-600 font-mono">{pattern.pattern_id}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-slate-900">
-                        Score: {(pattern.score * 100).toFixed(0)}%
-                      </div>
-                      <div className="text-xs text-slate-600">
-                        Chords {pattern.start}–{pattern.end}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className={`px-2 py-0.5 rounded ${
-                      pattern.family === 'functional' ? 'bg-blue-100 text-blue-800' :
-                      pattern.family === 'modal' ? 'bg-purple-100 text-purple-800' :
-                      'bg-orange-100 text-orange-800'
-                    }`}>
-                      {pattern.family}
-                    </span>
-                    {pattern.is_section_closure && (
-                      <span className="px-2 py-0.5 rounded bg-green-100 text-green-800">
-                        Section Closure
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            return (
+              <EnhancedPatternCard
+                key={pattern.pattern_id || idx}
+                pattern={pattern}
+                educationalContent={eduContent}
+                explanation={explanation}
+                onHover={setHoveredPatternId}
+                onLeave={() => setHoveredPatternId(null)}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -331,26 +329,6 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
               <li key={idx}>{pattern}</li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {/* Big play: Educational content cards - rendered when toggle is on */}
-      {showEducational && hasEducationalContent && (
-        <div className="space-y-3">
-          <h4 className="font-semibold text-slate-900 text-lg">Educational Content</h4>
-          {educational.content!.map((card, idx) => {
-            // Time to tackle the tricky bit: fetch explanation for this card
-            const explanation = educational.explanations?.[card.pattern_id];
-            return (
-              <PatternSummaryCard
-                key={card.pattern_id || idx}
-                card={card}
-                explanation={explanation}
-                onHover={setHoveredPatternId}
-                onLeave={() => setHoveredPatternId(null)}
-              />
-            );
-          })}
         </div>
       )}
 
