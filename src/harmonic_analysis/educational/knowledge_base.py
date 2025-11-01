@@ -114,7 +114,7 @@ class KnowledgeBase:
         Get educational context for a concept at specified learning level.
 
         Args:
-            pattern_id: Pattern ID (e.g., "cadence.authentic.perfect")
+            pattern_id: Pattern ID (e.g., "functional.cadence.authentic.perfect")
             level: Learning level to retrieve
 
         Returns:
@@ -340,15 +340,15 @@ class KnowledgeBase:
         Final whistle: Fall back to pattern family metadata.
 
         Args:
-            pattern_id: Pattern ID (e.g., "cadence.authentic.perfect")
+            pattern_id: Pattern ID (e.g., "functional.cadence.authentic.perfect")
             level: Learning level (default: BEGINNER)
 
         Returns:
             PatternSummary if found, None otherwise
 
         Fallback hierarchy:
-            1. Exact match: "cadence.authentic.perfect"
-            2. Parent match: "cadence.authentic"
+            1. Exact match: "functional.cadence.authentic.perfect"
+            2. Parent match: "functional.cadence.authentic"
             3. Family match: pattern_families["cadential"]
         """
         # Opening move: normalize pattern ID (handle delimiters)
@@ -424,7 +424,7 @@ class KnowledgeBase:
         Victory lap: Return complete explanation or None.
 
         Args:
-            pattern_id: Pattern ID (e.g., "cadence.authentic.perfect")
+            pattern_id: Pattern ID (e.g., "functional.cadence.authentic.perfect")
 
         Returns:
             FullExplanation if found, None otherwise

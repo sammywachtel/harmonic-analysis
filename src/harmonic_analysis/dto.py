@@ -183,6 +183,11 @@ class PatternMatchDTO:
     )
     is_section_closure: Optional[bool] = None  # True if pattern closes a section
 
+    # Multi-profile style fields
+    style_tags: List[str] = field(default_factory=list)  # e.g., ["jazz", "bebop"]
+    detected_via_profile: Optional[str] = None  # Profile that detected this pattern
+    style_typicality: Optional[float] = None  # How typical for the style (0.0-1.0)
+
     def to_dict(self) -> Dict[str, Any]:
         return serialize_dataclass(self)
 
@@ -311,6 +316,26 @@ class EvidenceDTO:
 
 
 @dataclass
+class StyleAnalysisDetail:
+    """
+    Detailed analysis information for a specific style profile.
+
+    This captures the full analysis result from analyzing a progression
+    through the lens of a particular style (jazz, classical, pop, modal).
+    """
+
+    style_name: str  # e.g., "jazz", "classical"
+    confidence: float  # Overall confidence for this style (0.0-1.0)
+    patterns: List[PatternMatchDTO] = field(default_factory=list)
+    roman_numerals: List[str] = field(default_factory=list)
+    key_signature: Optional[str] = None  # Detected key for this interpretation
+    reasoning: Optional[str] = None  # Why this style fits
+
+    def to_dict(self) -> Dict[str, Any]:
+        return serialize_dataclass(self)
+
+
+@dataclass
 class AnalysisSummary:
     """
     Summary of a single harmonic analysis interpretation.
@@ -362,6 +387,13 @@ class AnalysisSummary:
 
     # EXISTING: keep a single global final cadence (if any)
     final_cadence: Optional[PatternMatchDTO] = None
+
+    # Multi-profile style fields (optional, populated when multi-profile analysis used)
+    dominant_style: Optional[str] = None  # e.g., "jazz", "classical"
+    style_confidence: Optional[Dict[str, float]] = (
+        None  # {"jazz": 0.92, "classical": 0.85, ...}
+    )
+    style_analysis: Optional[Dict[str, StyleAnalysisDetail]] = None  # Per-style details
 
     def __post_init__(self) -> None:
         # Clamp confidence values into [0, 1] to ensure valid probability ranges.
@@ -490,6 +522,22 @@ class AnalysisSummary:
                 # Fallback for unexpected types
                 return FunctionalChordDTO(chord_symbol="")
 
+        def _sad(x: Any) -> StyleAnalysisDetail:
+            """
+            Convert a dict or object into a StyleAnalysisDetail.
+            """
+            if isinstance(x, dict):
+                y = dict(x)
+                # Convert patterns field
+                if "patterns" in y:
+                    y["patterns"] = [_pm(p) for p in y["patterns"]]
+                return StyleAnalysisDetail(**y)
+            elif isinstance(x, StyleAnalysisDetail):
+                return x
+            else:
+                # Fallback for unexpected types
+                return StyleAnalysisDetail(style_name="", confidence=0.0)
+
         return AnalysisSummary(
             type=atype,
             roman_numerals=list(d.get("roman_numerals", [])),
@@ -521,6 +569,14 @@ class AnalysisSummary:
             ],
             terminal_cadences=[_pm(x) for x in d.get("terminal_cadences", [])],
             final_cadence=_pm(d["final_cadence"]) if d.get("final_cadence") else None,
+            # Multi-profile style fields
+            dominant_style=d.get("dominant_style"),
+            style_confidence=d.get("style_confidence"),
+            style_analysis=(
+                {k: _sad(v) for k, v in d["style_analysis"].items()}
+                if d.get("style_analysis")
+                else None
+            ),
         )
 
     @staticmethod

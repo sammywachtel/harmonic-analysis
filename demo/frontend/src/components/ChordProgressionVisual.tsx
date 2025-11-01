@@ -121,18 +121,53 @@ export const ChordProgressionVisual: React.FC<ChordProgressionVisualProps> = ({
     return levelMap;
   };
 
+  // 🎯 Single source of truth for all visualization sizing
+  const LAYOUT_CONSTANTS = {
+    // Horizontal spacing (matches actual rendered output)
+    chordWidth: 8,        // rem - minWidth in JSX (line 256)
+    arrowWidth: 1.5,      // rem - Tailwind w-6 = 1.5rem (line 264)
+    gap: 1,               // rem - Tailwind gap-4 = 1rem (line 243), NOT 4rem!
+
+    // Derived: total spacing per chord unit (chord + gap + arrow + gap)
+    get unitSpacing() {
+      return this.chordWidth + this.gap + this.arrowWidth + this.gap;
+      // = 8 + 1 + 1.5 + 1 = 11.5rem
+    },
+
+    // Vertical spacing
+    bracketSvgHeight: 20,     // px - SVG fixed height
+    bracketMarginBottom: 0.5, // rem - mb-2
+    labelLineHeight: 1,       // rem - text-xs line height
+    labelGap: 0.25,           // rem - gap between stacked labels,
+    firstBracketOffset: 4,  // NEW: rem - distance from chords to first bracket
+    levelSpacing: 3.5,        // rem - spacing between bracket levels only
+
+    // Positioning adjustments
+    horizontalOffset: -0.5,  // rem - center brackets over chord boxes
+  };
+
+  // Calculate exact bracket width including all rendered elements
+  const calculateBracketWidth = (startIdx: number, endIdx: number): number => {
+    const chordCount = endIdx - startIdx + 1;
+    const arrowCount = chordCount - 1;  // arrows only between chords
+    const gapCount = (chordCount - 1) * 2; // gaps on both sides of each arrow
+
+    return (
+      LAYOUT_CONSTANTS.chordWidth * chordCount +
+      LAYOUT_CONSTANTS.arrowWidth * arrowCount +
+      LAYOUT_CONSTANTS.gap * gapCount + 1
+    );
+  };
+
+  // Calculate exact horizontal position for bracket start
+  const calculateBracketLeft = (startIdx: number): number => {
+    // Each complete unit before startIdx takes up: chord + gap + arrow + gap
+    return startIdx * LAYOUT_CONSTANTS.unitSpacing + LAYOUT_CONSTANTS.horizontalOffset;
+  };
+
   // Big play: Render multiple brackets with vertical stacking
   const renderBrackets = () => {
     if (patternVisualizations.length === 0) return null;
-
-    /**
-     * Layout constants for chord progression visualization
-     *
-     * ⚠️ IMPORTANT: These values must be kept in sync with the CSS classes used in the JSX below.
-     */
-    const CHORD_BOX_WIDTH_REM = 8;
-    const GAP_BETWEEN_CHORDS_REM = 4;
-    const BRACKET_HEIGHT_REM = 3; // Vertical space per bracket level (bracket + labels)
 
     // Assign vertical levels to prevent overlaps
     const bracketLevels = assignBracketLevels(patternVisualizations);
@@ -142,14 +177,9 @@ export const ChordProgressionVisual: React.FC<ChordProgressionVisualProps> = ({
       const { start: startChordIndex, end: endChordIndex } = bracketRange;
       const level = bracketLevels.get(vizIndex) || 0;
 
-      // Count how many chords are in this pattern
-      const chordCount = endChordIndex - startChordIndex + 1;
-
-      // Calculate bracket width: sum of chord widths plus gaps between them
-      const bracketWidthRem =
-        (CHORD_BOX_WIDTH_REM * chordCount) +
-        (GAP_BETWEEN_CHORDS_REM * (chordCount - 1)) +
-        0.5; // Empirical adjustment for sub-pixel rendering
+      // Use new calculation functions - no magic numbers!
+      const bracketWidthRem = calculateBracketWidth(startChordIndex, endChordIndex);
+      const bracketLeftRem = calculateBracketLeft(startChordIndex);
 
       // Big play: Check if THIS bracket is the one being hovered
       const isBracketHovered = hoveredBracketRange &&
@@ -161,11 +191,11 @@ export const ChordProgressionVisual: React.FC<ChordProgressionVisualProps> = ({
           key={`bracket-${vizIndex}`}
           className="absolute flex flex-col items-center"
           style={{
-            // Horizontal: Position bracket starting under the first chord in pattern
-            left: `calc(${startChordIndex} * (${GAP_BETWEEN_CHORDS_REM}rem + ${CHORD_BOX_WIDTH_REM}rem) - 1rem)`,
+            // Horizontal: Position using exact calculations
+            left: `${bracketLeftRem}rem`,
             width: `${bracketWidthRem}rem`,
-            // Vertical: Stack brackets based on level to prevent overlap
-            top: `calc(40% + ${level * BRACKET_HEIGHT_REM}rem)`,
+            // Vertical: separate first bracket position from level spacing
+            top: `${LAYOUT_CONSTANTS.firstBracketOffset + (level * LAYOUT_CONSTANTS.levelSpacing)}rem`,
           }}
         >
           {/* SVG bracket spanning full width */}
@@ -188,7 +218,7 @@ export const ChordProgressionVisual: React.FC<ChordProgressionVisualProps> = ({
 
           {/* Pattern labels stacked vertically (PAC + IAC can share one bracket) */}
           {labels.length > 0 ? (
-            <div className="flex flex-col items-center gap-0.0">
+            <div className="flex flex-col items-center gap-1">
               {labels.map((label, idx) => (
                 <span
                   key={idx}
@@ -230,11 +260,33 @@ export const ChordProgressionVisual: React.FC<ChordProgressionVisualProps> = ({
     // Assign levels to determine vertical stacking
     const bracketLevels = assignBracketLevels(patternVisualizations);
     const maxLevel = Math.max(...Array.from(bracketLevels.values()));
-    const numLevels = maxLevel + 1; // Convert 0-indexed to count
+    // const numLevels = maxLevel + 1; // Convert 0-indexed to count
 
-    // Each level needs 4rem (bracket + labels space)
-    const BRACKET_HEIGHT_REM = 4;
-    return `${numLevels * BRACKET_HEIGHT_REM}rem`;
+    // 🎯 Calculate actual height needed based on label content
+    const maxLabelsPerBracket = Math.max(
+      ...patternVisualizations.map(v => v.labels.length),
+      1 // minimum 1 label
+    );
+
+    // Height per bracket level:
+    // - SVG bracket (20px = 1.25rem)
+    // - Bracket margin bottom (0.5rem)
+    // - Labels: each label is 1rem line height
+    // - Gaps between labels: 0.25rem each
+    const heightPerLevel =
+      LAYOUT_CONSTANTS.bracketSvgHeight / 16 +  // Convert 20px to rem
+      LAYOUT_CONSTANTS.bracketMarginBottom +
+      (maxLabelsPerBracket * LAYOUT_CONSTANTS.labelLineHeight) +
+      ((maxLabelsPerBracket - 1) * LAYOUT_CONSTANTS.labelGap);
+
+    // Total padding: levelSpacing is already in the top positioning,
+    // so we only need space for the bracket levels themselves
+    const totalHeight =
+      (maxLevel * LAYOUT_CONSTANTS.levelSpacing) +  // Spacing between stacked levels
+      heightPerLevel +                              // Height of bottom-most bracket
+      2                                             // Extra padding for the top and bottom brackets
+
+    return `${totalHeight}rem`;
   };
 
   return (

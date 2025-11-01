@@ -8,7 +8,7 @@
       "roman_numerals": ["V", "I"],
       "expected_matches": [
         {
-          "pattern_id": "functional.cadence.authentic.perfect",
+          "pattern_id": "cadence.authentic.perfect",
           "span": [0, 2],
           "confidence_range": [0.90, 1.0]
         }
@@ -21,7 +21,7 @@
       "roman_numerals": ["V", "I"],
       "expected_matches": [
         {
-          "pattern_id": "functional.cadence.authentic.imperfect",
+          "pattern_id": "cadence.authentic.imperfect",
           "span": [0, 2],
           "confidence_range": [0.80, 0.95]
         }
@@ -34,7 +34,7 @@
       "roman_numerals": ["IV", "I"],
       "expected_matches": [
         {
-          "pattern_id": "functional.cadence.plagal",
+          "pattern_id": "cadence.plagal",
           "span": [0, 2],
           "confidence_range": [0.70, 0.85]
         }
@@ -47,7 +47,7 @@
       "roman_numerals": ["IV", "V"],
       "expected_matches": [
         {
-          "pattern_id": "functional.cadence.half",
+          "pattern_id": "cadence.half",
           "span": [0, 2],
           "confidence_range": [0.65, 0.80]
         }
@@ -60,12 +60,12 @@
       "roman_numerals": ["IV", "V", "I", "IV", "I"],
       "expected_matches": [
         {
-          "pattern_id": "functional.cadence.authentic.perfect",
+          "pattern_id": "cadence.authentic.perfect",
           "span": [1, 3],
           "confidence_range": [0.90, 1.0]
         },
         {
-          "pattern_id": "functional.cadence.plagal",
+          "pattern_id": "cadence.plagal",
           "span": [3, 5],
           "confidence_range": [0.70, 0.85]
         }

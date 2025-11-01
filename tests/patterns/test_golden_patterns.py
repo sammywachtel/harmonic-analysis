@@ -250,7 +250,7 @@ class TestGoldenPatterns:
         # The perfect authentic cadence should have high priority
         pac_priority = None
         for pattern_id, priority in priorities:
-            if pattern_id == "cadence.authentic.perfect":
+            if pattern_id == "functional.cadence.authentic.perfect":
                 pac_priority = priority
                 break
 

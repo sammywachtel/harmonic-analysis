@@ -48,7 +48,9 @@ class TestPatternMatchingRegression:
 
         # Should specifically find perfect authentic cadence
         pac_evidence = [
-            e for e in evidences if e.pattern_id == "cadence.authentic.perfect"
+            e
+            for e in evidences
+            if e.pattern_id == "functional.cadence.authentic.perfect"
         ]
         assert len(pac_evidence) >= 1, "Should find perfect authentic cadence pattern"
 
