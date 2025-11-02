@@ -36,7 +36,7 @@ class TestPatternMatchingRegression:
         from pathlib import Path
 
         patterns_path = Path(
-            "src/harmonic_analysis/core/pattern_engine/patterns_unified.json"
+            "src/harmonic_analysis/resources/patterns/patterns_unified.json"
         )
         engine.load_patterns(patterns_path)
 

@@ -117,8 +117,8 @@ htmlcov/
 tests/data/generated/*.json
 tests/data/generated/*.csv
 
-# Development-only calibration data files (baseline data is in assets/)
-tools/calibration/*.json
+# Generated tool outputs
+tools/converted_patterns.json
 /harmonic-analysis.code-workspace
 
 # Docker development environment (local only)

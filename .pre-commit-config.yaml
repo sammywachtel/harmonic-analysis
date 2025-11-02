@@ -13,6 +13,7 @@ repos:
         args: ['--maxkb=1024']
       - id: check-yaml
       - id: check-json
+        exclude: '^demo/frontend/tsconfig.*\.json$'
 
   # Frontend hooks (TypeScript/JavaScript)
   - repo: local
