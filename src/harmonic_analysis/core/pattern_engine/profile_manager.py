@@ -98,10 +98,15 @@ class ProfileManager:
 
         Args:
             profiles_path: Path to profiles.json. If None, uses default location
-                          (same directory as this module).
+                          (resources/patterns/ directory).
         """
         if profiles_path is None:
-            profiles_path = Path(__file__).parent / "profiles.json"
+            profiles_path = (
+                Path(__file__).parent.parent.parent
+                / "resources"
+                / "patterns"
+                / "profiles.json"
+            )
 
         self.profiles_path = profiles_path
         self._profiles: List[Profile] = []

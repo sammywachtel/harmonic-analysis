@@ -119,9 +119,15 @@ class PatternLoader:
             with schema_path.open("r", encoding="utf-8") as f:
                 self.schema = json.load(f)
         else:
-            # Try to load the full schema from the package
+            # Try to load the full schema from the resources directory
             try:
-                schema_file = Path(__file__).parent / "schemas" / "patterns.schema.json"
+                schema_file = (
+                    Path(__file__).parent.parent.parent
+                    / "resources"
+                    / "patterns"
+                    / "schemas"
+                    / "patterns.schema.json"
+                )
                 if schema_file.exists():
                     with schema_file.open("r", encoding="utf-8") as f:
                         self.schema = json.load(f)

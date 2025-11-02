@@ -51,8 +51,8 @@ class UnifiedPatternService:
         try:
             patterns_path = (
                 Path(__file__).parent.parent
-                / "core"
-                / "pattern_engine"
+                / "resources"
+                / "patterns"
                 / "patterns_unified.json"
             )
             # Big play: load full structure but provide patterns as expected by engine
