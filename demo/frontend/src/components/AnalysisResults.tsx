@@ -313,8 +313,13 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
         <div className="bg-orange-50 border border-orange-300 rounded-lg p-4">
           <h4 className="font-semibold text-orange-900 mb-2">Chromatic Elements</h4>
           <ul className="list-disc list-inside space-y-1 text-orange-800">
-            {analysis.primary.chromatic_elements.map((element, idx) => (
-              <li key={idx}>{element}</li>
+            {analysis.primary.chromatic_elements.map((element: any, idx: number) => (
+              <li key={idx}>
+                {element.symbol} {element.type && `(${element.type})`}
+                {element.resolution && ` → ${element.resolution}`}
+                {element.strength && ` [${(element.strength * 100).toFixed(0)}%]`}
+                {element.explanation && ` - ${element.explanation}`}
+              </li>
             ))}
           </ul>
         </div>

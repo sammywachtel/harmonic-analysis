@@ -28,8 +28,8 @@ class TestGoldenPatterns:
             Path(__file__).parent.parent.parent
             / "src"
             / "harmonic_analysis"
-            / "core"
-            / "pattern_engine"
+            / "resources"
+            / "patterns"
             / "patterns_unified.json"
         )
         engine.load_patterns(patterns_file)
