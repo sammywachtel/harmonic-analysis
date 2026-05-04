@@ -5,6 +5,10 @@ import { useState } from 'react';
 import type { AnalysisResponse } from '../types/analysis';
 import { EnhancedPatternCard } from './EnhancedPatternCard';
 import { ChordProgressionVisual } from './ChordProgressionVisual';
+import StyleBadge from './StyleBadge';
+import StyleAnalysisSection from './StyleAnalysisSection';
+import { getStyleConfig } from '../utils/styleConfig';
+import '../styles/multi-profile.css';
 
 interface AnalysisResultsProps {
   results: AnalysisResponse;
@@ -157,7 +161,12 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <h3 className="text-xl font-bold text-slate-900">Primary Interpretation</h3>
-            {analysis.primary.type && (
+            {/* Multi-profile: show dominant style badge */}
+            {analysis.primary.dominant_style && (
+              <StyleBadge style={analysis.primary.dominant_style} data-testid="dominant-style-badge" />
+            )}
+            {/* Fallback: show analysis type if no style */}
+            {!analysis.primary.dominant_style && analysis.primary.type && (
               <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getTypeBadgeColor(analysis.primary.type)}`}>
                 {analysis.primary.type.charAt(0).toUpperCase() + analysis.primary.type.slice(1)}
               </span>
@@ -226,6 +235,49 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
             </div>
           )}
 
+          {/* Multi-profile: Style confidence bars with animation */}
+          {analysis.primary.style_confidence && Object.keys(analysis.primary.style_confidence).length > 0 && (
+            <div className="border-t border-slate-200 pt-3 mt-3" data-testid="style-confidence-section">
+              <span className="font-semibold text-slate-700 block mb-3">Style Confidence:</span>
+              <div className="space-y-2">
+                {Object.entries(analysis.primary.style_confidence)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([style, confidence]) => {
+                    const config = getStyleConfig(style);
+                    const barClass = `bar-${style.toLowerCase()}`;
+                    return (
+                      <div
+                        key={style}
+                        className="confidence-bar-container"
+                        data-testid={`style-confidence-${style.toLowerCase()}`}
+                      >
+                        <span className="confidence-bar-label">
+                          <span className="mr-1" aria-hidden="true">{config.icon}</span>
+                          {config.label}
+                        </span>
+                        <div
+                          className="confidence-bar-track"
+                          role="progressbar"
+                          aria-valuenow={confidence * 100}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`${config.label} confidence: ${(confidence * 100).toFixed(0)}%`}
+                        >
+                          <div
+                            className={`confidence-bar-fill ${barClass} h-full rounded`}
+                            style={{ '--bar-width': `${confidence * 100}%` } as React.CSSProperties}
+                          />
+                        </div>
+                        <span className="confidence-bar-percentage">
+                          {(confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
           {analysis.primary.reasoning && (
             <div className="border-t border-slate-200 pt-3 mt-3">
               <span className="font-semibold text-slate-700">Reasoning: </span>
@@ -278,6 +330,14 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
         </div>
       )}
 
+      {/* Multi-profile: Expandable style analysis section */}
+      {analysis.primary.style_analysis && Object.keys(analysis.primary.style_analysis).length > 0 && (
+        <StyleAnalysisSection
+          styleAnalysis={analysis.primary.style_analysis}
+          dominantStyle={analysis.primary.dominant_style}
+        />
+      )}
+
       {/* Modal characteristics */}
       {analysis.primary.modal_characteristics && analysis.primary.modal_characteristics.length > 0 && (
         <div className="bg-purple-50 border border-purple-300 rounded-lg p-4">
@@ -313,7 +373,7 @@ const AnalysisResults = ({ results, showEducational = true, chords = [] }: Analy
         <div className="bg-orange-50 border border-orange-300 rounded-lg p-4">
           <h4 className="font-semibold text-orange-900 mb-2">Chromatic Elements</h4>
           <ul className="list-disc list-inside space-y-1 text-orange-800">
-            {analysis.primary.chromatic_elements.map((element: any, idx: number) => (
+            {analysis.primary.chromatic_elements.map((element, idx: number) => (
               <li key={idx}>
                 {element.symbol} {element.type && `(${element.type})`}
                 {element.resolution && ` → ${element.resolution}`}

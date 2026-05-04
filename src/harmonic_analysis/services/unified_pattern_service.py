@@ -18,6 +18,8 @@ from ..core.pattern_engine.calibration import CalibrationMapping, Calibrator
 from ..core.pattern_engine.pattern_engine import AnalysisContext, PatternEngine
 from ..core.pattern_engine.pattern_loader import PatternLoader
 from ..core.pattern_engine.plugin_registry import PluginRegistry
+from ..core.pattern_engine.profile_manager import ProfileManager
+from ..core.pattern_engine.style_confidence import StyleConfidenceCalculator
 from ..core.pattern_engine.token_converter import romanize_chord
 from ..core.telemetry import get_telemetry_collector
 from ..core.utils.music_theory_constants import canonicalize_key_signature
@@ -76,6 +78,15 @@ class UnifiedPatternService:
 
         # Initialize telemetry
         self.telemetry = get_telemetry_collector()
+
+        # Opening move: initialize multi-profile components
+        self.profile_manager = ProfileManager()
+        self.style_calculator = StyleConfidenceCalculator(diversity_bonus_rate=0.1)
+
+        logger.info(
+            f"✅ Loaded {len(self.profile_manager.get_enabled_profiles())} "
+            f"analysis profiles: {self.profile_manager.get_enabled_profile_names()}"
+        )
 
         # Initialize calibration if enabled
         if self.calibrator:
@@ -156,6 +167,7 @@ class UnifiedPatternService:
         chords: Optional[List[str]] = None,
         key_hint: Optional[str] = None,
         profile: str = "classical",
+        profile_focus: Optional[str] = None,  # NEW: Multi-profile focus parameter
         options: Optional[Any] = None,
         romans: Optional[List[str]] = None,  # NEW: Roman numeral input support
         notes: Optional[List[str]] = None,  # NEW: Scale notes input support
@@ -167,7 +179,10 @@ class UnifiedPatternService:
         Args:
             chords: List of chord symbols (e.g., ['C', 'F', 'G', 'C'])
             key_hint: Optional key context (required for roman/scale/melody inputs)
-            profile: Analysis profile (currently ignored)
+            profile: Analysis profile (deprecated - use profile_focus instead)
+            profile_focus: Optional profile name to weight higher in multi-profile
+                         analysis (e.g., "jazz", "classical", "pop", "modal").
+                         Gives 20% confidence boost to specified style.
             options: Additional analysis options (supports "sections" for
                    section-aware analysis)
             romans: List of roman numerals (e.g., ['I', 'vi', 'IV', 'V'])
@@ -407,8 +422,27 @@ class UnifiedPatternService:
             sections=sections,
         )
 
-        # Big play: run the unified engine analysis
-        envelope = self.engine.analyze(context)
+        # Big play: run multi-profile orchestration for chord/roman analysis
+        # For scale/melody-only analysis, fall back to single-profile
+        if chords or romans:
+            logger.debug("🎭 Running multi-profile orchestration")
+            # Multi-profile: analyze through all profiles and select dominant
+            profile_results = await self._analyze_all_profiles(context)
+            style_confidences = self._calculate_style_confidence(profile_results)
+            dominant_style = self._select_primary_interpretation(
+                profile_results, style_confidences, profile_focus
+            )
+            envelope = self._build_style_aware_envelope(
+                profile_results, style_confidences, dominant_style, profile_focus
+            )
+            dominant_result = (
+                envelope.primary.dominant_style if envelope.primary else None
+            )
+            logger.debug(f"🎭 Multi-profile complete: dominant_style={dominant_result}")
+        else:
+            logger.debug("🎼 Using single-profile analysis (scale/melody only)")
+            # Scale/melody-only: use single-profile analysis
+            envelope = self.engine.analyze(context)
 
         # Iteration 9F: Conditional modal parent key conversion (only when
         # modal > functional confidence AND no explicit key hint)
@@ -554,6 +588,7 @@ class UnifiedPatternService:
         chords: Optional[List[str]] = None,
         key_hint: Optional[str] = None,
         profile: str = "classical",
+        profile_focus: Optional[str] = None,
         options: Optional[Any] = None,
         romans: Optional[List[str]] = None,
         notes: Optional[List[str]] = None,
@@ -576,7 +611,14 @@ class UnifiedPatternService:
                 future = executor.submit(
                     asyncio.run,
                     self.analyze_with_patterns_async(
-                        chords, key_hint, profile, options, romans, notes, melody
+                        chords,
+                        key_hint,
+                        profile,
+                        profile_focus,
+                        options,
+                        romans,
+                        notes,
+                        melody,
                     ),
                 )
                 return future.result()
@@ -584,7 +626,14 @@ class UnifiedPatternService:
             # No running loop, safe to use asyncio.run
             return asyncio.run(
                 self.analyze_with_patterns_async(
-                    chords, key_hint, profile, options, romans, notes, melody
+                    chords,
+                    key_hint,
+                    profile,
+                    profile_focus,
+                    options,
+                    romans,
+                    notes,
+                    melody,
                 )
             )
 
@@ -1464,6 +1513,10 @@ class UnifiedPatternService:
             sections=summary.sections,
             terminal_cadences=summary.terminal_cadences,
             final_cadence=summary.final_cadence,
+            # Multi-profile fields (preserve from original)
+            dominant_style=summary.dominant_style,
+            style_confidence=summary.style_confidence,
+            style_analysis=summary.style_analysis,
         )
 
         # Main play: populate scale summary if scale data available
@@ -1597,3 +1650,184 @@ class UnifiedPatternService:
             characteristics.append("chromatic motion")
 
         return characteristics
+
+    async def _analyze_all_profiles(
+        self, context: AnalysisContext
+    ) -> Dict[str, AnalysisEnvelope]:
+        """
+        Analyze progression through all enabled style profiles in parallel.
+
+        This method runs pattern analysis through jazz, classical, pop, and modal
+        profiles simultaneously using asyncio.gather for optimal performance.
+
+        Args:
+            context: Analysis context with chords, romans, etc.
+
+        Returns:
+            Dictionary mapping profile name to AnalysisEnvelope
+        """
+        import asyncio
+
+        # Opening move: get all enabled profiles
+        profiles = self.profile_manager.get_enabled_profiles()
+
+        # Main play: analyze with each profile in parallel
+        # Use asyncio.to_thread to run CPU-bound analysis in background threads
+        tasks = [
+            asyncio.to_thread(self.engine.analyze_with_profile, context, profile)
+            for profile in profiles
+        ]
+
+        # Big play: run all analyses in parallel
+        results = await asyncio.gather(*tasks)
+
+        # Victory lap: map profile names to results
+        profile_results = {
+            profile.name: envelope for profile, envelope in zip(profiles, results)
+        }
+
+        logger.debug(
+            f"🎭 Multi-profile analysis complete: "
+            f"{len(profile_results)} profiles analyzed"
+        )
+
+        return profile_results
+
+    def _calculate_style_confidence(
+        self, profile_results: Dict[str, AnalysisEnvelope]
+    ) -> Dict[str, float]:
+        """
+        Calculate style-specific confidence scores for each profile's analysis.
+
+        Uses StyleConfidenceCalculator to weight patterns by typicality for each
+        style and apply diversity bonuses.
+
+        Args:
+            profile_results: Dictionary of profile name to AnalysisEnvelope
+
+        Returns:
+            Dictionary mapping profile name to confidence score (0.0-1.0)
+        """
+        style_confidences = {}
+
+        for profile_name, envelope in profile_results.items():
+            if not envelope.primary or not envelope.primary.patterns:
+                style_confidences[profile_name] = 0.0
+                continue
+
+            # Get profile for typicality weights
+            profile = self.profile_manager.get_profile(profile_name)
+            if not profile:
+                style_confidences[profile_name] = 0.0
+                continue
+
+            # Calculate style-specific confidence
+            confidence = self.style_calculator.calculate_confidence(
+                envelope.primary.patterns, profile
+            )
+            style_confidences[profile_name] = confidence
+
+        logger.debug(f"🎯 Style confidences: {style_confidences}")
+
+        return style_confidences
+
+    def _select_primary_interpretation(
+        self,
+        profile_results: Dict[str, AnalysisEnvelope],
+        style_confidences: Dict[str, float],
+        profile_focus: Optional[str] = None,
+    ) -> str:
+        """
+        Select the dominant style profile based on confidence scores.
+
+        If profile_focus is specified, that profile gets a 20% confidence boost
+        before selection.
+
+        Args:
+            profile_results: Dictionary of profile name to AnalysisEnvelope
+            style_confidences: Dictionary of profile name to confidence score
+            profile_focus: Optional profile to weight higher (20% boost)
+
+        Returns:
+            Name of the selected dominant profile
+        """
+        # Opening move: use StyleConfidenceCalculator to select dominant style
+        dominant_style = self.style_calculator.select_dominant_style(
+            style_confidences, profile_focus=profile_focus, focus_weight=1.2
+        )
+
+        if profile_focus and profile_focus == dominant_style:
+            logger.debug(
+                f"🎯 Selected {dominant_style} (matched profile_focus with boost)"
+            )
+        else:
+            logger.debug(f"🎯 Selected {dominant_style} as dominant style")
+
+        return dominant_style
+
+    def _build_style_aware_envelope(
+        self,
+        profile_results: Dict[str, AnalysisEnvelope],
+        style_confidences: Dict[str, float],
+        dominant_style: str,
+        profile_focus: Optional[str] = None,
+    ) -> AnalysisEnvelope:
+        """
+        Build final AnalysisEnvelope with style-aware fields populated.
+
+        Takes the primary interpretation from the dominant style and enriches
+        it with multi-profile confidence scores and style analysis details.
+
+        Args:
+            profile_results: Dictionary of profile name to AnalysisEnvelope
+            style_confidences: Dictionary of profile name to confidence score
+            dominant_style: Name of the selected dominant profile
+            profile_focus: Optional profile that received confidence boost
+
+        Returns:
+            AnalysisEnvelope with style-aware fields populated
+        """
+        from harmonic_analysis.dto import StyleAnalysisDetail
+
+        # Opening move: get the primary envelope from dominant style
+        primary_envelope = profile_results[dominant_style]
+
+        if not primary_envelope.primary:
+            return primary_envelope
+
+        # Main play: apply profile_focus boost to confidence scores
+        # (this matches the boost used for selection, so user sees boosted values)
+        boosted_confidences = dict(style_confidences)
+        if profile_focus and profile_focus in boosted_confidences:
+            boosted_confidences[profile_focus] *= 1.2  # 20% boost
+            logger.debug(
+                f"🎯 Applied 20% boost to {profile_focus}: "
+                f"{style_confidences[profile_focus]:.4f} → "
+                f"{boosted_confidences[profile_focus]:.4f}"
+            )
+
+        # Victory lap: populate style-aware fields with boosted scores
+        primary_envelope.primary.dominant_style = dominant_style
+        primary_envelope.primary.style_confidence = boosted_confidences
+
+        # Build style analysis details for each profile (using boosted confidences)
+        style_analysis = {}
+        for profile_name, envelope in profile_results.items():
+            if not envelope.primary:
+                continue
+
+            detail = StyleAnalysisDetail(
+                style_name=profile_name,
+                confidence=boosted_confidences.get(profile_name, 0.0),
+                patterns=envelope.primary.patterns,
+            )
+            style_analysis[profile_name] = detail
+
+        primary_envelope.primary.style_analysis = style_analysis
+
+        logger.debug(
+            f"✅ Built style-aware envelope: dominant={dominant_style}, "
+            f"styles={len(style_analysis)}"
+        )
+
+        return primary_envelope

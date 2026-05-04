@@ -29,7 +29,13 @@ except ImportError:
     EDUCATIONAL_AVAILABLE = False
     EducationalService = None  # type: ignore
 
-from .models import MelodyRequest, ProgressionRequest, ScaleRequest
+from .models import (
+    MelodyRequest,
+    ProfileInfo,
+    ProfileResponse,
+    ProgressionRequest,
+    ScaleRequest,
+)
 
 # Kickoff: Constants from demo
 MISSING_SCALE_KEY_MSG = (
@@ -243,25 +249,25 @@ async def analyze_progression_endpoint(request: ProgressionRequest) -> Dict[str,
         if request.chords:
             envelope = await service.analyze_with_patterns_async(
                 chord_symbols=request.chords,
-                profile=request.profile or "classical",
+                profile_focus=request.profile,
                 key_hint=resolve_key_input(request.key),
             )
         elif request.romans:
             envelope = await service.analyze_with_patterns_async(
                 romans=request.romans,
-                profile=request.profile or "classical",
+                profile_focus=request.profile,
                 key_hint=resolve_key_input(request.key),
             )
         elif request.melody:
             envelope = await service.analyze_with_patterns_async(
                 melody=request.melody,
-                profile=request.profile or "classical",
+                profile_focus=request.profile,
                 key_hint=resolve_key_input(request.key),
             )
         elif request.scales:
             envelope = await service.analyze_with_patterns_async(
                 notes=request.scales[0],
-                profile=request.profile or "classical",
+                profile_focus=request.profile,
                 key_hint=resolve_key_input(request.key),
             )
         else:
@@ -447,10 +453,52 @@ def glossary_lookup(term: str) -> Dict[str, Any]:
     )
 
 
-# Route: Glossary lookup
+# Route: Get all keys
 @router.get("/api/constants/keys")
-def glossary_lookup() -> Dict[str, Any]:
+def get_all_keys() -> Dict[str, Any]:
     """
     Get a list of all keys
     """
     return {"keys": ALL_KEYS}
+
+
+# Route: Get available profiles
+@router.get("/api/constants/profiles")
+def get_available_profiles() -> ProfileResponse:
+    """
+    Get list of available analysis profiles.
+
+    Main play: Return metadata for all supported profile types
+    (classical, jazz, pop, modal) with descriptions for frontend display.
+    """
+    profiles = [
+        ProfileInfo(
+            name="classical",
+            display_name="Classical",
+            description="Traditional Western classical harmony with functional analysis, "
+            "cadence detection, and voice leading principles.",
+            enabled=True,
+        ),
+        ProfileInfo(
+            name="jazz",
+            display_name="Jazz",
+            description="Jazz harmony featuring extended chords, altered dominants, "
+            "modal interchange, and tritone substitutions.",
+            enabled=True,
+        ),
+        ProfileInfo(
+            name="pop",
+            display_name="Pop/Rock",
+            description="Contemporary popular music harmony with emphasis on "
+            "common chord progressions, borrowed chords, and modern patterns.",
+            enabled=True,
+        ),
+        ProfileInfo(
+            name="modal",
+            display_name="Modal",
+            description="Modal harmony analysis emphasizing characteristic scale degrees, "
+            "modal cadences, and non-functional progressions.",
+            enabled=True,
+        ),
+    ]
+    return ProfileResponse(profiles=profiles)
