@@ -12,8 +12,8 @@ import numpy as np
 
 if TYPE_CHECKING:
     # For type checking, import sklearn types
-    from sklearn.isotonic import IsotonicRegression  # type: ignore[import-untyped]
-    from sklearn.linear_model import LogisticRegression  # type: ignore[import-untyped]
+    from sklearn.isotonic import IsotonicRegression
+    from sklearn.linear_model import LogisticRegression
 else:
     # At runtime, import sklearn normally but handle missing stubs
     from sklearn.isotonic import IsotonicRegression  # type: ignore[import-untyped]
