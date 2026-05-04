@@ -384,23 +384,18 @@ jobs:
           echo "🔄 Strategy: Repository-Wide + Ratcheting"
           echo ""
 
-          if [[ "${{ needs.frontend-quality.result }}" == "success" ]]; then
-            echo "✅ Frontend Quality: PASSED"
-          else
-            echo "❌ Frontend Quality: FAILED"
-          fi
-
-          if [[ "${{ needs.backend-quality.result }}" == "success" ]]; then
-            echo "✅ Backend Quality: PASSED"
-          else
-            echo "❌ Backend Quality: FAILED"
-          fi
-
-          if [[ "${{ needs.security-validation.result }}" == "success" ]]; then
-            echo "✅ Security Validation: PASSED"
-          else
-            echo "❌ Security Validation: FAILED"
-          fi
+          # `skipped` is a valid outcome for jobs gated by has-frontend /
+          # has-backend — treat it as a pass, not a failure.
+          report() {
+            case "$2" in
+              success) echo "✅ $1: PASSED" ;;
+              skipped) echo "⏭️  $1: SKIPPED (not applicable to this project)" ;;
+              *)       echo "❌ $1: FAILED" ;;
+            esac
+          }
+          report "Frontend Quality"   "${{ needs.frontend-quality.result }}"
+          report "Backend Quality"    "${{ needs.backend-quality.result }}"
+          report "Security Validation" "${{ needs.security-validation.result }}"
 
           echo ""
           echo "🛠️  Local Fix Instructions:"
@@ -409,10 +404,14 @@ jobs:
           echo "• Check phase: ./scripts/quality-gate-manager.sh status"
           echo "• Phase help: ./scripts/quality-gate-manager.sh help"
 
-          # Check if critical jobs failed
+          # Critical-job gate. `skipped` counts as pass (intentional skip
+          # via has-frontend / has-backend), only outright failure trips
+          # the gate.
           FAILED=false
-          [[ "${{ needs.frontend-quality.result }}" != "success" ]] && FAILED=true
-          [[ "${{ needs.backend-quality.result }}" != "success" ]] && FAILED=true
+          fe="${{ needs.frontend-quality.result }}"
+          be="${{ needs.backend-quality.result }}"
+          [[ "$fe" != "success" && "$fe" != "skipped" ]] && FAILED=true
+          [[ "$be" != "success" && "$be" != "skipped" ]] && FAILED=true
 
           if [[ "$FAILED" == "true" ]]; then
             echo ""
