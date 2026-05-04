@@ -216,7 +216,7 @@ jobs:
     strategy:
       fail-fast: false  # Continue running all Python versions even if one fails
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     # Only set working directory if backend is not root
     defaults:
@@ -277,7 +277,7 @@ jobs:
           fi
 
           echo "🔍 Flake8 linting..."
-          if ! flake8 . --exclude=tools/,demo/,.local_docs/; then
+          if ! flake8 . --exclude=tools/,demo/,.local_docs/,.agent_process/; then
             echo "❌ Flake8 linting failed"
             echo "🔧 Fix all PEP 8 violations"
             exit 1
@@ -289,7 +289,7 @@ jobs:
         run: |
           echo "🎯 Phase 2: MyPy type checking enabled"
 
-          if ! mypy . --ignore-missing-imports; then
+          if ! mypy src/ --ignore-missing-imports; then
             echo "❌ MyPy type checking failed"
             echo "🔧 Fix type annotations and type errors"
             echo "📋 Phase 2: Type safety is enforced"

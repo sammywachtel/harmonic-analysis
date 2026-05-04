@@ -173,6 +173,11 @@ module = [
     "pydantic",
     "uvicorn",
     "music21",
+    "music21.*",
+    "sklearn",
+    "sklearn.*",
+    "scipy",
+    "scipy.*",
 ]
 ignore_missing_imports = true
 

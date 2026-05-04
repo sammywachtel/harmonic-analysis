@@ -2,10 +2,12 @@
 -r requirements.txt
 
 # Code Quality and Formatting Tools
-black>=24.0.0                    # Code formatting
-isort>=5.13.0                    # Import sorting
-flake8>=7.0.0                    # Linting
-mypy>=1.8.0                      # Type checking
+# Pin tightly so local dev, pre-commit, and CI all agree on formatting.
+# Black quietly changes what it reformats between majors (24 → 25 → 26).
+black==24.10.0                   # Matches .pre-commit-config.yaml
+isort==5.13.2                    # Matches .pre-commit-config.yaml
+flake8==7.1.1                    # Matches .pre-commit-config.yaml
+mypy>=1.8.0                      # Type checking (looser pin OK)
 
 # Testing Framework
 pytest>=8.0.0                   # Testing framework

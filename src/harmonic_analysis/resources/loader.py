@@ -7,15 +7,9 @@ when the package is installed via pip, built as a wheel, or run from source.
 """
 
 import json
+from importlib import resources as resources_module
 from pathlib import Path
 from typing import Any, Dict
-
-try:
-    # Python 3.9+
-    from importlib import resources as resources_module
-except ImportError:
-    # Python 3.8 fallback
-    import importlib_resources as resources_module  # type: ignore[import-not-found,no-redef]  # noqa: E501
 
 
 def load_json(name: str) -> Dict[str, Any]:

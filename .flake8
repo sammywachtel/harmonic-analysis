@@ -14,6 +14,10 @@ exclude =
     migrations,
     build,
     dist
+# Note: directories like .agent_process/, .local_docs/, tools/, demo/ are
+# excluded via the --exclude CLI flag in CI. Adding them here doesn't work
+# because flake8's config-file `exclude` matches by basename, not path —
+# so `tools` would only match a literal file/dir named `tools` in cwd.
 per-file-ignores =
     # __init__.py files can have unused imports
     __init__.py:F401
