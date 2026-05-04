@@ -1,7 +1,7 @@
 # Adaptive Quality Gate CI/CD Pipeline
 # Generated based on project structure and current quality gate phase
 # Project: harmonic-analysis (backend-python)
-# Phase: 2 - {{PHASE_DESCRIPTION}}
+# Phase: 2 - Repository-Wide + Ratcheting
 
 name: Quality Gate - Phase 2 (backend-python)
 
@@ -61,7 +61,6 @@ jobs:
           echo "frontend-path=$(jq -r '.project.frontend_path' detection.json)" >> $GITHUB_OUTPUT
           echo "backend-path=$(jq -r '.project.backend_path' detection.json)" >> $GITHUB_OUTPUT
 
-{{#IF_PHASE_1_OR_HIGHER}}
       - name: Get Changed Files (Phase 2+)
         id: changes
         run: |
@@ -79,12 +78,11 @@ jobs:
 
           echo "📋 Changed files for Phase 2 enforcement:"
           cat changed_files.txt
-{{/IF_PHASE_1_OR_HIGHER}}
 
       - name: "Phase 2: Show Quality Gate Context"
         run: |
           echo "🎯 Quality Gate Phase: 2"
-          echo "📊 Strategy: {{PHASE_DESCRIPTION}}"
+          echo "📊 Strategy: Repository-Wide + Ratcheting"
           echo "🏗️  Project Type: backend-python"
 
 
@@ -94,7 +92,6 @@ jobs:
 
 
 
-{{#IF_HAS_FRONTEND}}
   # Frontend Quality Gates
   frontend-quality:
     name: "Phase 2: Frontend Quality"
@@ -122,7 +119,6 @@ jobs:
 
 
 
-{{#IF_PHASE_1_OR_HIGHER}}
       - name: "Phase 2: ESLint Strict Enforcement"
         run: |
           echo "🎯 Phase 2: ESLint strict enforcement for changed files"
@@ -158,7 +154,6 @@ jobs:
             exit 1
           fi
           echo "✅ TypeScript compilation successful"
-{{/IF_PHASE_1_OR_HIGHER}}
 
       - name: "Phase 2: Frontend Tests"
         run: |
@@ -185,7 +180,6 @@ jobs:
           fi
           echo "✅ Frontend tests passed"
 
-{{#IF_PHASE_2_OR_HIGHER}}
       - name: "Phase 2: Coverage Ratchet Check"
         run: |
           echo "📈 Phase 2: Coverage ratchet enforcement"
@@ -205,16 +199,13 @@ jobs:
 
           # This would check against baseline and require improvement
           echo "✅ Coverage ratchet check passed"
-{{/IF_PHASE_2_OR_HIGHER}}
 
       - name: Frontend Build Verification
         run: |
           echo "🏗️  Building frontend for production"
           npm run build
           echo "✅ Frontend build successful"
-{{/IF_HAS_FRONTEND}}
 
-{{#IF_HAS_BACKEND}}
   # Backend Quality Gates
   backend-quality:
     name: "Phase 2: Backend Quality (Python ${{ matrix.python-version }})"
@@ -267,7 +258,6 @@ jobs:
 
 
 
-{{#IF_PHASE_1_OR_HIGHER}}
       - name: "Phase 2: Python Quality Strict Enforcement"
         run: |
           echo "🎯 Phase 2: Python quality strict enforcement"
@@ -294,9 +284,7 @@ jobs:
           fi
 
           echo "✅ Python quality checks passed"
-{{/IF_PHASE_1_OR_HIGHER}}
 
-{{#IF_PHASE_2_OR_HIGHER}}
       - name: "Phase 2: MyPy Type Checking"
         run: |
           echo "🎯 Phase 2: MyPy type checking enabled"
@@ -308,7 +296,6 @@ jobs:
             exit 1
           fi
           echo "✅ MyPy type checking passed"
-{{/IF_PHASE_2_OR_HIGHER}}
 
       - name: "Phase 2: Backend Tests"
         run: |
@@ -324,7 +311,6 @@ jobs:
           else
             echo "⏭️  No pytest found - skipping backend tests"
           fi
-{{/IF_HAS_BACKEND}}
 
   # Security and Compliance
   security-validation:
@@ -351,15 +337,12 @@ jobs:
             echo "⏭️  detect-secrets not available"
           fi
 
-{{#IF_HAS_FRONTEND}}
       - name: Frontend Dependency Security Scan
         run: |
           echo "🔒 Frontend dependency security scan"
           cd ${{ needs.config-validation.outputs.frontend-path }}
           npm audit --audit-level=moderate || echo "⚠️  Security vulnerabilities found in frontend dependencies"
-{{/IF_HAS_FRONTEND}}
 
-{{#IF_PHASE_2_OR_HIGHER}}
       - name: "Phase 2: Advanced Security Scanning"
         run: |
           echo "🔒 Phase 2: Advanced security scanning enabled"
@@ -372,13 +355,12 @@ jobs:
           fi
 
           echo "✅ Security scanning completed"
-{{/IF_PHASE_2_OR_HIGHER}}
 
   # Quality Gate Summary
   quality-gate-summary:
     name: "Phase 2: Quality Gate Summary"
     runs-on: ubuntu-latest
-    needs: [config-validation{{#IF_HAS_FRONTEND}}, frontend-quality{{/IF_HAS_FRONTEND}}{{#IF_HAS_BACKEND}}, backend-quality{{/IF_HAS_BACKEND}}, security-validation]
+    needs: [config-validation, frontend-quality, backend-quality, security-validation]
     if: always()
 
     steps:
@@ -388,24 +370,20 @@ jobs:
           echo "=============================================="
           echo ""
           echo "📊 Project: harmonic-analysis (backend-python)"
-          echo "🔄 Strategy: {{PHASE_DESCRIPTION}}"
+          echo "🔄 Strategy: Repository-Wide + Ratcheting"
           echo ""
 
-{{#IF_HAS_FRONTEND}}
           if [[ "${{ needs.frontend-quality.result }}" == "success" ]]; then
             echo "✅ Frontend Quality: PASSED"
           else
             echo "❌ Frontend Quality: FAILED"
           fi
-{{/IF_HAS_FRONTEND}}
 
-{{#IF_HAS_BACKEND}}
           if [[ "${{ needs.backend-quality.result }}" == "success" ]]; then
             echo "✅ Backend Quality: PASSED"
           else
             echo "❌ Backend Quality: FAILED"
           fi
-{{/IF_HAS_BACKEND}}
 
           if [[ "${{ needs.security-validation.result }}" == "success" ]]; then
             echo "✅ Security Validation: PASSED"
@@ -422,12 +400,8 @@ jobs:
 
           # Check if critical jobs failed
           FAILED=false
-{{#IF_HAS_FRONTEND}}
           [[ "${{ needs.frontend-quality.result }}" != "success" ]] && FAILED=true
-{{/IF_HAS_FRONTEND}}
-{{#IF_HAS_BACKEND}}
           [[ "${{ needs.backend-quality.result }}" != "success" ]] && FAILED=true
-{{/IF_HAS_BACKEND}}
 
           if [[ "$FAILED" == "true" ]]; then
             echo ""
