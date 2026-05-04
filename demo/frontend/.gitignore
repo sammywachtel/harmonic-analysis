@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright e2e test artifacts (regenerated on every run)
+playwright-report/
+test-results/
