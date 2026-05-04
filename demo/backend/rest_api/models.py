@@ -7,12 +7,15 @@ These models provide automatic validation, serialization, and OpenAPI documentat
 
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+# Kickoff: Define profile type for validation
+ProfileType = Literal["classical", "jazz", "pop", "modal"]
 
-# Kickoff: Helper function for CSV parsing (used by validators)
+
+# Helper function for CSV parsing (used by validators)
 def parse_csv(text: str) -> List[str]:
     """Parse comma or space-separated input into list."""
     if "," in text:
@@ -27,7 +30,9 @@ class ProgressionRequest(BaseModel):
     key: Optional[str] = Field(
         default=None, description="Optional key hint (e.g. 'C major')"
     )
-    profile: Optional[str] = Field(default="classical", description="Style profile")
+    profile: Optional[Literal["classical", "jazz", "pop", "modal"]] = Field(
+        default="classical", description="Style profile (classical/jazz/pop/modal)"
+    )
     chords: Optional[List[str]] = Field(default=None, description="Chord symbols")
     romans: Optional[List[str]] = Field(default=None, description="Roman numerals")
     melody: Optional[List[str]] = Field(default=None, description="Melodic notes")
@@ -102,8 +107,8 @@ class FileUploadRequest(BaseModel):
         default=False,
         description="Run harmonic analysis on extracted progression",
     )
-    profile: str = Field(
-        default="classical", description="Analysis profile (classical, jazz, pop, etc.)"
+    profile: Optional[Literal["classical", "jazz", "pop", "modal"]] = Field(
+        default="classical", description="Analysis profile (classical/jazz/pop/modal)"
     )
     process_full_file: bool = Field(
         default=False,
@@ -163,3 +168,20 @@ class FileAnalysisResponse(BaseModel):
     is_midi: bool
     parsing_logs: Optional[str] = None
     window_size_used: Optional[float] = None
+
+
+class ProfileInfo(BaseModel):
+    """Information about a single analysis profile."""
+
+    name: str = Field(description="Profile identifier (e.g., 'classical')")
+    display_name: str = Field(description="Human-readable name (e.g., 'Classical')")
+    description: str = Field(description="Brief description of the profile")
+    enabled: bool = Field(default=True, description="Whether this profile is available")
+
+
+class ProfileResponse(BaseModel):
+    """Response model for available profiles endpoint."""
+
+    profiles: List[ProfileInfo] = Field(
+        description="List of available analysis profiles"
+    )

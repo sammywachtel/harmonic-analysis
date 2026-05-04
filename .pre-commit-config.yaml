@@ -12,8 +12,9 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=1024']
       - id: check-yaml
+        # quality-adaptive.yml is a Mustache template, not raw YAML — rendered before deploy
+        exclude: '^\.github/workflows/quality-adaptive\.yml$'
       - id: check-json
-        exclude: '^demo/frontend/tsconfig.*\.json$'
 
   # Frontend hooks (TypeScript/JavaScript)
   - repo: local
@@ -53,15 +54,18 @@ repos:
         exclude: '^(tools/|demo/|\.local_docs/)'
 
   # MyPy type checking (auto-configured based on requirements)
+  # Note: Enabled by default to match CI behavior
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+    rev: v1.13.0
     hooks:
       - id: mypy
         args: ["--config-file=pyproject.toml"]
         additional_dependencies:
+          - httpx
           - numpy
-          - scipy
+          - pytest
           - scikit-learn
+          - scipy
           - types-jsonschema
         files: '^(src|backend|app)/.*\.py$'
 

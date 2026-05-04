@@ -1,0 +1,111 @@
+/* Multi-profile UI styles: animations and style-specific colors */
+
+/* Card entrance animation: smooth slide-in with staggered timing */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.style-card {
+  animation: slideIn 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+/* Stagger animation for multiple cards */
+.style-card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+.style-card:nth-child(2) {
+  animation-delay: 0.10s;
+}
+
+.style-card:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.style-card:nth-child(4) {
+  animation-delay: 0.20s;
+}
+
+/* Confidence bar animation: smooth fill from left */
+@keyframes fillBar {
+  from {
+    width: 0;
+  }
+  to {
+    width: var(--bar-width);
+  }
+}
+
+.confidence-bar-fill {
+  animation: fillBar 0.6s ease-out;
+  animation-fill-mode: forwards;
+  transition: width 0.3s ease-out;
+}
+
+/* Expand/collapse smooth transition */
+.style-analysis-section {
+  transition: max-height 0.3s ease-in-out;
+}
+
+/* Style-specific confidence bar colors */
+.bar-classical {
+  background-color: #3b82f6; /* blue-500 */
+}
+
+.bar-jazz {
+  background-color: #8b5cf6; /* purple-500 */
+}
+
+.bar-pop {
+  background-color: #f97316; /* orange-500 */
+}
+
+.bar-modal {
+  background-color: #10b981; /* green-500 */
+}
+
+/* Confidence bar container */
+.confidence-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.confidence-bar-label {
+  min-width: 5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #475569; /* slate-600 */
+}
+
+.confidence-bar-track {
+  flex: 1;
+  height: 1.25rem;
+  background-color: #f1f5f9; /* slate-100 */
+  border-radius: 0.375rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.confidence-bar-percentage {
+  min-width: 3rem;
+  text-align: right;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b; /* slate-800 */
+}
+
+/* Accessible focus styles */
+.style-analysis-toggle:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

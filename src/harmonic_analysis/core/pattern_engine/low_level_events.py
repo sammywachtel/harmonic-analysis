@@ -480,7 +480,9 @@ def get_circle_of_fifths_descriptor(
     For min_length transitions, we need min_length+1 chords.
     """
     chains = []
-    current_chain_start = None
+    # Explicit Optional[int] — mypy otherwise narrows to None and flags the
+    # else branch below as unreachable (it isn't, on subsequent iterations).
+    current_chain_start: int | None = None
     current_chord_count = 0  # Number of chords in current chain
 
     for i, motion in enumerate(events.root_motion):

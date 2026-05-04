@@ -29,6 +29,7 @@ from .glossary import enrich_features, get_summary_terms, load_default_glossary
 from .glossary_provider import GlossaryProvider
 from .pattern_loader import PatternLoader
 from .plugin_registry import PluginRegistry
+from .profile_manager import Profile
 from .target_builder_unified import UnifiedTargetBuilder as TargetBuilder
 
 
@@ -230,12 +231,94 @@ class PatternEngine:
             schema_version="1.0",
         )
 
-    def _match_patterns(self, context: AnalysisContext) -> List[Evidence]:
+    def analyze_with_profile(
+        self, context: AnalysisContext, profile: Profile
+    ) -> AnalysisEnvelope:
+        """
+        Analyze musical content using pattern matching with profile-specific
+        substitutions.
+
+        This method extends the standard analyze() with profile-aware pattern matching,
+        allowing different styles (jazz, classical, pop, modal) to detect different
+        patterns from the same progression.
+
+        Args:
+            context: Normalized analysis context
+            profile: Style profile with substitution rules and typicality weights
+
+        Returns:
+            AnalysisEnvelope with primary and alternative interpretations
+        """
+        start_time = time.time()
+
+        # Opening move: match patterns with profile substitutions enabled
+        evidences = self._match_patterns(context, profile=profile)
+
+        # Main play: aggregate evidence into scores (same as standard analyze)
+        aggregated = self.aggregator.aggregate(evidences)
+
+        # Apply calibration if available
+        functional_conf = self._calibrate(aggregated["functional_conf"])
+        modal_conf = self._calibrate(aggregated["modal_conf"])
+        chromatic_conf = self._calibrate(aggregated["chromatic_conf"])
+        combined_conf = self._calibrate(aggregated["combined_conf"])
+
+        # Round confidence values to avoid floating-point precision issues
+        functional_conf = round(float(functional_conf), 3)
+        modal_conf = round(float(modal_conf), 3)
+        chromatic_conf = round(float(chromatic_conf), 3)
+        combined_conf = round(float(combined_conf), 3)
+
+        # Build primary analysis
+        primary = self._build_analysis_summary(
+            context,
+            evidences,
+            functional_conf,
+            modal_conf,
+            chromatic_conf,
+            combined_conf,
+            aggregated["debug_breakdown"],
+        )
+
+        # Build alternatives if confidence is ambiguous
+        alternatives = self._build_alternatives(
+            context, evidences, functional_conf, modal_conf, chromatic_conf
+        )
+
+        # Convert internal evidence to public DTOs
+        evidence_dtos = self._convert_evidence(evidences)
+
+        # Calculate timing
+        analysis_time_ms = (time.time() - start_time) * 1000
+
+        # Victory lap: return envelope with profile metadata
+        envelope = AnalysisEnvelope(
+            primary=primary,
+            alternatives=alternatives,
+            analysis_time_ms=analysis_time_ms,
+            chord_symbols=context.chords,
+            evidence=evidence_dtos,
+            schema_version="1.0",
+        )
+
+        # Add profile metadata to primary summary if available
+        if primary and primary.terms:
+            primary.terms["profile"] = profile.display_name
+
+        return envelope
+
+    def _match_patterns(
+        self, context: AnalysisContext, profile: Optional[Profile] = None
+    ) -> List[Evidence]:
         """
         Match all patterns against the analysis context.
 
+        When a profile is provided, pattern matching uses profile-specific
+        substitution rules during chord expansion.
+
         Args:
             context: Analysis context
+            profile: Optional profile for substitution-aware matching
 
         Returns:
             List of evidence from matched patterns
@@ -250,8 +333,8 @@ class PatternEngine:
             if not self._pattern_applies(pattern, context):
                 continue
 
-            # Find matches for this pattern
-            matches = self._find_pattern_matches(pattern, context)
+            # Find matches for this pattern with optional profile substitutions
+            matches = self._find_pattern_matches(pattern, context, profile)
 
             for match_span in matches:
                 # Evaluate pattern at this location
@@ -290,7 +373,10 @@ class PatternEngine:
         return True
 
     def _find_pattern_matches(
-        self, pattern: Dict[str, Any], context: AnalysisContext
+        self,
+        pattern: Dict[str, Any],
+        context: AnalysisContext,
+        profile: Optional[Profile] = None,
     ) -> List[Tuple[int, int]]:
         """
         Find all locations where pattern matches.
@@ -298,9 +384,13 @@ class PatternEngine:
         Self-contained implementation that works directly with pattern JSON,
         enforcing window and constraint logic without external dependencies.
 
+        When a profile is provided, roman numeral sequences are expanded using
+        profile-specific substitutions before matching.
+
         Args:
             pattern: Pattern definition from JSON
             context: Analysis context
+            profile: Optional profile for substitution expansion
 
         Returns:
             List of (start, end) spans where pattern matches
@@ -323,6 +413,7 @@ class PatternEngine:
                     constraints,
                     context,
                     is_roman=True,
+                    profile=profile,
                 )
             )
 
@@ -643,9 +734,14 @@ class PatternEngine:
         constraints: Dict[str, Any],
         context: AnalysisContext,
         is_roman: bool = False,
+        profile: Optional[Profile] = None,
     ) -> List[Tuple[int, int]]:
         """
         Find all occurrences of a sequence pattern with window/constraint enforcement.
+
+        When a profile is provided, pattern sequences are expanded using profile
+        substitutions. For example, jazz profile allows "V" to match both "V" and "♭II7"
+        (tritone substitution).
 
         Args:
             pattern_seq: Pattern sequence to find
@@ -653,6 +749,8 @@ class PatternEngine:
             window: Window constraints (min/max length, overlap)
             constraints: Additional constraints (position, key_context, etc.)
             context: Full analysis context for constraint checking
+            is_roman: Whether matching roman numerals (enables special handling)
+            profile: Optional profile for substitution expansion
 
         Returns:
             List of (start, end) indices where pattern matches
@@ -714,9 +812,30 @@ class PatternEngine:
                     pattern_normalized = pattern_item
                     context_normalized = context_item
 
-                if pattern_normalized != context_normalized:
-                    pattern_matches = False
-                    break
+                # Big play: check for match with optional profile substitutions
+                if pattern_normalized == context_normalized:
+                    continue  # Direct match
+
+                # Time to tackle the tricky bit: profile substitution expansion
+                # Jazz profile allows V to match ♭II7 (tritone sub), classical doesn't
+                if profile and is_roman:
+                    # Get allowed substitutes for this pattern item
+                    substitutes = profile.get_substitutes(pattern_normalized)
+
+                    # Check if context matches any allowed substitute
+                    substitute_match = False
+                    for substitute in substitutes:
+                        sub_normalized = self._normalize_roman_for_matching(substitute)
+                        if sub_normalized == context_normalized:
+                            substitute_match = True
+                            break
+
+                    if substitute_match:
+                        continue  # Substitution match found
+
+                # No match found (neither direct nor substitution)
+                pattern_matches = False
+                break
 
             if pattern_matches:
                 # Check position constraints

@@ -124,3 +124,7 @@ tools/converted_patterns.json
 # Docker development environment (local only)
 .docker-dev/
 /.agent_process/
+
+# Playwright e2e test artifacts (regenerated on every run)
+playwright-report/
+test-results/

@@ -74,6 +74,7 @@ class PatternAnalysisService:
         self,
         chord_symbols: Optional[List[str]] = None,
         profile: str = "classical",
+        profile_focus: Optional[str] = None,  # NEW: Multi-profile focus parameter
         best_cover: bool = True,  # Ignored - compatibility only
         key_hint: Optional[str] = None,
         sections: Optional[List[SectionDTO]] = None,  # Ignored - compatibility only
@@ -86,7 +87,10 @@ class PatternAnalysisService:
 
         Args:
             chord_symbols: List of chord symbols (e.g., ['C', 'F', 'G', 'C'])
-            profile: Analysis profile (passed through to unified service)
+            profile: Analysis profile (deprecated - use profile_focus instead)
+            profile_focus: Optional profile name to weight higher in multi-profile
+                         analysis (e.g., "jazz", "classical", "pop", "modal").
+                         Gives 20% confidence boost to specified style.
             best_cover: Legacy parameter (ignored)
             key_hint: Optional key context (required for roman/scale/melody inputs)
             sections: Legacy parameter (ignored)
@@ -134,6 +138,7 @@ class PatternAnalysisService:
             melody=melody,
             key_hint=key_hint,
             profile=profile,
+            profile_focus=profile_focus,  # NEW: Pass multi-profile focus
             options={
                 "best_cover": best_cover,
                 "sections": sections,
@@ -221,6 +226,7 @@ class PatternAnalysisService:
         self,
         chord_symbols: Optional[List[str]] = None,
         profile: str = "classical",
+        profile_focus: Optional[str] = None,  # NEW: Multi-profile focus parameter
         best_cover: bool = True,  # Ignored - compatibility only
         key_hint: Optional[str] = None,
         sections: Optional[List[SectionDTO]] = None,  # Ignored - compatibility only
@@ -246,6 +252,7 @@ class PatternAnalysisService:
                     melody=melody,
                     key_hint=key_hint,
                     profile=profile,
+                    profile_focus=profile_focus,  # NEW: Pass multi-profile focus
                     best_cover=best_cover,
                     sections=sections,
                 )
@@ -263,6 +270,7 @@ class PatternAnalysisService:
                         melody=melody,
                         key_hint=key_hint,
                         profile=profile,
+                        profile_focus=profile_focus,  # NEW: Pass multi-profile focus
                         best_cover=best_cover,
                         sections=sections,
                     ),

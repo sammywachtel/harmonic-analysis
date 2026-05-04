@@ -9,7 +9,7 @@ quality_gates:
   current_phase: 2  # 0=Baseline, 1=Changed-only, 2=Ratchet, 3=Strict
   recommended_phase: 0  # Auto-calculated based on project analysis
   auto_progression: false       # Automatic phase advancement (typically false)
-  last_updated: "2025-10-29 10:08:23"
+  last_updated: "2025-11-20 11:08:17"
 
   # Phase-specific behaviors
   phases:
@@ -71,6 +71,8 @@ tools:
       phase_1_enforce: true       # New files only
       phase_2_enforce: true       # Repository-wide
       phase_3_enforce: true       # Maximum strictness
+    testing:
+      unit_tests: false  # Enable test execution in validation
 
   # Backend tools (enabled if Python detected)
   backend:
@@ -89,12 +91,14 @@ tools:
         max_line_length: 88
         extend_ignore: ["E203", "W503"]
       mypy:
-        enabled: false            # Start disabled, enable in Phase 1+
-        phase_0_enforce: false    # Disabled initially
+        enabled: true   # Auto-enabled for Python projects
+        phase_0_enforce: false    # Not enforced initially (warnings only)
         phase_1_enforce: true     # New/changed files only
         phase_2_enforce: true     # Repository-wide
         phase_3_enforce: true     # Maximum strictness
         ignore_missing_imports: true
+    testing:
+      unit_tests: true  # Enable test execution in validation
 
   # Security tools
   security:
@@ -165,7 +169,7 @@ phase_requirements:
 # BASELINE TRACKING (Phase 0 foundation)
 # ═══════════════════════════════════════════════════════════════════════════════════════
 baseline:
-  established_date: "2025-10-29 10:08:23"
+  established_date: "2025-11-20 11:08:17"
   initial_metrics:
     total_files: 0
     typed_files: 0

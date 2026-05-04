@@ -6,10 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Planned
-- Complete MyPy type error resolution
-- Enhanced chromatic analysis test validation
-- Performance optimization and test coverage improvements
+## [0.3.0] - 2026-05-04
+
+### Added
+- **Multi-profile style analysis** — chord progressions are now interpreted through multiple stylistic lenses (classical, jazz, pop, modal) simultaneously, ranked by confidence. No more single "primary" reading; see all the ways a progression makes sense.
+- **Style analysis UI components** — a new collapsible Style Analysis section in the demo app shows per-style breakdowns with confidence bars and a dominant-style badge at a glance.
+- **Demo API `style_analysis` map and `dominant_style` field** — the `/analyze` endpoint now returns a keyed breakdown of per-style pattern matches alongside the dominant style, making multi-profile data accessible to API consumers.
+
+### Changed
+- **Profile selector is now optional** — the demo UI no longer requires you to pick a single profile before running analysis; omitting it triggers the full multi-profile sweep.
+- **Backend pattern engine collects per-profile matches** — `PatternEngine` and `UnifiedPatternService` now tag each matched pattern with its originating style profile, powering the ranked multi-profile output.
+
+### Internal
+- CI consolidated from six separate workflow files into one adaptive `quality-adaptive.yml` gate; no change to what gets validated, just less YAML to maintain.
+- Playwright E2E scaffolding added for the demo frontend (7 tests written; blocked by local backend dependency, not a code issue).
 
 ## [0.2.0rc1] - 2025-01-23
 

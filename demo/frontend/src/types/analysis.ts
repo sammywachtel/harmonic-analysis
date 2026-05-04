@@ -23,6 +23,10 @@ export interface PatternMatch {
   section: string | null;
   cadence_role: string | null;
   is_section_closure: boolean;
+  // Multi-profile fields: style-aware pattern metadata
+  style_tags?: string[];
+  detected_via_profile?: string;
+  style_typicality?: number;
 }
 
 // Modal evidence details
@@ -36,6 +40,25 @@ export interface ModalEvidence {
 export interface GlossaryTerm {
   label: string;
   tooltip: string;
+}
+
+// Chromatic element structure for non-diatonic analysis
+export interface ChromaticElement {
+  symbol: string;
+  type?: string;
+  resolution?: string;
+  strength?: number;
+  explanation?: string;
+}
+
+// Multi-profile: per-style analysis detail
+export interface StyleAnalysisDetail {
+  style_name: string;
+  confidence: number;
+  typicality: number;
+  patterns: PatternMatch[];
+  style_notes?: string;
+  characteristic_features: string[];
 }
 
 export interface PrimaryInterpretation {
@@ -56,9 +79,14 @@ export interface PrimaryInterpretation {
   patterns?: PatternMatch[];
   modal_characteristics?: string[];
   modal_evidence?: ModalEvidence[];
-  chromatic_elements?: string[];
+  chromatic_elements?: ChromaticElement[];
   chromatic_summary?: string | null;
   terms?: Record<string, GlossaryTerm>;
+  // Multi-profile: dominant style and style confidence breakdown
+  dominant_style?: string;
+  style_typicality?: number;
+  style_confidence?: Record<string, number>;
+  style_analysis?: Record<string, StyleAnalysisDetail>;
 }
 
 // Victory lap: Educational content types

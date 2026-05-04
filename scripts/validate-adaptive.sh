@@ -71,6 +71,9 @@ try:
     value = config
     for k in keys:
         value = value.get(k, {})
+    # Convert Python booleans to lowercase strings for bash compatibility
+    if isinstance(value, bool):
+        value = str(value).lower()
     print(value if value != {} else '$default_value')
 except:
     print('$default_value')
@@ -93,6 +96,30 @@ is_tool_enabled() {
             echo "false"
             ;;
     esac
+}
+
+# Function to check if a tool should enforce in the current phase
+should_enforce_tool() {
+    local tool_path="$1"
+    local current_phase="$CURRENT_PHASE"
+
+    # Check if tool is enabled first
+    local enabled=$(is_tool_enabled "$tool_path")
+    if [[ "$enabled" != "true" ]]; then
+        echo "disabled"
+        return
+    fi
+
+    # Check phase-specific enforcement
+    local phase_enforce=$(read_config "${tool_path}.phase_${current_phase}_enforce")
+    if [[ "$phase_enforce" == "true" ]]; then
+        echo "enforce"
+    elif [[ "$phase_enforce" == "false" ]]; then
+        echo "warning"
+    else
+        # Default: enforce if enabled
+        echo "enforce"
+    fi
 }
 
 # Function to record validation result
@@ -335,7 +362,25 @@ validate_frontend() {
     local testing_enabled=$(read_config "tools.frontend.testing.unit_tests")
     if [[ "$testing_enabled" == "true" ]]; then
         if [[ -f "package.json" ]] && (npm list jest >/dev/null 2>&1 || npm list vitest >/dev/null 2>&1); then
-            run_validation "Frontend tests" "npm test -- --run --passWithNoTests" "frontend-tests" "npm test -- --verbose" || frontend_failed=true
+            # Detect test framework and use appropriate flags
+            local has_jest=$(npm list jest >/dev/null 2>&1 && echo "true" || echo "false")
+            local has_vitest=$(npm list vitest >/dev/null 2>&1 && echo "true" || echo "false")
+
+            if [[ "$has_jest" == "true" && "$has_vitest" == "true" ]]; then
+                # Both frameworks present - prefer Vitest if both installed
+                print_status "Both Jest and Vitest detected, using Vitest"
+                run_validation "Frontend tests" "npm test -- --run --passWithNoTests" "frontend-tests" "npm test -- --run" || frontend_failed=true
+            elif [[ "$has_jest" == "true" ]]; then
+                # Jest uses --watchAll=false for non-interactive mode
+                run_validation "Frontend tests (Jest)" "npm test -- --watchAll=false --passWithNoTests" "frontend-tests" "npm test" || frontend_failed=true
+            elif [[ "$has_vitest" == "true" ]]; then
+                # Vitest uses --run for non-interactive mode
+                run_validation "Frontend tests (Vitest)" "npm test -- --run --passWithNoTests" "frontend-tests" "npm test -- --run" || frontend_failed=true
+            else
+                # Fallback: try without framework-specific flags
+                print_status "Unknown test framework, attempting npm test without special flags"
+                run_validation "Frontend tests" "npm test -- --passWithNoTests" "frontend-tests" "npm test" || frontend_failed=true
+            fi
         else
             print_skip "Frontend tests not configured"
         fi
@@ -384,52 +429,51 @@ validate_backend() {
     # Python validation
     local python_enabled=$(read_config "tools.backend.python.enabled")
     if [[ "$python_enabled" == "true" ]]; then
+        # Run individual Python quality checks
+        cd "$backend_path" || return 1
 
-        # Check if we have the comprehensive quality_check.py script
-        cd "$original_dir"  # Go back to root to check for quality_check.py
-        if [[ -f "scripts/quality_check.py" ]]; then
-            print_status "Using comprehensive Python quality checker..."
-            if ! run_validation "Python Quality Check" "python scripts/quality_check.py --quick-tests" "python-quality" "python scripts/quality_check.py --fix"; then
-                backend_failed=true
-                print_status "💡 Quality check failed. Try these steps:"
-                print_status "   1. 🔧 Auto-fix formatting: python scripts/quality_check.py --fix"
-                print_status "   2. 🔍 View detailed results: python scripts/quality_check.py --quick-tests"
-                print_status "   3. 🎯 Manual fixes may be needed for type errors and security issues"
-                print_status "   4. ✅ Re-run validation: ./scripts/validate-adaptive.sh"
-            fi
-        else
-            # Fallback to individual checks
-            cd "$backend_path" || return 1
+        # Black formatting check
+        local black_enabled=$(read_config "tools.backend.python.black.enabled")
+        if [[ "$black_enabled" == "true" ]] && command -v black >/dev/null 2>&1; then
+            run_phase_validation "Black formatting" "black --check ." "black" "black ." "\.py$" || backend_failed=true
+        fi
 
-            # Black formatting check
-            local black_enabled=$(read_config "tools.backend.python.black.enabled")
-            if [[ "$black_enabled" == "true" ]] && command -v black >/dev/null 2>&1; then
-                run_phase_validation "Black formatting" "black --check ." "black" "black ." "\.py$" || backend_failed=true
-            fi
+        # isort import sorting check
+        local isort_enabled=$(read_config "tools.backend.python.isort.enabled")
+        if [[ "$isort_enabled" == "true" ]] && command -v isort >/dev/null 2>&1; then
+            run_phase_validation "Import sorting" "isort --check-only ." "isort" "isort ." "\.py$" || backend_failed=true
+        fi
 
-            # isort import sorting check
-            local isort_enabled=$(read_config "tools.backend.python.isort.enabled")
-            if [[ "$isort_enabled" == "true" ]] && command -v isort >/dev/null 2>&1; then
-                run_phase_validation "Import sorting" "isort --check-only ." "isort" "isort ." "\.py$" || backend_failed=true
-            fi
+        # flake8 linting check
+        local flake8_enabled=$(read_config "tools.backend.python.flake8.enabled")
+        if [[ "$flake8_enabled" == "true" ]] && command -v flake8 >/dev/null 2>&1; then
+            run_phase_validation "Flake8 linting" "flake8 ." "flake8" "flake8 . --show-source" "\.py$" || backend_failed=true
+        fi
 
-            # flake8 linting check
-            local flake8_enabled=$(read_config "tools.backend.python.flake8.enabled")
-            if [[ "$flake8_enabled" == "true" ]] && command -v flake8 >/dev/null 2>&1; then
-                run_phase_validation "Flake8 linting" "flake8 ." "flake8" "flake8 . --show-source" "\.py$" || backend_failed=true
-            fi
-
-            # MyPy type checking (if enabled)
-            local mypy_enabled=$(read_config "tools.backend.python.mypy.enabled")
-            if [[ "$mypy_enabled" == "true" ]] && command -v mypy >/dev/null 2>&1; then
+        # MyPy type checking (phase-aware enforcement)
+        local mypy_enforcement=$(should_enforce_tool "tools.backend.python.mypy")
+        if [[ "$mypy_enforcement" != "disabled" ]] && command -v mypy >/dev/null 2>&1; then
+            if [[ "$mypy_enforcement" == "warning" ]]; then
+                # Run mypy but don't fail on errors in Phase 0
+                print_status "Running MyPy type checking (warnings only, Phase $CURRENT_PHASE)..."
+                if mypy . >/dev/null 2>&1; then
+                    print_success "MyPy type checking - PASSED"
+                    record_result "mypy" "PASSED" "MyPy type checking"
+                else
+                    print_warning "MyPy type checking - Issues found (not blocking in Phase $CURRENT_PHASE)"
+                    print_status "Fix with: mypy . --show-error-codes"
+                    record_result "mypy" "WARNING" "MyPy type checking (not enforced)"
+                fi
+            else
+                # Enforce mypy errors in Phase 1+
                 run_validation "MyPy type checking" "mypy ." "mypy" "mypy . --show-error-codes" || backend_failed=true
             fi
+        fi
 
-            # Backend tests
-            local testing_enabled=$(read_config "tools.backend.testing.unit_tests")
-            if [[ "$testing_enabled" == "true" ]] && command -v pytest >/dev/null 2>&1; then
-                run_validation "Backend tests" "python -m pytest" "backend-tests" "python -m pytest -v" || backend_failed=true
-            fi
+        # Backend tests
+        local testing_enabled=$(read_config "tools.backend.testing.unit_tests")
+        if [[ "$testing_enabled" == "true" ]] && command -v pytest >/dev/null 2>&1; then
+            run_validation "Backend tests" "python -m pytest" "backend-tests" "python -m pytest -v" || backend_failed=true
         fi
     fi
 
@@ -529,12 +573,15 @@ validate_precommit() {
     fi
 
     # Run pre-commit validation
-    if ! run_validation "Pre-commit hooks" "pre-commit run --all-files" "pre-commit" "python scripts/quality_check.py --fix"; then
+    if ! run_validation "Pre-commit hooks" "pre-commit run --all-files" "pre-commit" "pre-commit run --all-files"; then
         precommit_failed=true
         print_status "💡 Pre-commit hooks failed. Try these steps:"
-        print_status "   1. 🔧 Auto-fix most issues: python scripts/quality_check.py --fix"
-        print_status "   2. 🔄 Re-run hooks to verify: pre-commit run --all-files"
-        print_status "   3. 📝 Check output above for any remaining manual fixes needed"
+        print_status "   1. 🔧 Run hooks in fix mode: pre-commit run --all-files"
+        print_status "      (Many hooks like Black, isort, ESLint auto-fix issues)"
+        print_status "   2. 📝 Check output above for specific tool failures"
+        print_status "   3. 🔍 For manual fixes, use individual tool commands:"
+        print_status "      • Python: black . && isort . && flake8 ."
+        print_status "      • Frontend: npm run lint:fix"
         print_status "   4. ✅ Re-run validation: ./scripts/validate-adaptive.sh"
     fi
 

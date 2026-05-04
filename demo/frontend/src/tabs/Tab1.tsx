@@ -11,7 +11,7 @@ const Tab1 = () => {
   // State management - form inputs, loading, results, errors
   const [chordsInput, setChordsInput] = useState('');
   const [selectedKey, setSelectedKey] = useState('');
-  const [selectedProfile, setSelectedProfile] = useState('classical');
+  const [selectedProfile, setSelectedProfile] = useState(''); // Multi-profile: now optional (empty string = no focus)
   const [showEducational, setShowEducational] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +56,9 @@ const Tab1 = () => {
     loadKeys();
   }, []);
 
-  // Profile options - different analysis approaches
+  // Profile options - different analysis approaches (multi-profile: include empty option)
   const profileOptions = [
+    { value: '', label: 'All Styles (No Focus)' },
     { value: 'classical', label: 'Classical' },
     { value: 'jazz', label: 'Jazz' },
     { value: 'pop', label: 'Pop' },
@@ -83,11 +84,11 @@ const Tab1 = () => {
         .map((c) => c.trim())
         .filter((c) => c.length > 0);
 
-      // Fire off the API request
+      // Fire off the API request (omit profile if empty for multi-profile analysis)
       const response = await analyzeChords({
         chords,
         key: selectedKey || undefined,
-        profile: selectedProfile,
+        profile: selectedProfile || undefined, // Multi-profile: omit if empty
         include_educational: showEducational,
       });
 
@@ -199,16 +200,20 @@ print(f"Roman numerals: {result.primary.roman_numerals}")`}
             </p>
           </div>
 
-          {/* Profile dropdown */}
+          {/* Profile dropdown - multi-profile: now optional */}
           <div>
             <label htmlFor="profile" className="block text-sm font-medium text-slate-700 mb-2">
-              Analysis Profile
+              Profile Focus (Optional)
+              <span className="ml-2 text-slate-500 font-normal" title="Emphasize this style in results. Leave empty to see all styles.">
+                ℹ️
+              </span>
             </label>
             <select
               id="profile"
               value={selectedProfile}
               onChange={(e) => setSelectedProfile(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              data-testid="profile-selector"
             >
               {profileOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -217,7 +222,7 @@ print(f"Roman numerals: {result.primary.roman_numerals}")`}
               ))}
             </select>
             <p className="mt-1 text-sm text-slate-500">
-              Different profiles emphasize different harmonic features
+              Emphasize this style in results. Leave empty to see all styles.
             </p>
           </div>
 

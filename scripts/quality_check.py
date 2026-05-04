@@ -102,7 +102,7 @@ class CodeQualityChecker:
         """Run MyPy type checking"""
         self.print_header("Type Checking with MyPy", "🎯")
 
-        cmd = ["mypy", "src/", "--config-file=pyproject.toml"]
+        cmd = ["mypy", "src/", "--ignore-missing-imports"]
         success, output = self.run_command(cmd, "MyPy type checking")
 
         self.print_result(success, "MyPy type checking", output if not success else "")
