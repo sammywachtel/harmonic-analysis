@@ -237,9 +237,11 @@ jobs:
       - name: Install Backend Dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install project in editable mode if pyproject.toml exists
+          # Install project in editable mode if pyproject.toml exists.
+          # Pull the [dev] extra so optional but test-required deps (e.g.
+          # music21, used by the file-upload + regression suites) come in.
           if [[ -f "pyproject.toml" ]]; then
-            pip install -e .
+            pip install -e ".[dev]"
           elif [[ -f "requirements.txt" ]]; then
             pip install -r requirements.txt
           fi
