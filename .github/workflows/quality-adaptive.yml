@@ -297,6 +297,15 @@ jobs:
           fi
           echo "✅ MyPy type checking passed"
 
+      - name: "Phase 2: Generate Comprehensive Test Data"
+        run: |
+          # tests/data/generated/*.json is gitignored — the comprehensive
+          # integration suite imports it at collection time, so we have to
+          # produce it before pytest even sees the test files.
+          echo "🎼 Generating comprehensive multi-layer test data..."
+          python scripts/generate_comprehensive_multi_layer_tests.py
+          ls -la tests/data/generated/ || echo "⚠️  no generated dir found"
+
       - name: "Phase 2: Backend Tests"
         run: |
           echo "🧪 Phase 2: Backend test validation"
