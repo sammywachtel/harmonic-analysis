@@ -29,7 +29,7 @@ Optional Features (separate imports):
 - File Integration: from harmonic_analysis.integrations import Music21Adapter
 """
 
-__version__ = "0.2.0rc4"
+__version__ = "0.3.0"
 
 # =============================================================================
 # LAYER 1: MAIN API - Essential Functions for 90% of Users
