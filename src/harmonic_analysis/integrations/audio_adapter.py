@@ -31,6 +31,63 @@ from typing import Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
+# Rubato presets: (window_size_s, hop_size_s, median_kernel).
+# Named after the musical term because that's literally what this controls —
+# how tightly the analysis window tracks the beat grid. "strict" is a
+# metronome; "free" is Rubinstein playing Chopin.
+_RUBATO_PRESETS: dict[str, Tuple[float, float, int]] = {
+    "strict": (0.25, 0.1, 3),
+    "moderate": (0.5, 0.25, 3),
+    "loose": (0.75, 0.4, 5),
+    "free": (1.0, 0.5, 7),
+}
+
+
+def _resolve_rubato(rubato: Union[str, float]) -> Tuple[float, float, int]:
+    """Map a rubato preset name or float to (window_size, hop_size, median_kernel).
+
+    String values look up ``_RUBATO_PRESETS``. Float values in [0.0, 1.0]
+    interpolate linearly between "strict" and "free", with the median kernel
+    rounded to the nearest odd integer (because even-sized medians are an
+    abomination unto the signal processing gods).
+
+    Args:
+        rubato: Preset name (``"strict"``, ``"moderate"``, ``"loose"``,
+            ``"free"``) or a float 0.0–1.0 for continuous control.
+
+    Returns:
+        Tuple of ``(window_size_s, hop_size_s, median_kernel)``.
+
+    Raises:
+        ValueError: If ``rubato`` is a string not in the preset table.
+    """
+    if isinstance(rubato, str):
+        if rubato in _RUBATO_PRESETS:
+            return _RUBATO_PRESETS[rubato]
+        raise ValueError(
+            f"Unknown rubato preset {rubato!r}. "
+            f"Valid presets: {', '.join(sorted(_RUBATO_PRESETS))}."
+        )
+
+    # Float path: lerp between strict and free. Clamp silently — if someone
+    # passes 1.5 they probably meant "free" and we're not their parent.
+    t = float(rubato)
+    strict = _RUBATO_PRESETS["strict"]
+    free = _RUBATO_PRESETS["free"]
+
+    window = strict[0] + t * (free[0] - strict[0])
+    hop = strict[1] + t * (free[1] - strict[1])
+    raw_kernel = strict[2] + t * (free[2] - strict[2])
+
+    # Round to nearest odd. The bit-twiddling is the classic "round to odd"
+    # trick: round normally, then force the LSB. Equivalent to
+    # 2 * round((raw_kernel + 1) / 2) - 1 but clearer about intent.
+    kernel = 2 * ((int(raw_kernel) + 1) // 2) - 1
+    kernel = max(1, kernel)  # paranoia: kernel must be at least 1
+
+    return (window, hop, kernel)
+
+
 # Type alias for filepath args.
 PathLike = Union[str, Path]
 
@@ -181,11 +238,13 @@ class AudioAdapter:
         *,
         quiet: bool = False,
         include_chords: bool = True,
-        chord_window_size_s: float = 0.5,
-        chord_hop_size_s: float = 0.25,
+        chord_window_size_s: Optional[float] = None,
+        chord_hop_size_s: Optional[float] = None,
         tonal_bias: float = 0.15,
         use_bass_chroma: bool = False,
         bass_bonus: float = 0.3,
+        rubato: Union[str, float] = "moderate",
+        min_chroma_norm: float = 0.05,
     ) -> None:
         """Initialize the adapter.
 
@@ -198,9 +257,28 @@ class AudioAdapter:
                 skip chord estimation entirely — useful when you only need
                 key/cadence/region results and want to shave a few ms.
             chord_window_size_s: Chord estimation analysis window in seconds.
+                When ``None`` (default), uses the value from rubato resolution.
+                Explicit values override rubato.
             chord_hop_size_s: Chord estimation hop size in seconds.
+                When ``None`` (default), uses the value from rubato resolution.
+                Explicit values override rubato.
             tonal_bias: Bonus added to cosine similarity for diatonic chord
                 templates. Set to 0.0 to disable tonal weighting.
+            use_bass_chroma: When ``True``, extract a parallel bass-register
+                chroma and use it to disambiguate relative-pair confusions
+                (e.g. Am vs C). Costs a second chroma pass. Default ``False``.
+            bass_bonus: Maximum bonus for bass-root matching. Scaled by
+                per-window bass confidence. 0.3 is moderate; 0.5 is aggressive.
+            rubato: Controls the temporal resolution of chord estimation.
+                Named presets: ``"strict"`` (tight grid), ``"moderate"``
+                (default, balanced), ``"loose"`` (forgiving), ``"free"``
+                (very wide windows). Float 0.0–1.0 interpolates between
+                strict and free. Affects window size, hop size, and median
+                kernel. Explicit ``chord_window_size_s`` / ``chord_hop_size_s``
+                override the rubato-derived values.
+            min_chroma_norm: L2 norm threshold below which a chroma window
+                is treated as silence and skipped. Prevents hallucinated
+                chords during dead air. Default 0.05.
 
         Raises:
             AudioImportError: If ``librosa`` or ``soundfile`` cannot be
@@ -225,12 +303,24 @@ class AudioAdapter:
 
         self.ffmpeg_available: bool = check_ffmpeg_available()
 
+        # Resolve rubato first — it provides defaults for window/hop/kernel.
+        # Explicit chord_window_size_s / chord_hop_size_s override the
+        # rubato-derived values, so callers with specific timing needs
+        # aren't locked into presets.
+        rubato_window, rubato_hop, rubato_kernel = _resolve_rubato(rubato)
+
         self._include_chords = include_chords
-        self._chord_window_size_s = chord_window_size_s
-        self._chord_hop_size_s = chord_hop_size_s
+        self._chord_window_size_s = (
+            chord_window_size_s if chord_window_size_s is not None else rubato_window
+        )
+        self._chord_hop_size_s = (
+            chord_hop_size_s if chord_hop_size_s is not None else rubato_hop
+        )
         self._tonal_bias = tonal_bias
         self._use_bass_chroma = use_bass_chroma
         self._bass_bonus = bass_bonus
+        self._median_kernel = rubato_kernel
+        self._min_chroma_norm = min_chroma_norm
 
         if not quiet and not self.ffmpeg_available:
             # Single WARNING — informational, not a fail. WAV still works.
@@ -371,6 +461,8 @@ class AudioAdapter:
                 tonal_bias=self._tonal_bias,
                 bass_chroma_frames=bass_chroma,
                 bass_bonus=self._bass_bonus,
+                min_chroma_norm=self._min_chroma_norm,
+                median_kernel=self._median_kernel,
             )
 
         return AudioAnalysisResult(
@@ -390,11 +482,13 @@ def analyze_audio(
     segment: Optional[Tuple[float, Optional[float]]] = None,
     quiet: bool = False,
     include_chords: bool = True,
-    chord_window_size_s: float = 0.5,
-    chord_hop_size_s: float = 0.25,
+    chord_window_size_s: Optional[float] = None,
+    chord_hop_size_s: Optional[float] = None,
     tonal_bias: float = 0.15,
     use_bass_chroma: bool = False,
     bass_bonus: float = 0.3,
+    rubato: Union[str, float] = "moderate",
+    min_chroma_norm: float = 0.05,
 ) -> AudioAnalysisResult:
     """Synchronous convenience wrapper around ``AudioAdapter.from_audio``.
 
@@ -409,8 +503,16 @@ def analyze_audio(
         quiet: Suppresses the ffmpeg-missing WARNING when ``True``.
         include_chords: Enable chord estimation (default ``True``).
         chord_window_size_s: Chord estimation window size in seconds.
+            ``None`` uses the rubato-derived default.
         chord_hop_size_s: Chord estimation hop size in seconds.
+            ``None`` uses the rubato-derived default.
         tonal_bias: Diatonic similarity bonus for chord estimation.
+        use_bass_chroma: Extract bass-register chroma for root
+            disambiguation. Default ``False``.
+        bass_bonus: Bass-root matching bonus magnitude.
+        rubato: Temporal resolution preset or float 0.0–1.0.
+            See ``AudioAdapter.__init__`` for details.
+        min_chroma_norm: Silence detection threshold for chroma windows.
 
     Returns:
         ``AudioAnalysisResult``.
@@ -427,6 +529,8 @@ def analyze_audio(
         tonal_bias=tonal_bias,
         use_bass_chroma=use_bass_chroma,
         bass_bonus=bass_bonus,
+        rubato=rubato,
+        min_chroma_norm=min_chroma_norm,
     )
     return adapter.from_audio(filepath, segment=segment)
 
@@ -437,11 +541,13 @@ async def analyze_audio_async(
     segment: Optional[Tuple[float, Optional[float]]] = None,
     quiet: bool = False,
     include_chords: bool = True,
-    chord_window_size_s: float = 0.5,
-    chord_hop_size_s: float = 0.25,
+    chord_window_size_s: Optional[float] = None,
+    chord_hop_size_s: Optional[float] = None,
     tonal_bias: float = 0.15,
     use_bass_chroma: bool = False,
     bass_bonus: float = 0.3,
+    rubato: Union[str, float] = "moderate",
+    min_chroma_norm: float = 0.05,
 ) -> AudioAnalysisResult:
     """Async convenience wrapper. Offloads librosa work to a worker thread.
 
@@ -452,8 +558,16 @@ async def analyze_audio_async(
         quiet: Suppresses the ffmpeg-missing WARNING when ``True``.
         include_chords: Enable chord estimation (default ``True``).
         chord_window_size_s: Chord estimation window size in seconds.
+            ``None`` uses the rubato-derived default.
         chord_hop_size_s: Chord estimation hop size in seconds.
+            ``None`` uses the rubato-derived default.
         tonal_bias: Diatonic similarity bonus for chord estimation.
+        use_bass_chroma: Extract bass-register chroma for root
+            disambiguation. Default ``False``.
+        bass_bonus: Bass-root matching bonus magnitude.
+        rubato: Temporal resolution preset or float 0.0–1.0.
+            See ``AudioAdapter.__init__`` for details.
+        min_chroma_norm: Silence detection threshold for chroma windows.
 
     Returns:
         ``AudioAnalysisResult``.
@@ -475,4 +589,6 @@ async def analyze_audio_async(
         tonal_bias=tonal_bias,
         use_bass_chroma=use_bass_chroma,
         bass_bonus=bass_bonus,
+        rubato=rubato,
+        min_chroma_norm=min_chroma_norm,
     )

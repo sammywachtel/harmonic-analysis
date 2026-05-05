@@ -2,7 +2,7 @@
 
 Converts 2D chroma matrices (12, T) into timestamped ChordEvent instances
 by sliding a window over the chroma, computing cosine similarity against a
-bank of 48 chord templates (12 roots x {major, minor}), and consolidating
+bank of 24 chord templates (12 roots x {major, minor}), and consolidating
 consecutive identical labels into contiguous events.
 
 Explicit limits — read before filing bugs:
@@ -37,14 +37,28 @@ from ._types import KeyInfo
 # argument.
 _DEFAULT_BASS_CONF_THRESHOLD = 0.25
 
+# Data-driven chord quality definitions. Each entry is (suffix, intervals).
+# Adding a new quality here (e.g., ("dim", (0, 3, 6))) auto-populates
+# templates for all 12 roots — no code changes needed. But heads up:
+# _TEMPLATE_LABELS ordering is load-bearing for the median smoother,
+# so append-only or retest thoroughly.
+_CHORD_QUALITY_DEFS: list[tuple[str, tuple[int, ...]]] = [
+    ("", (0, 4, 7)),  # major triad
+    ("m", (0, 3, 7)),  # minor triad
+]
+
 
 def _build_chord_templates() -> Dict[str, np.ndarray]:
-    """Build 48 unit-norm 12-bin chord templates (12 roots x {major, minor}).
+    """Build unit-norm 12-bin chord templates for all roots and qualities.
 
     Each template is a 12-element vector with 1.0 at the pitch classes of the
     triad, then L2-normalized to unit norm. Cosine similarity between a
     unit-norm chroma frame and a unit-norm template reduces to a dot product,
     which is why we bother with the normalization.
+
+    Iterates ``_CHORD_QUALITY_DEFS`` for each root, so the ordering is:
+    for each root (C, C#, D, ..., B): emit major then minor. Extending
+    ``_CHORD_QUALITY_DEFS`` adds new qualities after minor for each root.
 
     Naming convention:
         Major: "C", "C#", "D", ..., "B"
@@ -55,30 +69,18 @@ def _build_chord_templates() -> Dict[str, np.ndarray]:
     """
     templates: Dict[str, np.ndarray] = {}
 
-    # Major triad intervals: root, major third, perfect fifth
-    major_intervals = [0, 4, 7]
-    # Minor triad intervals: root, minor third, perfect fifth
-    minor_intervals = [0, 3, 7]
-
     for root_idx, root_name in enumerate(PITCH_CLASSES):
-        # Major template
-        maj = np.zeros(12, dtype=np.float64)
-        for interval in major_intervals:
-            maj[(root_idx + interval) % 12] = 1.0
-        maj /= np.linalg.norm(maj)
-        templates[root_name] = maj
-
-        # Minor template
-        minor = np.zeros(12, dtype=np.float64)
-        for interval in minor_intervals:
-            minor[(root_idx + interval) % 12] = 1.0
-        minor /= np.linalg.norm(minor)
-        templates[f"{root_name}m"] = minor
+        for suffix, intervals in _CHORD_QUALITY_DEFS:
+            vec = np.zeros(12, dtype=np.float64)
+            for interval in intervals:
+                vec[(root_idx + interval) % 12] = 1.0
+            vec /= np.linalg.norm(vec)
+            templates[f"{root_name}{suffix}"] = vec
 
     return templates
 
 
-# Computed once at import time — 48 templates, immutable after this line.
+# Computed once at import time — 24 templates, immutable after this line.
 CHORD_TEMPLATES = _build_chord_templates()
 
 # Pre-compute the template matrix and ordered label list for vectorized
@@ -114,11 +116,13 @@ def estimate_chord_progression(
     bass_chroma_frames: Optional[np.ndarray] = None,
     bass_bonus: float = 0.3,
     bass_confidence_threshold: float = _DEFAULT_BASS_CONF_THRESHOLD,
+    min_chroma_norm: float = 0.05,
+    median_kernel: int = 3,
 ) -> list:
     """Estimate a chord progression from a 2D chroma matrix.
 
     Slides a window over the chroma frames, computes cosine similarity
-    against 48 major/minor triad templates, applies optional tonal bias
+    against 24 major/minor triad templates, applies optional tonal bias
     for diatonic chords, optionally applies a bass-aware root-match
     bonus, smooths with a running median, and consolidates consecutive
     identical labels into ChordEvent instances.
@@ -153,6 +157,15 @@ def estimate_chord_progression(
             value relative to mean) required to apply the bonus. Below
             this, the bass signal is too flat to trust and the window
             falls back to full-spectrum-only matching.
+        min_chroma_norm: L2 norm threshold below which a window is
+            treated as silence and skipped entirely. Prevents the
+            template matcher from hallucinating chords out of noise
+            floor. 0.05 is conservative; raise to 0.1+ for noisy
+            recordings with lots of dead air.
+        median_kernel: Kernel size for running-median smoothing over
+            raw chord labels. Must be odd and >= 1. Larger values
+            produce smoother (but laggier) chord sequences. Default
+            3 matches original hardcoded behavior.
 
     Returns:
         List of ChordEvent instances, sorted by start_time.
@@ -214,6 +227,10 @@ def estimate_chord_progression(
     num_windows = 1 + (T - win_frames) // hop_frames
     raw_labels: List[int] = []  # index into _TEMPLATE_LABELS
     raw_confidences: List[float] = []
+    # Track the actual start time of each kept window. After silence
+    # skipping, index into raw_labels no longer maps to time via simple
+    # arithmetic — this parallel list is the source of truth for timestamps.
+    window_start_times: List[float] = []
 
     for w in range(num_windows):
         start = w * hop_frames
@@ -223,11 +240,16 @@ def estimate_chord_progression(
         # Average across the time axis → 12-bin vector
         avg = window_chroma.mean(axis=1)
 
-        # L2-normalize. If the window is silent (all zeros), norm is 0 —
-        # produce a zero vector and let the template match be garbage.
+        # Record the timestamp BEFORE any skip decision — we need it
+        # regardless of whether the window survives the norm check.
+        w_time = w * hop_size_s
+
+        # L2-normalize. If the window is silent (norm below threshold),
+        # skip it entirely — no point asking "which chord is this silence?"
         norm = np.linalg.norm(avg)
-        if norm > 0:
-            avg = avg / norm
+        if norm < min_chroma_norm:
+            continue
+        avg = avg / norm
 
         # Cosine similarity = dot product (both unit-norm).
         similarities = _TEMPLATE_MATRIX @ avg
@@ -272,24 +294,27 @@ def estimate_chord_progression(
 
         raw_labels.append(best_idx)
         raw_confidences.append(best_score)
+        window_start_times.append(w_time)
 
     if not raw_labels:
         return []
 
-    # --- Running-median smoothing (3-window kernel) ---
+    # --- Running-median smoothing ---
     # Encode labels as integers (already done), pad edges with reflect,
     # apply median, decode back. Pure numpy, no scipy.
+    pad_size = median_kernel // 2
     labels_arr = np.array(raw_labels, dtype=np.float64)
-    # Reflect-pad: for kernel size 3, pad 1 on each side
-    padded = np.pad(labels_arr, 1, mode="reflect")
+    padded = np.pad(labels_arr, pad_size, mode="reflect")
     smoothed = np.empty(len(raw_labels), dtype=np.float64)
     for i in range(len(raw_labels)):
-        smoothed[i] = np.median(padded[i : i + 3])
+        smoothed[i] = np.median(padded[i : i + median_kernel])
     smoothed_labels = smoothed.astype(int).tolist()
 
     # --- Consolidate consecutive identical labels ---
+    # After silence-skipping, window indices don't map linearly to time
+    # anymore. window_start_times is the authoritative time source.
     events: list = []
-    run_start = 0
+    run_start_time = window_start_times[0]
     run_label = smoothed_labels[0]
     run_confidences: List[float] = [raw_confidences[0]]
 
@@ -302,24 +327,25 @@ def estimate_chord_progression(
             root_pc = _root_pitch_class(label_str)
             events.append(
                 ChordEvent(
-                    start_time=run_start * hop_size_s,
-                    end_time=i * hop_size_s,
+                    start_time=run_start_time,
+                    end_time=window_start_times[i],
                     chord_label=label_str,
                     confidence=float(np.mean(run_confidences)),
                     is_diatonic=root_pc in diatonic_pcs,
                 )
             )
-            run_start = i
+            run_start_time = window_start_times[i]
             run_label = smoothed_labels[i]
             run_confidences = [raw_confidences[i]]
 
-    # Emit the final run
+    # Emit the final run. End time extends one hop beyond the last window
+    # start — same semantics as the old index-based calculation.
     label_str = _TEMPLATE_LABELS[run_label]
     root_pc = _root_pitch_class(label_str)
     events.append(
         ChordEvent(
-            start_time=run_start * hop_size_s,
-            end_time=len(smoothed_labels) * hop_size_s,
+            start_time=run_start_time,
+            end_time=window_start_times[-1] + hop_size_s,
             chord_label=label_str,
             confidence=float(np.mean(run_confidences)),
             is_diatonic=root_pc in diatonic_pcs,

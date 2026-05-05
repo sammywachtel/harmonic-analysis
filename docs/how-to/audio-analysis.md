@@ -150,6 +150,54 @@ for chord in result.chords:
 
 High confidence + non-diatonic is often the most interesting signal — it suggests intentional chromatic harmony rather than noise.
 
+## Tuning for Different Recording Styles
+
+Not all recordings are created equal. A studio pop track recorded to a click track and a Romantic-era piano recital with dramatic rubato need very different analysis settings. The `rubato` parameter controls how aggressively the pipeline smooths chord transitions — think of it as a "temporal flexibility" knob.
+
+### Which `rubato` Preset Should I Use?
+
+Pick the one that best describes your recording:
+
+| Recording style | Preset | Why |
+|---|---|---|
+| Studio recording with click track | `rubato="strict"` | Tight timing means chord boundaries are predictable — minimal smoothing preserves detail |
+| Live performance, moderate tempo | `rubato="moderate"` (default) | Slight timing drift but generally steady — the default handles this well |
+| Chamber music, expressive timing | `rubato="loose"` | Players push and pull tempo together — wider smoothing catches stretched chords |
+| Heavy rubato, fermatas, very slow passages | `rubato="free"` | Maximum smoothing for recordings where the beat is more of a suggestion |
+| Fine-grained control | Float `0.0` – `1.0` | `0.0` = tightest (like strict), `1.0` = loosest (like free). Interpolate to taste |
+
+```python
+# A Chopin nocturne with plenty of rubato
+result = await analyze_audio_async("chopin_nocturne.wav", rubato="free")
+
+# A pop track with solid timing
+result = await analyze_audio_async("pop_song.wav", rubato="strict")
+
+# Somewhere in between — maybe a live jazz trio
+result = await analyze_audio_async("jazz_trio.wav", rubato=0.65)
+```
+
+### Bass-Aware Chord Estimation
+
+If your recording has a clear bass line (upright bass, bass guitar, left-hand piano), enable `use_bass_chroma=True` to help the pipeline distinguish chords that share upper chord tones but differ in the bass — Bm vs D, for instance:
+
+```python
+result = await analyze_audio_async("bass_heavy.wav", use_bass_chroma=True)
+```
+
+This is off by default because it needs more validation across diverse recordings, but it can meaningfully improve accuracy when the bass is prominent and well-separated in the mix.
+
+### Adjusting Silence Detection
+
+Recordings with long silences, count-ins, or very quiet passages may produce phantom chord labels where the pipeline tries to classify near-silence. The `min_chroma_norm` parameter sets the minimum energy threshold — windows below it are treated as silence:
+
+```python
+# More aggressive silence filtering for a recording with a long lead-in
+result = await analyze_audio_async("live_recording.wav", min_chroma_norm=0.10)
+```
+
+The default (`0.05`) is conservative: it catches genuine silence and room tone while preserving *pianissimo* dynamics. Raise it if you see suspicious chord labels during quiet passages; lower it (toward `0.0`) only if you are losing legitimate soft chords.
+
 ## See Also
 
 - **[Audio Quick Start Tutorial](../tutorials/audio-quickstart.md)** — 5-minute hands-on introduction

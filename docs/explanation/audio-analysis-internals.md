@@ -80,6 +80,36 @@ What this means in practice:
 
 This is not a permanent limitation — it is the honest boundary of what template-matching on chroma can deliver without HMM smoothing or neural network chord recognition. Future iterations will extend the quality boundary outward.
 
+## Bass-Chroma Disambiguation
+
+Standard chroma extraction collapses all octaves into a single 12-bin vector. This works beautifully for most chords, but it creates a blind spot: chords that share the same pitch-class content but differ in their bass note become indistinguishable. The classic case is **Bm (B-D-F#) vs. D major (D-F#-A)** — when both are voiced with shared tones ringing, the chroma vectors overlap enough that cosine similarity alone cannot reliably separate them.
+
+Bass-chroma extraction (`use_bass_chroma=True`) addresses this by computing a second chroma vector from only the low-frequency band (roughly below 300 Hz). The bass note stands out clearly in this range, providing a strong disambiguating signal. The `bass_bonus` parameter (default 0.3) sets the maximum weight this bass evidence can contribute when scoring candidate chord labels — for templates whose root matches the bass chroma peak, the bonus is added to the cosine similarity, scaled per-window by the bass-chroma confidence so that ambiguous bass detections contribute less.
+
+### Why the Default is `False`
+
+Honest answer: bass-chroma extraction helps a lot on clean recordings with well-separated bass lines (acoustic jazz trio, classical piano) but can hurt on recordings where the bass frequencies are muddy, boosted, or dominated by kick drum. We have not yet validated across a broad enough corpus to make it the default. For now, it is an opt-in tool for users who know their recordings have a clean, prominent bass.
+
+## Silent-Window Suppression
+
+Live recordings, rehearsal tapes, and bedroom demos frequently have silent lead-ins, long pauses between movements, or near-silence during fermatas. The chord estimation layer does not know about silence — it dutifully slides its window across the chroma matrix and picks the best-matching template for every window, even when the chroma energy is essentially noise floor.
+
+The result: phantom chord labels during silence. A quiet room-tone window might produce a confident-looking "Am" label simply because the ambient noise happened to correlate with that template. These phantom labels are misleading and can confuse downstream pattern analysis.
+
+### How the L2 Norm Threshold Works
+
+The `min_chroma_norm` parameter sets a minimum L2 (Euclidean) norm threshold for each analysis window's chroma vector. Before template matching, the pipeline computes `||chroma||₂` for the window. If the norm falls below the threshold, the window is classified as silence and skipped — no `ChordEvent` is emitted.
+
+### Why 0.05
+
+The default of `0.05` was chosen to be conservative:
+
+- **Below 0.05:** Genuine silence, microphone self-noise, room tone. There is no musical content to analyze.
+- **0.05–0.15:** The gray zone. Very quiet *pianissimo* passages live here, as do some near-silent transitions. The default preserves these, erring on the side of keeping real (if quiet) musical content.
+- **Above 0.15:** Clearly audible musical content. No risk of suppression.
+
+If your recordings have unusual noise floors (e.g., a live concert with ambient crowd noise, or a recording with a persistent hum), you may need to raise the threshold. Conversely, if you are analyzing extremely quiet passages and losing chord events, lower it toward `0.0` — but expect some phantom labels to creep back in.
+
 ## See Also
 
 - [Audio API Reference](../reference/audio-api.md) — field-by-field documentation

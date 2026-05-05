@@ -4,7 +4,7 @@ Field-by-field reference for the audio analysis surface. For the core pattern an
 
 ## Module-Level Convenience Functions
 
-### `analyze_audio(path, *, segment=None, quiet=False, include_chords=True, chord_window_size_s=0.5, chord_hop_size_s=0.25, tonal_bias=0.15)`
+### `analyze_audio(path, *, segment=None, quiet=False, include_chords=True, chord_window_size_s=None, chord_hop_size_s=None, tonal_bias=0.15, rubato="moderate", use_bass_chroma=False, bass_bonus=0.3, min_chroma_norm=0.05)`
 
 Synchronous convenience wrapper. Constructs a fresh `AudioAdapter` per call — cheap, the only real work in construction is an ffmpeg-on-PATH check.
 
@@ -16,9 +16,13 @@ Synchronous convenience wrapper. Constructs a fresh `AudioAdapter` per call — 
 | `segment` | `tuple[float, float \| None] \| None` | `None` | Optional `(start_sec, end_sec)` window. `end_sec` may be `None` for "to end of file" |
 | `quiet` | `bool` | `False` | Suppress the ffmpeg-missing WARNING log |
 | `include_chords` | `bool` | `True` | Enable chord estimation layer |
-| `chord_window_size_s` | `float` | `0.5` | Chord estimation analysis window in seconds |
-| `chord_hop_size_s` | `float` | `0.25` | Chord estimation hop size in seconds |
+| `chord_window_size_s` | `float \| None` | `None` | Chord estimation analysis window in seconds. When `None`, derived from `rubato`; an explicit float overrides the preset |
+| `chord_hop_size_s` | `float \| None` | `None` | Chord estimation hop size in seconds. When `None`, derived from `rubato`; an explicit float overrides the preset |
 | `tonal_bias` | `float` | `0.15` | Diatonic similarity bonus for chord template matching |
+| `rubato` | `str \| float` | `"moderate"` | Temporal flexibility preset. Named presets: `"strict"`, `"moderate"`, `"loose"`, `"free"`. Float `0.0`–`1.0` for continuous interpolation (0.0 = tightest, 1.0 = loosest) |
+| `use_bass_chroma` | `bool` | `False` | Enable bass-aware chord estimation using a second chroma extraction focused on low frequencies |
+| `bass_bonus` | `float` | `0.3` | Maximum bonus added to template cosine similarity when the chord root matches the bass chroma peak. Scaled per-window by bass-chroma confidence so noisy bass detections contribute less. Only effective when `use_bass_chroma=True` |
+| `min_chroma_norm` | `float` | `0.05` | Minimum L2 norm threshold for chord detection windows. Windows below this norm are treated as silence and produce no chord label |
 
 **Returns:** `AudioAnalysisResult`
 
@@ -26,9 +30,25 @@ Synchronous convenience wrapper. Constructs a fresh `AudioAdapter` per call — 
 - `AudioImportError` — if `librosa` or `soundfile` are not installed
 - `ValueError` — for empty or too-short segments
 
-### `analyze_audio_async(path, *, segment=None, quiet=False, include_chords=True, chord_window_size_s=0.5, chord_hop_size_s=0.25, tonal_bias=0.15)`
+### `analyze_audio_async(path, *, segment=None, quiet=False, include_chords=True, chord_window_size_s=None, chord_hop_size_s=None, tonal_bias=0.15, rubato="moderate", use_bass_chroma=False, bass_bonus=0.3, min_chroma_norm=0.05)`
 
 Async convenience wrapper. Uses `asyncio.to_thread` to keep the blocking librosa work off the event loop. Same parameters and return type as `analyze_audio`.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `path` | `str \| Path` | required | Path to an audio file (WAV directly; MP3/AAC/OGG via ffmpeg) |
+| `segment` | `tuple[float, float \| None] \| None` | `None` | Optional `(start_sec, end_sec)` window. `end_sec` may be `None` for "to end of file" |
+| `quiet` | `bool` | `False` | Suppress the ffmpeg-missing WARNING log |
+| `include_chords` | `bool` | `True` | Enable chord estimation layer |
+| `chord_window_size_s` | `float \| None` | `None` | Chord estimation analysis window in seconds. When `None`, derived from `rubato`; an explicit float overrides the preset |
+| `chord_hop_size_s` | `float \| None` | `None` | Chord estimation hop size in seconds. When `None`, derived from `rubato`; an explicit float overrides the preset |
+| `tonal_bias` | `float` | `0.15` | Diatonic similarity bonus for chord template matching |
+| `rubato` | `str \| float` | `"moderate"` | Temporal flexibility preset. Named presets: `"strict"`, `"moderate"`, `"loose"`, `"free"`. Float `0.0`–`1.0` for continuous interpolation (0.0 = tightest, 1.0 = loosest) |
+| `use_bass_chroma` | `bool` | `False` | Enable bass-aware chord estimation using a second chroma extraction focused on low frequencies |
+| `bass_bonus` | `float` | `0.3` | Maximum bonus added to template cosine similarity when the chord root matches the bass chroma peak. Scaled per-window by bass-chroma confidence so noisy bass detections contribute less. Only effective when `use_bass_chroma=True` |
+| `min_chroma_norm` | `float` | `0.05` | Minimum L2 norm threshold for chord detection windows. Windows below this norm are treated as silence and produce no chord label |
 
 ## `AudioAdapter`
 
@@ -41,11 +61,29 @@ AudioAdapter(
     *,
     quiet: bool = False,
     include_chords: bool = True,
-    chord_window_size_s: float = 0.5,
-    chord_hop_size_s: float = 0.25,
+    chord_window_size_s: float | None = None,
+    chord_hop_size_s: float | None = None,
     tonal_bias: float = 0.15,
+    rubato: str | float = "moderate",
+    use_bass_chroma: bool = False,
+    bass_bonus: float = 0.3,
+    min_chroma_norm: float = 0.05,
 )
 ```
+
+**Constructor Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `quiet` | `bool` | `False` | Suppress the ffmpeg-missing WARNING log |
+| `include_chords` | `bool` | `True` | Enable chord estimation layer |
+| `chord_window_size_s` | `float \| None` | `None` | Chord estimation analysis window in seconds. When `None`, derived from `rubato`; an explicit float overrides the preset |
+| `chord_hop_size_s` | `float \| None` | `None` | Chord estimation hop size in seconds. When `None`, derived from `rubato`; an explicit float overrides the preset |
+| `tonal_bias` | `float` | `0.15` | Diatonic similarity bonus for chord template matching |
+| `rubato` | `str \| float` | `"moderate"` | Temporal flexibility preset. Named presets: `"strict"`, `"moderate"`, `"loose"`, `"free"`. Float `0.0`–`1.0` for continuous interpolation (0.0 = tightest, 1.0 = loosest) |
+| `use_bass_chroma` | `bool` | `False` | Enable bass-aware chord estimation using a second chroma extraction focused on low frequencies |
+| `bass_bonus` | `float` | `0.3` | Maximum bonus added to template cosine similarity when the chord root matches the bass chroma peak. Scaled per-window by bass-chroma confidence so noisy bass detections contribute less. Only effective when `use_bass_chroma=True` |
+| `min_chroma_norm` | `float` | `0.05` | Minimum L2 norm threshold for chord detection windows. Windows below this norm are treated as silence and produce no chord label |
 
 **Raises:** `AudioImportError` if `librosa` or `soundfile` cannot be imported.
 
@@ -132,7 +170,7 @@ A single timestamped chord detection.
 |-------|------|-------------|
 | `start_time` | `float` | Start time in seconds |
 | `end_time` | `float` | End time in seconds |
-| `chord_label` | `str` | Detected chord symbol (e.g. `"C"`, `"Am"`, `"G7"`) |
+| `chord_label` | `str` | Detected chord symbol (e.g. `"C"`, `"Am"`, `"Gm"`) |
 | `confidence` | `float` | Cosine similarity (post-tonal-bias) averaged over constituent windows |
 | `is_diatonic` | `bool` | Whether the chord root belongs to the global key's diatonic pitch-class set |
 
