@@ -140,6 +140,52 @@ from .services.unified_pattern_service import UnifiedPatternService
 # Utility functions
 from .utils.analysis_helpers import describe_contour
 
+# =============================================================================
+# Optional: Audio analysis surface (requires the [audio] extra)
+# =============================================================================
+# Guarded re-export. The bare `import harmonic_analysis` must succeed even
+# when librosa/soundfile aren't installed (AC3). We always try the import;
+# on AudioImportError (deps missing), we fall back to lightweight stubs that
+# raise on first use, so symbol names stay grep-able from the top level.
+try:
+    from .integrations.audio_adapter import (
+        AudioAdapter,
+        AudioAnalysisResult,
+        AudioImportError,
+        ChordEvent,
+        analyze_audio,
+        analyze_audio_async,
+    )
+except ImportError as _audio_exc:  # pragma: no cover — env-dependent path
+    # The audio_adapter module itself imports cleanly; only construction
+    # raises. So a real ImportError here means *something else* is wrong
+    # (audio_adapter.py was deleted, or a syntactical breakage). Surface
+    # actionable stubs anyway — never break the top-level import.
+    from typing import Any as _Any
+
+    class AudioImportError(ImportError):  # type: ignore[no-redef]
+        """Stub raised when the [audio] extra isn't installed."""
+
+        pass
+
+    _AUDIO_ERR_MSG = (
+        "The audio extra is required for audio analysis. "
+        f"Install with: pip install harmonic-analysis[audio]. "
+        f"(underlying error: {_audio_exc})"
+    )
+
+    def _audio_unavailable(*_args: _Any, **_kwargs: _Any) -> _Any:
+        raise AudioImportError(_AUDIO_ERR_MSG)
+
+    # Stubs that raise on first use. Type-ignore on the assignments
+    # because we're rebinding names that mypy tracked from the try-branch.
+    AudioAdapter = _audio_unavailable  # type: ignore[assignment,misc]
+    AudioAnalysisResult = _audio_unavailable  # type: ignore[assignment,misc]
+    ChordEvent = _audio_unavailable  # type: ignore[assignment,misc]
+    analyze_audio = _audio_unavailable
+    analyze_audio_async = _audio_unavailable
+
+
 __all__ = [
     # Version
     "__version__",
@@ -223,4 +269,11 @@ __all__ = [
     "note_to_pitch_class",
     "pitch_class_to_note",
     "validate_musical_input",
+    # Audio analysis (requires [audio] extra; stubs raise AudioImportError if absent)
+    "AudioAdapter",
+    "AudioAnalysisResult",
+    "AudioImportError",
+    "ChordEvent",
+    "analyze_audio",
+    "analyze_audio_async",
 ]
