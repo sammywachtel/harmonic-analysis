@@ -413,6 +413,109 @@ async def analyze_file_endpoint(
                 pass  # Best effort cleanup
 
 
+# Route: Audio file analysis
+@router.post("/api/analyze/audio")
+async def analyze_audio_endpoint(
+    file: UploadFile = File(...),
+    start: Optional[float] = Form(None),
+    end: Optional[float] = Form(None),
+) -> Dict[str, Any]:
+    """
+    Analyze an audio file (WAV, MP3, etc.) for key, chords, and cadences.
+
+    Opening move: Accept audio upload, run the library's audio pipeline.
+    Main play: Build a JSON-safe response dict (no frozensets allowed).
+    Victory lap: Return key estimation, chord progression, and cadence info.
+    """
+    # Import guard — audio deps are optional; fail loudly with install hint
+    try:
+        from harmonic_analysis import AudioImportError, analyze_audio_async
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Audio analysis is not available. Install the audio extra: "
+                "pip install harmonic-analysis[audio]"
+            ),
+        )
+
+    # Opening move: validate we got a file
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    # Main play: save uploaded file to temp location (same pattern as /analyze/file)
+    temp_dir = tempfile.gettempdir()
+    temp_file_path = os.path.join(temp_dir, f"audio_{file.filename}")
+
+    try:
+        contents = await file.read()
+        with open(temp_file_path, "wb") as f:
+            f.write(contents)
+
+        # Build segment tuple if the caller specified a window
+        segment = (start, end) if start is not None else None
+
+        result = await analyze_audio_async(temp_file_path, segment=segment)
+
+        # Victory lap: build the response dict MANUALLY.
+        # Never use asdict() here — KeyInfo.diatonic_pitch_classes is a
+        # frozenset and will 500 the entire response. Ask me how I know.
+        return {
+            "global": {
+                "tonic": result.global_key.tonic,
+                "mode": result.global_key.mode,
+                "key_signature": result.global_key.key_signature,
+                "confidence": result.global_key.confidence,
+            },
+            "local": {
+                "tonic": result.local_key.tonic,
+                "mode": result.local_key.mode,
+                "key_signature": result.local_key.key_signature,
+                "confidence": result.local_key.confidence,
+                "region_type": result.region.type,
+                "region_confidence": result.region.confidence,
+                "borrowed_tones": result.region.borrowed,
+            },
+            "analysis": {
+                "cadence_detected": result.cadences.detected,
+                "cadence_strength": result.cadences.strength,
+            },
+            "chord_progression": [
+                {
+                    "start_time": c.start_time,
+                    "end_time": c.end_time,
+                    "chord_label": c.chord_label,
+                    "confidence": c.confidence,
+                    "is_diatonic": c.is_diatonic,
+                }
+                for c in result.chords
+            ],
+            "segment": {
+                "start": result.segment_start,
+                "end": result.segment_end,
+            },
+        }
+
+    except AudioImportError:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Audio analysis dependencies not installed. "
+                "Run: pip install harmonic-analysis[audio]"
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Audio analysis failed: {exc}")
+    finally:
+        if os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception:
+                pass  # Best effort cleanup
+
+
 # Route: Glossary lookup
 @router.get("/api/glossary/{term}")
 def glossary_lookup(term: str) -> Dict[str, Any]:

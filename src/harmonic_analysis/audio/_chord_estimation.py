@@ -22,12 +22,20 @@ produce plausible-but-noisy results. That's a feature request, not a bug.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 
 from ._profiles import PITCH_CLASSES
 from ._types import KeyInfo
+
+# Bass-confidence threshold for applying the root-match bonus. Below this,
+# the bass chroma is too flat (no distinct bass note — silent passage,
+# distortion, or instrument with no bass register) and the bonus would
+# push noise around. 0.25 is conservative; 0.4+ would only fire on very
+# clean bass signals. Tunable per-call via the bass_confidence_threshold
+# argument.
+_DEFAULT_BASS_CONF_THRESHOLD = 0.25
 
 
 def _build_chord_templates() -> Dict[str, np.ndarray]:
@@ -103,23 +111,48 @@ def estimate_chord_progression(
     window_size_s: float = 0.5,
     hop_size_s: float = 0.25,
     tonal_bias: float = 0.15,
+    bass_chroma_frames: Optional[np.ndarray] = None,
+    bass_bonus: float = 0.3,
+    bass_confidence_threshold: float = _DEFAULT_BASS_CONF_THRESHOLD,
 ) -> list:
     """Estimate a chord progression from a 2D chroma matrix.
 
     Slides a window over the chroma frames, computes cosine similarity
     against 48 major/minor triad templates, applies optional tonal bias
-    for diatonic chords, smooths with a running median, and consolidates
-    consecutive identical labels into ChordEvent instances.
+    for diatonic chords, optionally applies a bass-aware root-match
+    bonus, smooths with a running median, and consolidates consecutive
+    identical labels into ChordEvent instances.
 
     Args:
-        local_chroma_frames: Shape ``(12, T)`` chroma matrix from librosa.
-        global_key: KeyInfo with ``diatonic_pitch_classes`` and ``confidence``.
+        local_chroma_frames: Shape ``(12, T)`` full-spectrum chroma matrix
+            from librosa.
+        global_key: KeyInfo with ``diatonic_pitch_classes`` and
+            ``confidence``.
         sr: Sample rate used during chroma extraction.
-        hop_length: Hop length used during chroma extraction (librosa default: 512).
+        hop_length: Hop length used during chroma extraction (librosa
+            default: 512).
         window_size_s: Analysis window size in seconds.
         hop_size_s: Analysis hop size in seconds.
-        tonal_bias: Bonus added to cosine similarity for diatonic chord templates.
-            Set to 0.0 to disable. Auto-zeroed when ``global_key.confidence < 0.5``.
+        tonal_bias: Bonus added to cosine similarity for diatonic chord
+            templates. Set to 0.0 to disable. Auto-zeroed when
+            ``global_key.confidence < 0.5``.
+        bass_chroma_frames: Optional shape ``(12, T)`` bass-register
+            chroma (e.g., from ``extract_local_bass_chroma``). When
+            provided, each window's dominant bass pitch class adds a
+            per-template bonus to chord templates whose root matches —
+            the disambiguator for relative-pair confusions like Bm vs D
+            and Am vs C. Must have the same time axis as
+            ``local_chroma_frames``; mismatched shapes are silently
+            skipped (best-effort fallback to full-spectrum behavior).
+        bass_bonus: Maximum bonus added to a template's cosine similarity
+            when its root matches the detected bass pitch class. Scaled
+            by per-window bass confidence — silent or flat-bass windows
+            contribute zero. 0.3 is roughly equal to two diatonic biases;
+            0.5 is aggressive; 0.15 is gentle.
+        bass_confidence_threshold: Minimum bass-chroma peakiness (max-PC
+            value relative to mean) required to apply the bonus. Below
+            this, the bass signal is too flat to trust and the window
+            falls back to full-spectrum-only matching.
 
     Returns:
         List of ChordEvent instances, sorted by start_time.
@@ -158,6 +191,25 @@ def estimate_chord_progression(
         dtype=np.float64,
     )
 
+    # Pre-compute each template's root pitch class for the bass-bonus
+    # lookup. Indexed by template position in _TEMPLATE_LABELS. Computed
+    # whether or not bass_chroma_frames is provided — cheap and avoids
+    # branching the hot loop.
+    template_root_pcs = np.array(
+        [_root_pitch_class(label) for label in _TEMPLATE_LABELS],
+        dtype=np.int64,
+    )
+
+    # Bass-aware estimation requires the time axes to match. Misaligned
+    # shapes mean the caller mixed window indices that don't correspond —
+    # we silently fall back to full-spectrum-only rather than crash, which
+    # matches the fail-soft posture of the rest of the audio pipeline.
+    use_bass = (
+        bass_chroma_frames is not None
+        and bass_chroma_frames.ndim == 2
+        and bass_chroma_frames.shape == local_chroma_frames.shape
+    )
+
     # --- Sliding window similarity ---
     num_windows = 1 + (T - win_frames) // hop_frames
     raw_labels: List[int] = []  # index into _TEMPLATE_LABELS
@@ -183,6 +235,34 @@ def estimate_chord_progression(
         # Tonal bias: bump diatonic templates
         if effective_tonal_bias > 0:
             similarities = similarities + effective_tonal_bias * template_is_diatonic
+
+        # Bass-aware bonus: identify the dominant bass pitch class for
+        # this window and bump templates whose root matches. Confidence-
+        # gated so silent / flat-bass windows don't push noise into the
+        # match. Cheaper to compute peakiness than entropy and good
+        # enough for the "is there a clear bass note here?" question.
+        if use_bass and bass_bonus > 0:
+            assert bass_chroma_frames is not None  # mypy hint; use_bass implies this
+            bass_window = bass_chroma_frames[:, start:end]
+            bass_avg = bass_window.mean(axis=1)
+            bass_norm = np.linalg.norm(bass_avg)
+            if bass_norm > 0:
+                bass_avg = bass_avg / bass_norm
+                bass_max = float(bass_avg.max())
+                bass_mean = float(bass_avg.mean())
+                # Peakiness: how much the dominant PC sticks out above the
+                # mean. Range roughly [0, 1]. A pure single-note bass hits
+                # ~0.95; a triad in the bass register sits around 0.4-0.6;
+                # a flat (silent or noisy) window stays under 0.2.
+                bass_confidence = (
+                    (bass_max - bass_mean) / (bass_max + 1e-9) if bass_max > 0 else 0.0
+                )
+                if bass_confidence >= bass_confidence_threshold:
+                    bass_pc = int(bass_avg.argmax())
+                    root_match_mask = (template_root_pcs == bass_pc).astype(np.float64)
+                    similarities = similarities + (
+                        bass_bonus * bass_confidence * root_match_mask
+                    )
 
         best_idx = int(np.argmax(similarities))
         best_score = float(similarities[best_idx])

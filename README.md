@@ -157,7 +157,7 @@ pip install harmonic-analysis[educational]
 pip install harmonic-analysis[music21]
 
 # Multiple features
-pip install harmonic-analysis[educational,music21]
+pip install harmonic-analysis[educational,music21,audio]
 ```
 
 **Note:** The REST API is now part of the demo project (`demo/backend/rest_api/`) rather than the core library. See the [REST API Demo](#-rest-api-demo-new) section below for setup instructions.
@@ -231,6 +231,15 @@ from harmonic_analysis.integrations import Music21Adapter
 adapter = Music21Adapter()
 ```
 
+**Audio Analysis** (Analyze WAV/MP3 files for key, chords, and cadences):
+```bash
+pip install harmonic-analysis[audio]
+```
+```python
+from harmonic_analysis import analyze_audio_async
+result = await analyze_audio_async("path/to/file.wav")
+```
+
 #### 🔒 **Internal Components** (Not Exported)
 
 These are used internally by the library but not exposed in the public API:
@@ -269,6 +278,11 @@ else:
 - **[How-to Guides](docs/how-to/)** - Task-specific solutions
 - **[API Guide](docs/API_GUIDE.md)** - Comprehensive API documentation
 - **[Development Guide](docs/DEVELOPMENT.md)** - Contributing and development workflow
+
+### Audio Analysis (Optional)
+
+- **[Audio Quick Start](docs/tutorials/audio-quickstart.md)** - 5-minute hands-on tutorial for analyzing audio files
+- **[How to Analyze Audio](docs/how-to/audio-analysis.md)** - Task-oriented guide with toolkit migration recipes
 
 ## 📁 Project Structure
 

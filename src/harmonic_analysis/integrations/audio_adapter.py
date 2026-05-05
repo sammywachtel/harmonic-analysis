@@ -184,6 +184,8 @@ class AudioAdapter:
         chord_window_size_s: float = 0.5,
         chord_hop_size_s: float = 0.25,
         tonal_bias: float = 0.15,
+        use_bass_chroma: bool = False,
+        bass_bonus: float = 0.3,
     ) -> None:
         """Initialize the adapter.
 
@@ -227,6 +229,8 @@ class AudioAdapter:
         self._chord_window_size_s = chord_window_size_s
         self._chord_hop_size_s = chord_hop_size_s
         self._tonal_bias = tonal_bias
+        self._use_bass_chroma = use_bass_chroma
+        self._bass_bonus = bass_bonus
 
         if not quiet and not self.ffmpeg_available:
             # Single WARNING — informational, not a fail. WAV still works.
@@ -344,6 +348,19 @@ class AudioAdapter:
                 estimate_chord_progression,
             )
 
+            # Bass-aware estimation: extract a parallel bass-register
+            # chroma and pass it to the estimator. Disambiguates relative
+            # pairs (Bm vs D, Am vs C) when the bass note is the
+            # discriminating signal. Costs a second chroma pass over the
+            # audio — typically <100ms for songs under ~5 minutes.
+            bass_chroma = None
+            if self._use_bass_chroma:
+                from harmonic_analysis.audio._io import extract_local_bass_chroma
+
+                bass_chroma = extract_local_bass_chroma(
+                    filepath, start_time=resolved_start, end_time=resolved_end
+                )
+
             chords = estimate_chord_progression(
                 local_chroma,
                 global_key,
@@ -352,6 +369,8 @@ class AudioAdapter:
                 window_size_s=self._chord_window_size_s,
                 hop_size_s=self._chord_hop_size_s,
                 tonal_bias=self._tonal_bias,
+                bass_chroma_frames=bass_chroma,
+                bass_bonus=self._bass_bonus,
             )
 
         return AudioAnalysisResult(
@@ -374,6 +393,8 @@ def analyze_audio(
     chord_window_size_s: float = 0.5,
     chord_hop_size_s: float = 0.25,
     tonal_bias: float = 0.15,
+    use_bass_chroma: bool = False,
+    bass_bonus: float = 0.3,
 ) -> AudioAnalysisResult:
     """Synchronous convenience wrapper around ``AudioAdapter.from_audio``.
 
@@ -404,6 +425,8 @@ def analyze_audio(
         chord_window_size_s=chord_window_size_s,
         chord_hop_size_s=chord_hop_size_s,
         tonal_bias=tonal_bias,
+        use_bass_chroma=use_bass_chroma,
+        bass_bonus=bass_bonus,
     )
     return adapter.from_audio(filepath, segment=segment)
 
@@ -417,6 +440,8 @@ async def analyze_audio_async(
     chord_window_size_s: float = 0.5,
     chord_hop_size_s: float = 0.25,
     tonal_bias: float = 0.15,
+    use_bass_chroma: bool = False,
+    bass_bonus: float = 0.3,
 ) -> AudioAnalysisResult:
     """Async convenience wrapper. Offloads librosa work to a worker thread.
 
@@ -448,4 +473,6 @@ async def analyze_audio_async(
         chord_window_size_s=chord_window_size_s,
         chord_hop_size_s=chord_hop_size_s,
         tonal_bias=tonal_bias,
+        use_bass_chroma=use_bass_chroma,
+        bass_bonus=bass_bonus,
     )

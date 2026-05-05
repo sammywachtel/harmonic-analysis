@@ -6,3 +6,5 @@ uvicorn[standard]>=0.24.0
 python-multipart>=0.0.6
 pydantic>=2.0.0
 music21
+librosa>=0.10.1
+soundfile>=0.13.1

@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.1-beta.1] - 2026-05-05
+
 ### Added
+
+- Audio file analysis support via a new `POST /api/analyze/audio` REST endpoint — upload an audio file and get back chord events and key estimates, with optional time segment parameters for analyzing specific portions (#31)
+- `[audio]` optional extra (`pip install harmonic-analysis[audio]`) enabling audio-to-harmony analysis powered by librosa and soundfile; the core library remains lightweight for users who don't need audio (#31)
+- Comprehensive audio analysis documentation covering quickstart tutorial, how-to guide, API reference, and architectural internals (#31)
 
 - **Audio analysis subpackage** (`harmonic_analysis.audio`): ported Krumhansl-Schmuckler key detection,
   V-I cadence detection, and harmonic region classification into a new private subpackage with zero

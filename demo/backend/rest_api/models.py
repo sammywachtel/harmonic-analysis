@@ -185,3 +185,80 @@ class ProfileResponse(BaseModel):
     profiles: List[ProfileInfo] = Field(
         description="List of available analysis profiles"
     )
+
+
+# Audio analysis models — documentation/parity guard only.
+# The route returns Dict[str, Any] (DD3), not a typed response_model.
+# These exist so the shape is declared once and can be validated in tests.
+
+
+class ChordEventModel(BaseModel):
+    """A single timestamped chord event from the audio pipeline."""
+
+    start_time: float = Field(description="Start time in seconds")
+    end_time: float = Field(description="End time in seconds")
+    chord_label: str = Field(description="Detected chord symbol (e.g. 'C', 'Am')")
+    confidence: float = Field(description="Cosine similarity confidence 0-1")
+    is_diatonic: bool = Field(
+        description="Whether the chord belongs to the estimated key"
+    )
+
+
+class _KeyInfoModel(BaseModel):
+    """Key estimation subset — excludes diatonic_pitch_classes (frozenset, not JSON-safe)."""
+
+    tonic: str
+    mode: str
+    key_signature: str
+    confidence: float
+
+
+class _LocalKeyModel(_KeyInfoModel):
+    """Key info plus region classification for the local key.
+
+    The route flattens KeyInfo + RegionInfo into one dict under ``local``.
+    This model reflects that combined shape so the OpenAPI schema stays honest.
+    """
+
+    region_type: str
+    region_confidence: float
+    borrowed_tones: List[str] = Field(default_factory=list)
+
+
+class _RegionModel(BaseModel):
+    """Region classification result."""
+
+    type: str
+    confidence: float
+    borrowed_tones: List[str] = Field(default_factory=list)
+
+
+class _AnalysisModel(BaseModel):
+    """Cadence detection summary."""
+
+    cadence_detected: bool
+    cadence_strength: float
+
+
+class _SegmentModel(BaseModel):
+    """Analyzed time window."""
+
+    start: float
+    end: float
+
+
+class AudioAnalysisResponse(BaseModel):
+    """Shape of the JSON returned by POST /api/analyze/audio.
+
+    Mirrors the dict the route builds manually. Does NOT include
+    ``diatonic_pitch_classes`` (frozenset is not JSON-serializable)
+    or ``visuals`` (not produced by the library).
+    """
+
+    global_key: _KeyInfoModel = Field(alias="global")
+    local_key: _LocalKeyModel = Field(alias="local")
+    analysis: _AnalysisModel
+    chord_progression: List[ChordEventModel]
+    segment: _SegmentModel
+
+    model_config = {"populate_by_name": True}

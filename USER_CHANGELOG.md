@@ -5,6 +5,31 @@ the good stuff — what you can actually *do* now — lives here.
 
 ---
 
+## [0.3.1-beta.1] - 2026-05-05
+
+### ✨ New Things You Can Do
+
+🎵 **Audio Analysis**: You can now analyze audio files directly — just `POST` a file to
+`/api/analyze/audio` and get back chord events and key estimates. No more transcribing by hand
+before running harmonic analysis; drop in a WAV (or MP3/OGG with ffmpeg) and let the library
+do the listening.
+
+📦 **Opt into audio without bloating your install.** Audio dependencies (librosa, soundfile) are
+now tucked behind an optional extra: `pip install harmonic-analysis[audio]`. If you don't need
+audio analysis, your install stays lean — `import harmonic_analysis` works exactly as before,
+no extra baggage.
+
+⏱️ **Analyze just the part you care about.** The audio endpoint accepts optional `start` and `end`
+time parameters so you can zoom in on a specific section of a long recording instead of processing
+the whole file.
+
+### 📚 New Documentation
+
+Full audio analysis docs are now live: quickstart tutorial, how-to guide, API reference, and an
+internals explainer covering how the chroma extraction and key detection pipeline actually works.
+
+---
+
 ## [0.3.0] - 2026-05-04
 
 ### ✨ New Things You Can Do
