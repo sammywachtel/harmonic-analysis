@@ -1,82 +1,61 @@
-"""Krumhansl-Schmuckler key estimation from a 12-bin chroma vector.
+"""Krumhansl-Schmuckler key estimation (thin backward-compat wrapper).
 
-Direct port of the toolkit's ``find_best_key`` (utils.py:45–81) with two
-deliberate changes:
+The K-S logic moved to ``_key_approaches/template_correlation.py`` as
+part of the audio_score_alignment-02 ensemble. This file is now a thin
+shim — it preserves the ``find_best_key`` import path for any caller
+(internal or external) that still expects to call into this module.
 
-1. Returns a ``KeyInfo`` dataclass instead of a dict — the rest of the audio
-   pipeline expects a typed object.
-2. No external theory-library dependency. The toolkit's reference
-   implementation didn't actually call out to one in this function, but
-   downstream callers did via the dict it returned. Now everything stays
-   inside the audio subpackage.
+Migration notes:
+    Old code:
+        from harmonic_analysis.audio._key_estimation import find_best_key
+        result = find_best_key(chroma_vector)
 
-K-S profiles only know "major" and "minor" — i.e. Ionian and Aeolian. The
-mode_map below preserves the toolkit's labels (so callers see "Ionian", not
-"major"). Modal scales beyond Ionian/Aeolian are a WU3 problem.
+    New code (with ensemble):
+        # Backward-compat — same behavior as before
+        result = find_best_key(chroma_vector)
+
+        # Or via the adapter for the full ensemble:
+        from harmonic_analysis import analyze_audio_async
+        result = await analyze_audio_async(filepath, key_detection="default")
+        # ...where key_detection="ks_only" recovers the old behavior.
+
+The wrapper is deliberately a one-liner. AC-02 of the ensemble scope
+asserts bit-identical behavior between this function and the
+pre-ensemble code path, to 4 decimal places. Any cleverness here
+(rounding, normalization, mode mapping) would break that assertion.
+The ``TemplateCorrelationApproach.detect()`` does the K-S math; we
+just unpack its top-1 KeyInfo and return it.
 """
 
 from __future__ import annotations
 
-from typing import Dict
-
 import numpy as np
 
-from ._profiles import KS_PROFILES, PITCH_CLASSES
+from ._key_approaches.template_correlation import TemplateCorrelationApproach
+from ._key_ensemble import KeyDetectionContext
 from ._types import KeyInfo
-
-# Toolkit labels major/minor as Ionian/Aeolian on output. Preserved verbatim
-# so the rest of the pipeline doesn't have to translate.
-_MODE_MAP: Dict[str, str] = {"major": "Ionian", "minor": "Aeolian"}
 
 
 def find_best_key(chroma_vector: np.ndarray) -> KeyInfo:
     """Estimate the best-fitting key for a 12-bin chroma vector.
+
+    Thin wrapper around ``TemplateCorrelationApproach.detect()``. The
+    K-S correlation logic, zero-energy guard, and confidence rounding
+    all live in the approach class — this function just delegates.
 
     Args:
         chroma_vector: 12-element float array of pitch-class energies.
 
     Returns:
         ``KeyInfo`` with tonic, mode (Ionian/Aeolian), full key_signature
-        string ("C major"-style — note: still uses the K-S "major"/"minor"
-        labels for round-trip compatibility with the toolkit), and a
-        confidence in [0.0, 1.0]. Zero-energy input returns an N/A sentinel.
+        string ("C major"-style), and a confidence in [0.0, 1.0].
+        Zero-energy input returns the N/A sentinel.
     """
-    # Zero-energy guard. Without this, np.corrcoef returns NaN against any
-    # constant input and downstream confidence math goes sideways.
-    if np.linalg.norm(chroma_vector) < 1e-6:
-        return KeyInfo(
-            tonic="N/A",
-            mode="N/A",
-            key_signature="N/A",
-            confidence=0.0,
-        )
-
-    correlations: Dict[str, float] = {}
-    for tonic_pc, tonic_name in enumerate(PITCH_CLASSES):
-        for mode_name, profile_data in KS_PROFILES.items():
-            # Roll the K-S profile so position 0 sits on this candidate tonic.
-            profile = np.roll(np.asarray(profile_data, dtype=float), tonic_pc)
-            corr = float(np.corrcoef(chroma_vector, profile)[0, 1])
-            correlations[f"{tonic_name} {mode_name}"] = corr
-
-    # max() with key= over a dict iterates keys; pick the one with the
-    # highest correlation. Ties broken by dict insertion order — fine for
-    # K-S, the 24-key search rarely has exact ties on real chroma.
-    best_key = max(correlations, key=lambda k: correlations[k])
-    raw_corr = correlations[best_key]
-
-    # Pearson correlation lives in [-1, 1]; map to [0, 1] for an interpretable
-    # "confidence." Second NaN guard catches the edge case where chroma had
-    # nonzero norm but matched zero-variance somehow (constant chroma).
-    if np.isnan(raw_corr):
-        confidence = 0.0
-    else:
-        confidence = (raw_corr + 1.0) / 2.0
-
-    tonic_name, mode_name = best_key.split()
-    return KeyInfo(
-        tonic=tonic_name,
-        mode=_MODE_MAP.get(mode_name, mode_name),
-        key_signature=best_key,
-        confidence=round(confidence, 4),
+    # One-liner delegation — no intermediate logic. AC-02 demands
+    # bit-identity with the pre-ensemble path; this wrapper is the
+    # contract surface that backward-compat callers see.
+    return (
+        TemplateCorrelationApproach()
+        .detect(KeyDetectionContext(chroma_1d=chroma_vector))
+        .ranked[0][0]
     )

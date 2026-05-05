@@ -7,6 +7,7 @@ These routes handle chord/roman/melody/scale analysis plus file uploads.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import tempfile
@@ -419,6 +420,9 @@ async def analyze_audio_endpoint(
     file: UploadFile = File(...),
     start: Optional[float] = Form(None),
     end: Optional[float] = Form(None),
+    show_details: bool = Form(False),
+    key_detection: str = Form("default"),
+    key_ensemble_weights: Optional[str] = Form(None),
 ) -> Dict[str, Any]:
     """
     Analyze an audio file (WAV, MP3, etc.) for key, chords, and cadences.
@@ -426,6 +430,16 @@ async def analyze_audio_endpoint(
     Opening move: Accept audio upload, run the library's audio pipeline.
     Main play: Build a JSON-safe response dict (no frozensets allowed).
     Victory lap: Return key estimation, chord progression, and cadence info.
+
+    New form fields (audio_score_alignment-02):
+        show_details: When ``true``, response includes ``key_analysis_details``
+            with per-approach breakdown. Default ``false`` keeps the wire
+            format unchanged for existing clients.
+        key_detection: Ensemble preset (``"default"``, ``"ks_only"``,
+            ``"full"``) or JSON-encoded list/dict for fine control. Default
+            is the four-approach ensemble.
+        key_ensemble_weights: Optional JSON object mapping approach name
+            to weight, overriding the preset's defaults.
     """
     # Import guard — audio deps are optional; fail loudly with install hint
     try:
@@ -443,6 +457,51 @@ async def analyze_audio_endpoint(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
+    # Parse key_detection. Accept the three preset strings directly; if the
+    # caller sends something else, try parsing as JSON (list or dict). Bad
+    # input gets a 400 with a useful message — failing fast here beats
+    # surfacing a deep ValueError from the library at analysis time.
+    valid_presets = {"default", "ks_only", "full"}
+    parsed_key_detection: Any
+    if key_detection in valid_presets:
+        parsed_key_detection = key_detection
+    else:
+        # Maybe a JSON list or dict?
+        try:
+            parsed_key_detection = json.loads(key_detection)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid key_detection value {key_detection!r}. "
+                    f"Valid presets: {sorted(valid_presets)}, or a JSON-encoded "
+                    f"list of approach names or {{name: weight}} dict."
+                ),
+            )
+
+    # Parse the optional weights override.
+    parsed_weights: Optional[Dict[str, float]] = None
+    if key_ensemble_weights is not None:
+        try:
+            raw = json.loads(key_ensemble_weights)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=400,
+                detail="key_ensemble_weights must be a JSON object {name: weight}.",
+            )
+        if not isinstance(raw, dict):
+            raise HTTPException(
+                status_code=400,
+                detail="key_ensemble_weights must be a JSON object {name: weight}.",
+            )
+        try:
+            parsed_weights = {str(k): float(v) for k, v in raw.items()}
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=400,
+                detail="key_ensemble_weights values must all be numeric.",
+            )
+
     # Main play: save uploaded file to temp location (same pattern as /analyze/file)
     temp_dir = tempfile.gettempdir()
     temp_file_path = os.path.join(temp_dir, f"audio_{file.filename}")
@@ -455,12 +514,23 @@ async def analyze_audio_endpoint(
         # Build segment tuple if the caller specified a window
         segment = (start, end) if start is not None else None
 
-        result = await analyze_audio_async(temp_file_path, segment=segment)
+        try:
+            result = await analyze_audio_async(
+                temp_file_path,
+                segment=segment,
+                key_detection=parsed_key_detection,
+                show_analysis_details=show_details,
+                key_ensemble_weights=parsed_weights,
+            )
+        except ValueError as exc:
+            # resolve_preset() raises ValueError for unknown presets
+            # passed via the JSON-decoded path. Surface as 400.
+            raise HTTPException(status_code=400, detail=str(exc))
 
         # Victory lap: build the response dict MANUALLY.
         # Never use asdict() here — KeyInfo.diatonic_pitch_classes is a
         # frozenset and will 500 the entire response. Ask me how I know.
-        return {
+        response: Dict[str, Any] = {
             "global": {
                 "tonic": result.global_key.tonic,
                 "mode": result.global_key.mode,
@@ -495,6 +565,14 @@ async def analyze_audio_endpoint(
                 "end": result.segment_end,
             },
         }
+
+        # Conditionally include the diagnostic panel. When show_details is
+        # off, the response shape is unchanged from the pre-ensemble
+        # contract — this is what AC-07's backward-compat case checks.
+        if show_details and result.key_analysis_details is not None:
+            response["key_analysis_details"] = result.key_analysis_details
+
+        return response
 
     except AudioImportError:
         raise HTTPException(

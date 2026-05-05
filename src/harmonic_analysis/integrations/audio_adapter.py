@@ -27,9 +27,19 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
+
+# Default ensemble preset — used when callers don't pass key_detection.
+# "default" enables the four iteration_01 approaches; ks_only mirrors the
+# pre-ensemble code path for backward compat.
+_DEFAULT_KEY_DETECTION = "default"
+
+# Type alias for the key_detection parameter shape. Three input shapes:
+# preset string ("default" | "ks_only" | "full"), explicit list of approach
+# names, or dict mapping approach name → weight.
+KeyDetectionSpec = Union[str, List[str], Dict[str, float]]
 
 # Rubato presets: (window_size_s, hop_size_s, median_kernel).
 # Named after the musical term because that's literally what this controls —
@@ -153,6 +163,10 @@ class AudioAnalysisResult:
     segment_start: float
     segment_end: float
     chords: list[ChordEvent] = field(default_factory=list)
+    # Diagnostic-panel payload populated only when callers ask for it. None
+    # by default to keep production payloads light. Schema documented in
+    # docs/reference/audio-api.md and at AC-05.
+    key_analysis_details: Optional[Dict[str, Any]] = None
 
     @property
     def key_hint(self) -> str:
@@ -245,6 +259,9 @@ class AudioAdapter:
         bass_bonus: float = 0.3,
         rubato: Union[str, float] = "moderate",
         min_chroma_norm: float = 0.05,
+        key_detection: KeyDetectionSpec = _DEFAULT_KEY_DETECTION,
+        show_analysis_details: bool = False,
+        key_ensemble_weights: Optional[Dict[str, float]] = None,
     ) -> None:
         """Initialize the adapter.
 
@@ -279,11 +296,28 @@ class AudioAdapter:
             min_chroma_norm: L2 norm threshold below which a chroma window
                 is treated as silence and skipped. Prevents hallucinated
                 chords during dead air. Default 0.05.
+            key_detection: Ensemble preset, list of approach names, or
+                dict of approach-name → weight. Defaults to ``"default"``
+                which enables ``template_correlation``, ``boundary_chords``,
+                ``bass_dominance``, and ``cadential``. ``"ks_only"`` runs
+                only the K-S template correlation (matches pre-ensemble
+                behavior). ``"full"`` includes the iteration_02 opt-ins
+                ``pattern_engine`` and ``hmm`` (which fall back to no-op
+                in iteration_01).
+            show_analysis_details: When ``True``, populates
+                ``AudioAnalysisResult.key_analysis_details`` with a
+                per-approach breakdown for debugging. Off by default to
+                keep payloads light for production callers.
+            key_ensemble_weights: Optional override for the per-approach
+                weights. Replaces the default weights for any approach
+                listed; unlisted approaches retain their default weight.
 
         Raises:
             AudioImportError: If ``librosa`` or ``soundfile`` cannot be
                 imported. Message contains ``"audio"`` and
                 ``"pip install"`` for grep-friendly install guidance.
+            ValueError: If ``key_detection`` is an unknown preset string,
+                an empty list, or an empty dict.
         """
         # Lazy import — keeps `import harmonic_analysis` lean. We don't
         # store the modules on self because _io.py imports them directly;
@@ -321,6 +355,21 @@ class AudioAdapter:
         self._bass_bonus = bass_bonus
         self._median_kernel = rubato_kernel
         self._min_chroma_norm = min_chroma_norm
+
+        # Resolve key_detection up front. resolve_preset() validates the
+        # spec and raises ValueError for bad input — we want the failure
+        # at construction time, not deep inside from_audio().
+        from harmonic_analysis.audio._key_ensemble import resolve_preset
+
+        approach_names, resolved_weights = resolve_preset(key_detection)
+        # Apply user weight overrides on top of the resolved defaults.
+        if key_ensemble_weights:
+            for k, v in key_ensemble_weights.items():
+                resolved_weights[k] = float(v)
+        self._key_detection_spec: KeyDetectionSpec = key_detection
+        self._approach_names: List[str] = approach_names
+        self._approach_weights: Dict[str, float] = resolved_weights
+        self._show_analysis_details = show_analysis_details
 
         if not quiet and not self.ffmpeg_available:
             # Single WARNING — informational, not a fail. WAV still works.
@@ -376,13 +425,26 @@ class AudioAdapter:
             extract_global_chroma,
             extract_local_chroma,
         )
-        from harmonic_analysis.audio._key_estimation import find_best_key
+        from harmonic_analysis.audio._key_approaches import DEFAULT_APPROACH_REGISTRY
+        from harmonic_analysis.audio._key_approaches.template_correlation import (
+            TemplateCorrelationApproach,
+        )
+        from harmonic_analysis.audio._key_ensemble import (
+            KeyDetectionContext,
+            KeyEnsembleSynthesizer,
+        )
         from harmonic_analysis.audio._region import classify_region_type
 
-        # Step 1 — global chroma + global key. Already 1D (12,) per the
-        # _io.py contract; pass directly to find_best_key.
+        # Step 1 — global chroma + STAGE 1 key (template_correlation only).
+        # The K-S result feeds chord estimation's tonal_bias. Even if the
+        # ensemble eventually picks a different key, tonal_bias only
+        # affects diatonic-chord weighting and relative pairs share the
+        # same diatonic set — so stage-1 K-S is good enough here.
         global_chroma = extract_global_chroma(filepath)
-        global_key = find_best_key(global_chroma)
+        ks_verdict = TemplateCorrelationApproach().detect(
+            KeyDetectionContext(chroma_1d=global_chroma)
+        )
+        ks_key = ks_verdict.ranked[0][0]
 
         # Step 2 — resolve segment bounds. Default: whole file. We need
         # to know file duration up front to fill in segment_end when no
@@ -408,72 +470,176 @@ class AudioAdapter:
         local_chroma = extract_local_chroma(
             filepath, start_time=resolved_start, end_time=resolved_end
         )
-
-        # Step 4 — local key. find_best_key expects 1D 12-bin;
-        # detect_cadences expects 2D (12,T) raw — see WU2 prepare doc.
-        # (12,T) → (12,) required by find_best_key; averaging done here,
-        # not in the estimator.
         local_chroma_1d = local_chroma.mean(axis=1)
-        local_key = find_best_key(local_chroma_1d)
 
-        # Step 5 — cadences. Pass the full 2D matrix; detect_cadences
-        # does its own .mean(axis=1) internally.
-        cadences = detect_cadences(local_chroma, local_key)
+        # Step 4 — STAGE 2: chord estimation, biased by the K-S key.
+        # Always extract bass chroma when we'll need it for the ensemble
+        # (or when use_bass_chroma is on). We compute it once and reuse
+        # for both chord-estimation bonus and bass_dominance approach.
+        bass_chroma = None
+        bass_chroma_1d = None
+        need_bass_for_ensemble = "bass_dominance" in self._approach_names
+        if self._use_bass_chroma or need_bass_for_ensemble:
+            from harmonic_analysis.audio._io import extract_local_bass_chroma
 
-        # Step 6 — region classification. Threshold tuning lives in
-        # _region.py and is not our concern here.
-        region = classify_region_type(
-            global_key=global_key,
-            local_key=local_key,
-            local_key_confidence=local_key.confidence,
-            local_cadence=cadences,
-        )
+            bass_chroma = extract_local_bass_chroma(
+                filepath, start_time=resolved_start, end_time=resolved_end
+            )
+            bass_chroma_1d = bass_chroma.mean(axis=1)
 
-        # Step 7 — chord estimation. Uses the 2D local chroma and global key.
-        # Gated by _include_chords — skip the (cheap) computation when the
-        # caller explicitly opted out.
         chords: list[ChordEvent] = []
         if self._include_chords:
             from harmonic_analysis.audio._chord_estimation import (
                 estimate_chord_progression,
             )
 
-            # Bass-aware estimation: extract a parallel bass-register
-            # chroma and pass it to the estimator. Disambiguates relative
-            # pairs (Bm vs D, Am vs C) when the bass note is the
-            # discriminating signal. Costs a second chroma pass over the
-            # audio — typically <100ms for songs under ~5 minutes.
-            bass_chroma = None
-            if self._use_bass_chroma:
-                from harmonic_analysis.audio._io import extract_local_bass_chroma
-
-                bass_chroma = extract_local_bass_chroma(
-                    filepath, start_time=resolved_start, end_time=resolved_end
-                )
-
             chords = estimate_chord_progression(
                 local_chroma,
-                global_key,
+                ks_key,  # tonal_bias driven by K-S — stage-1 result
                 sr=sr,
                 hop_length=512,
                 window_size_s=self._chord_window_size_s,
                 hop_size_s=self._chord_hop_size_s,
                 tonal_bias=self._tonal_bias,
-                bass_chroma_frames=bass_chroma,
+                bass_chroma_frames=bass_chroma if self._use_bass_chroma else None,
                 bass_bonus=self._bass_bonus,
                 min_chroma_norm=self._min_chroma_norm,
                 median_kernel=self._median_kernel,
             )
 
+        # Step 5 — STAGE 3: full ensemble. Run every enabled approach
+        # against a context that now includes chord events from stage 2.
+        ensemble_ctx = KeyDetectionContext(
+            chroma_1d=global_chroma,
+            bass_chroma_1d=bass_chroma_1d,
+            chord_events=list(chords) if chords else None,
+            audio_path=str(filepath),
+        )
+
+        verdicts = []
+        for name in self._approach_names:
+            cls = DEFAULT_APPROACH_REGISTRY.get(name)
+            if cls is None:
+                # Iteration_02 opt-ins (pattern_engine, hmm) aren't
+                # registered yet. Skip silently — including their names
+                # in "full" preset is forward-compat scaffolding.
+                continue
+            verdicts.append(cls().detect(ensemble_ctx))
+
+        # If only template_correlation ran (ks_only path), we're done —
+        # the synthesizer will return a SynthesisResult whose winner is
+        # the K-S key. No special-case needed.
+        synthesizer = KeyEnsembleSynthesizer()
+        synthesis_result = synthesizer.synthesize(
+            verdicts, weights=self._approach_weights
+        )
+        ensemble_key = synthesis_result.winner
+
+        # Step 6 — local key. With segments, the local chroma differs
+        # from the global; recompute via ensemble using the local chroma.
+        # When no segment is set, local == global by construction so we
+        # reuse the ensemble winner to avoid redundant work.
+        if segment is None:
+            local_key = ensemble_key
+            # Cadences and region still want their inputs; reuse local_chroma.
+        else:
+            # Run a smaller ensemble on the local chroma. We use
+            # template_correlation only here for performance — the
+            # boundary/bass/cadential signals are global concepts and
+            # don't need re-running per segment.
+            local_ks = TemplateCorrelationApproach().detect(
+                KeyDetectionContext(chroma_1d=local_chroma_1d)
+            )
+            local_key = local_ks.ranked[0][0]
+
+        # Step 7 — cadences and region classification. detect_cadences
+        # does its own .mean(axis=1) internally on the 2D matrix.
+        cadences = detect_cadences(local_chroma, local_key)
+        region = classify_region_type(
+            global_key=ensemble_key,
+            local_key=local_key,
+            local_key_confidence=local_key.confidence,
+            local_cadence=cadences,
+        )
+
+        # Step 8 — diagnostic panel (only when requested).
+        key_analysis_details: Optional[Dict[str, Any]] = None
+        if self._show_analysis_details:
+            key_analysis_details = self._build_analysis_details(
+                verdicts=verdicts, synthesis=synthesis_result
+            )
+
         return AudioAnalysisResult(
-            global_key=global_key,
+            global_key=ensemble_key,
             local_key=local_key,
             cadences=cadences,
             region=region,
             segment_start=resolved_start,
             segment_end=resolved_end,
             chords=chords,
+            key_analysis_details=key_analysis_details,
         )
+
+    def _build_analysis_details(
+        self,
+        *,
+        verdicts: list,
+        synthesis: object,
+    ) -> Dict[str, Any]:
+        """Construct the show_analysis_details payload.
+
+        Schema is locked by AC-05:
+            {
+                "approaches": [{"name", "weight", "top_3": [{...}]}, ...],
+                "synthesis": {
+                    "method", "winner": {...}, "runner_up": {...} | None,
+                    "margin", "key_score_table"
+                },
+                "modulations": None,  # iteration_02 owns the HMM segments
+            }
+
+        KeyInfo objects get manually serialized — the frozenset
+        ``diatonic_pitch_classes`` would explode any naive ``asdict``.
+        """
+
+        def _key_to_dict(ki: object) -> Dict[str, Any]:
+            return {
+                "tonic": getattr(ki, "tonic", None),
+                "mode": getattr(ki, "mode", None),
+                "key_signature": getattr(ki, "key_signature", None),
+                "confidence": getattr(ki, "confidence", None),
+            }
+
+        approaches_payload = []
+        for v in verdicts:
+            top_3 = [
+                {"key": _key_to_dict(k), "score": float(s)} for k, s in v.ranked[:3]
+            ]
+            approaches_payload.append(
+                {
+                    "name": v.name,
+                    "weight": float(self._approach_weights.get(v.name, 0.0)),
+                    "top_3": top_3,
+                }
+            )
+
+        synth_payload = {
+            "method": getattr(synthesis, "method", "weighted_sum"),
+            "winner": _key_to_dict(getattr(synthesis, "winner", None)),
+            "runner_up": (
+                _key_to_dict(getattr(synthesis, "runner_up"))
+                if getattr(synthesis, "runner_up", None) is not None
+                else None
+            ),
+            "margin": float(getattr(synthesis, "margin", 0.0)),
+            "key_score_table": dict(getattr(synthesis, "key_score_table", {})),
+        }
+
+        return {
+            "approaches": approaches_payload,
+            "synthesis": synth_payload,
+            "modulations": None,  # iteration_02
+        }
 
 
 def analyze_audio(
@@ -489,6 +655,9 @@ def analyze_audio(
     bass_bonus: float = 0.3,
     rubato: Union[str, float] = "moderate",
     min_chroma_norm: float = 0.05,
+    key_detection: KeyDetectionSpec = _DEFAULT_KEY_DETECTION,
+    show_analysis_details: bool = False,
+    key_ensemble_weights: Optional[Dict[str, float]] = None,
 ) -> AudioAnalysisResult:
     """Synchronous convenience wrapper around ``AudioAdapter.from_audio``.
 
@@ -531,6 +700,9 @@ def analyze_audio(
         bass_bonus=bass_bonus,
         rubato=rubato,
         min_chroma_norm=min_chroma_norm,
+        key_detection=key_detection,
+        show_analysis_details=show_analysis_details,
+        key_ensemble_weights=key_ensemble_weights,
     )
     return adapter.from_audio(filepath, segment=segment)
 
@@ -548,6 +720,9 @@ async def analyze_audio_async(
     bass_bonus: float = 0.3,
     rubato: Union[str, float] = "moderate",
     min_chroma_norm: float = 0.05,
+    key_detection: KeyDetectionSpec = _DEFAULT_KEY_DETECTION,
+    show_analysis_details: bool = False,
+    key_ensemble_weights: Optional[Dict[str, float]] = None,
 ) -> AudioAnalysisResult:
     """Async convenience wrapper. Offloads librosa work to a worker thread.
 
@@ -591,4 +766,7 @@ async def analyze_audio_async(
         bass_bonus=bass_bonus,
         rubato=rubato,
         min_chroma_norm=min_chroma_norm,
+        key_detection=key_detection,
+        show_analysis_details=show_analysis_details,
+        key_ensemble_weights=key_ensemble_weights,
     )

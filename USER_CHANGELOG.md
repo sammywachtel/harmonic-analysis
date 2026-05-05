@@ -5,6 +5,41 @@ the good stuff — what you can actually *do* now — lives here.
 
 ---
 
+## [0.3.1-beta.2] - 2026-05-05
+
+### 🔧 Fixed: The "Minor Key Identity Crisis" Is Over
+
+🎹 **No more B minor misidentified as D major.** If you've been feeding real recordings into the
+key detector and getting the relative major back instead of the actual minor key — this one's for
+you. Two bugs in the ensemble detector were conspiring against minor keys: low-quality edge events
+were getting to vote on the key, and the V→i cadence (minor resolution!) was being scored as less
+convincing than V→I. Both are fixed. Recordings in minor keys now get their due.
+
+### ✨ New Things You Can Do
+
+🎸 **Disambiguate slash chords and inversions with bass-chroma analysis.** New `use_bass_chroma`
+parameter on `analyze_audio` and `AudioAdapter` (default `False`). When enabled, the chord
+estimator uses low-frequency chroma to bias matching toward chords whose root or third lines up
+with the detected bass note — so Bm and D/B stop being the same thing. Opt-in because it costs
+a bit extra and not every recording has clean bass separation.
+
+⏲️ **Tune the analysis for how loosely the recording was played.** New `rubato` parameter accepts
+`"strict"`, `"moderate"`, `"loose"`, or `"free"` (or a float from 0.0 to 1.0). Rubato controls
+the analysis window size and smoothing — a free-tempo piano performance needs different settings
+than a click-tracked studio take. Default is `"moderate"`, which matches the previous behavior
+exactly, so you won't notice a thing unless you opt in.
+
+### 🛠️ Under the Hood
+
+🔇 **Silence is no longer a chord.** Leading silence and quiet sections used to generate phantom
+chord events; they don't anymore. Analysis windows below the minimum chroma energy threshold are
+skipped entirely. Your timestamps will actually mean something now.
+
+📊 **Real-audio regression tests** now guard the relative-pair fix. Four integration tests run
+against a real piano recording and will loudly object if B minor starts coming back as D major again.
+
+---
+
 ## [0.3.1-beta.1] - 2026-05-05
 
 ### ✨ New Things You Can Do

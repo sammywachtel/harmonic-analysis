@@ -6,14 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.1-beta.2] - 2026-05-05
+
 ### Added
 
 - **Bass-aware chord estimation** — new `use_bass_chroma` parameter on `analyze_audio`, `analyze_audio_async`, and `AudioAdapter` (default `False`) for disambiguating slash chords and inversions (e.g., Bm vs D/B). When enabled, low-frequency chroma frames bias template-match scoring toward chords whose root or third matches the detected bass note.
 - **Rubato temporal flexibility** — new `rubato` parameter on the same three audio APIs accepting four named presets (`"strict"`, `"moderate"`, `"loose"`, `"free"`) or a float in `[0.0, 1.0]` that interpolates between preset window/hop/median-kernel triples. Default `"moderate"` matches previous behavior exactly. Unknown strings raise `ValueError`.
+- **Real-audio regression tests** — four integration tests against a real piano recording (`iwasonce_steinway.mp3`) guard against the relative-pair mix-up re-emerging. Approach-level unit tests for boundary filtering and cadential parity also added, because lightning can strike twice.
 
 ### Fixed
 
 - **Phantom chord events during silent audio** — analysis windows whose chroma L2 norm falls below the new `min_chroma_norm=0.05` threshold are now skipped, eliminating spurious chord detections in leading silence and quiet sections. Soft-attack content above threshold continues to produce chord events with correct timestamps.
+- **Relative minor/major key confusion in audio analysis** — the ensemble key detector was picking D Ionian (the relative major) when the recording was clearly in B Aeolian. Two culprits caught and corrected: `boundary_chords` was letting garbage low-confidence edge events vote, and `cadential` was giving V→I full credit while treating V→i like a distant cousin. Both now play fair. Real recordings in minor keys finally get their due. (#34)
 
 ### Changed
 

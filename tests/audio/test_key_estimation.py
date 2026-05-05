@@ -119,6 +119,38 @@ def test_keyinfo_with_unsupported_mode_returns_empty_diatonic_set() -> None:
     assert ki.diatonic_pitch_classes == frozenset()
 
 
+def test_wrapper_delegates_to_template_correlation_approach() -> None:
+    """AC-02: ``find_best_key`` and ``TemplateCorrelationApproach.detect()``
+    must produce identical KeyInfo to 4 decimal places (bit-identity).
+
+    The wrapper is meant to be a literal one-liner — any drift here means
+    something is rounding twice or coercing in between.
+    """
+    from harmonic_analysis.audio._key_approaches.template_correlation import (
+        TemplateCorrelationApproach,
+    )
+    from harmonic_analysis.audio._key_ensemble import KeyDetectionContext
+
+    # Use the rolled-A K-S minor profile — exercises a non-zero pitch class
+    # and the minor-mode branch.
+    chroma = np.roll(np.array(KS_PROFILES["minor"], dtype=float), 9)
+
+    wrapper_result = find_best_key(chroma)
+    approach_result = (
+        TemplateCorrelationApproach()
+        .detect(KeyDetectionContext(chroma_1d=chroma))
+        .ranked[0][0]
+    )
+
+    # Bit identity to 4 decimal places per AC-02.
+    assert wrapper_result.tonic == approach_result.tonic
+    assert wrapper_result.mode == approach_result.mode
+    assert wrapper_result.key_signature == approach_result.key_signature
+    # Confidence already rounds to 4 dp inside the approach, so equality
+    # is the right check (not approx).
+    assert wrapper_result.confidence == approach_result.confidence
+
+
 def test_diatonic_pitch_classes_match_music21_for_all_keys() -> None:
     """One-time cross-check: every (tonic, mode) we support must produce a
     pitch-class set identical to music21's. Skips cleanly when music21 isn't
