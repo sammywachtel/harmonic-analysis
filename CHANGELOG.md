@@ -13,6 +13,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   music21 coupling and zero audio I/O dependencies. Pure numpy. 26 unit tests, 100% line coverage.
   (Public adapter API deferred to the next work unit.)
 
+- **`[audio]` optional extra and public adapter API** — opt-in audio analysis. New install:
+  `pip install harmonic-analysis[audio]` pulls in `librosa>=0.10.1` and `soundfile>=0.13.1`.
+  The bare install stays lean (no audio deps), and `import harmonic_analysis` succeeds even when
+  the extra is absent. New public surface:
+  - `AudioAdapter` — orchestrates chroma extraction + WU1 audio core into a single analysis call.
+  - `analyze_audio(filepath, *, segment=None, quiet=False)` — sync convenience wrapper.
+  - `analyze_audio_async(...)` — async wrapper offloading librosa work via `asyncio.to_thread`.
+  - `AudioAnalysisResult` — frozen dataclass with `global_key`, `local_key`, `cadences`, `region`,
+    `segment_start`, `segment_end`, `chords` (list), and a derived `key_hint` property compatible
+    with `PatternAnalysisService.analyze_with_patterns_async(key_hint=...)`.
+  - `AudioImportError` — raised at construction time with actionable install guidance when the
+    `[audio]` extra is missing.
+  - `ChordEvent` — placeholder dataclass; **`result.chords` is currently always `[]`; chord
+    transcription ships in WU3.**
+
+- **Streaming chroma extraction** (`audio/_io.py`): module-level pure functions
+  `extract_global_chroma` (returns 1D `(12,)`), `extract_local_chroma` (returns 2D `(12, T)`), and
+  `check_ffmpeg_available`. Memory footprint is bounded by a 5-second block size regardless of file
+  length; the local path switches to streaming above 60 seconds.
+
+- **MP3/AAC/OGG soft-deps via ffmpeg** with WARNING-on-missing. WAV files analyze without ffmpeg;
+  the adapter emits a single log WARNING at construction time when ffmpeg isn't on PATH (suppressible
+  via `AudioAdapter(quiet=True)`).
+
 - **Test suite documentation** (`tests/README.md`): recorded the `tests/integration/` directory naming
   convention so future contributors don't have to play archaeological detective.
 

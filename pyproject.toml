@@ -53,6 +53,15 @@ dependencies = [
 music21 = [
     "music21>=9.1.0",
 ]
+audio = [
+    "librosa>=0.10.1",
+    "soundfile>=0.13.1",
+]
+all = [
+    "music21>=9.1.0",
+    "librosa>=0.10.1",
+    "soundfile>=0.13.1",
+]
 educational = []
 dev = [
     "pytest>=7.0",
@@ -178,11 +187,22 @@ module = [
     "sklearn.*",
     "scipy",
     "scipy.*",
+    "librosa",
+    "librosa.*",
+    "soundfile",
+    "soundfile.*",
 ]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "harmonic_analysis.integrations.music21_adapter"
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = [
+    "harmonic_analysis.audio.*",
+    "harmonic_analysis.integrations.audio_adapter",
+]
 warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
