@@ -5,8 +5,8 @@ Each test maps onto an acceptance criterion in the iteration plan:
 * AC4 — ``AudioImportError`` on missing deps (sys.modules monkeypatch).
 * AC5 — Synthetic A-major WAV: ``global_key.tonic == "A"``, confidence > 0.7.
 * AC6 — 3-minute WAV with ``segment=(30.0, 90.0)``: bounds round-trip.
-* AC7 — ``result.chords == []`` and ``chords_as_symbols() == []`` on every
-  code path (global-only and windowed).
+* AC7 — ``result.chords`` populated by chord estimation; empty when
+  ``include_chords=False``.
 * AC8 — ``result.key_hint`` matches the regex and is service-callable.
 * AC9 — ffmpeg-absent × quiet={False, True} × WAV-fixture-success scenarios.
 
@@ -93,24 +93,25 @@ async def test_ac6_segment_bounds_round_trip(synthetic_3min_wav: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# AC7 — chords always empty on every code path
+# AC7 — chords populated by chord estimation layer; empty when opted out
 # ---------------------------------------------------------------------------
-async def test_ac7_chords_empty_no_segment(synthetic_a_major_wav: Path) -> None:
-    """Global-only path: ``chords == []`` and ``chords_as_symbols() == []``."""
+async def test_ac7_chords_populated_no_segment(synthetic_a_major_wav: Path) -> None:
+    """Global-only path: chord estimation produces non-empty results."""
     from harmonic_analysis import analyze_audio_async
 
     result = await analyze_audio_async(synthetic_a_major_wav, quiet=True)
 
-    assert result.chords == []
-    assert result.chords_as_symbols() == []
+    assert len(result.chords) > 0, "Chord estimation should produce events"
+    assert len(result.chords_as_symbols()) > 0
+    assert all(isinstance(s, str) for s in result.chords_as_symbols())
 
 
-async def test_ac7_chords_empty_with_segment(synthetic_3min_wav: Path) -> None:
-    """Windowed path: ``chords == []`` and ``chords_as_symbols() == []``."""
+async def test_ac7_chords_empty_when_opted_out(synthetic_a_major_wav: Path) -> None:
+    """include_chords=False: ``chords == []`` and ``chords_as_symbols() == []``."""
     from harmonic_analysis import analyze_audio_async
 
     result = await analyze_audio_async(
-        synthetic_3min_wav, segment=(30.0, 90.0), quiet=True
+        synthetic_a_major_wav, quiet=True, include_chords=False
     )
 
     assert result.chords == []

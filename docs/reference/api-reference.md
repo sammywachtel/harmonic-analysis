@@ -274,6 +274,88 @@ result = await service.analyze_with_patterns_async(
 - Chromatic alterations: `['F#4', 'Bb4', 'C5']`
 - Enharmonic equivalents: Both `F#4` and `Gb4` work correctly
 
+## Audio Analysis API
+
+### AudioAdapter
+
+The `AudioAdapter` class orchestrates audio file I/O and the analysis pipeline (key estimation, cadence detection, region classification, and chord estimation) into a single `from_audio()` call.
+
+```python
+from harmonic_analysis.integrations.audio_adapter import AudioAdapter, analyze_audio, analyze_audio_async
+
+# Using the adapter directly
+adapter = AudioAdapter(
+    quiet=False,              # Suppress ffmpeg-missing warning
+    include_chords=True,      # Enable chord estimation (default: True)
+    chord_window_size_s=0.5,  # Chord analysis window size in seconds
+    chord_hop_size_s=0.25,    # Chord analysis hop size in seconds
+    tonal_bias=0.15,          # Diatonic similarity bonus (0.0 to disable)
+)
+result = adapter.from_audio("path/to/audio.wav")
+
+# Or use the convenience wrappers
+result = analyze_audio("path/to/audio.wav", quiet=True)
+result = await analyze_audio_async("path/to/audio.wav", quiet=True)
+```
+
+**Constructor Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `quiet` | `bool` | `False` | Suppresses the ffmpeg-missing warning log. |
+| `include_chords` | `bool` | `True` | Enable chord estimation in `from_audio()`. Set `False` to skip. |
+| `chord_window_size_s` | `float` | `0.5` | Chord estimation analysis window in seconds. |
+| `chord_hop_size_s` | `float` | `0.25` | Chord estimation hop size in seconds. |
+| `tonal_bias` | `float` | `0.15` | Bonus added to cosine similarity for diatonic chord templates. Auto-zeroed when global key confidence < 0.5. |
+
+### ChordEvent
+
+A frozen dataclass representing a contiguous time region where the chord estimation layer detected the same chord label.
+
+```python
+from harmonic_analysis.integrations.audio_adapter import ChordEvent
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `start_time` | `float` | Start of the chord event in seconds. |
+| `end_time` | `float` | End of the chord event in seconds. |
+| `chord_label` | `str` | Chord name (e.g. `"C"`, `"Am"`, `"F#m"`). Major triads use root name only; minor triads append `"m"`. |
+| `confidence` | `float` | Cosine similarity (post-tonal-bias) averaged over constituent windows. Clipped to [0, 1]. |
+| `is_diatonic` | `bool` | `True` if the chord root is in the global key's diatonic pitch class set. |
+
+### AudioAnalysisResult
+
+Returned by `from_audio()`, `analyze_audio()`, and `analyze_audio_async()`.
+
+```python
+result = await analyze_audio_async("song.wav", quiet=True)
+
+# Access chord events
+for chord in result.chords:
+    print(f"{chord.start_time:.2f}-{chord.end_time:.2f}: {chord.chord_label} "
+          f"(conf={chord.confidence:.2f}, diatonic={chord.is_diatonic})")
+
+# Get chord labels for pattern analysis
+symbols = result.chords_as_symbols()  # e.g. ["C", "G", "Am", "F"]
+
+# Chain into pattern analysis
+from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+service = PatternAnalysisService()
+envelope = await service.analyze_with_patterns_async(
+    chord_symbols=symbols,
+    key_hint=result.key_hint,
+)
+```
+
+**Key properties:**
+
+| Property/Method | Return Type | Description |
+|-----------------|-------------|-------------|
+| `chords` | `list[ChordEvent]` | Timestamped chord events from the chord estimation layer. Empty when `include_chords=False`. |
+| `chords_as_symbols()` | `list[str]` | Extracts `chord_label` from each `ChordEvent`. Directly compatible with `PatternAnalysisService`. |
+| `key_hint` | `str` | `"<tonic> <mode>"` string for passing to pattern analysis. |
+
 ## Integration Patterns
 
 ### Web API Integration

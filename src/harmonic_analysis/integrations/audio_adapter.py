@@ -5,9 +5,8 @@ This is the user-facing surface of the audio pipeline:
 * ``AudioAdapter`` — orchestrates ``audio/_io.py`` (chroma extraction) and
   the WU1 audio core (``_key_estimation``, ``_cadence``, ``_region``).
 * ``AudioAnalysisResult`` — frozen dataclass returned to callers.
-* ``ChordEvent`` — placeholder type for WU3's chord transcription. The
-  ``chords`` field on ``AudioAnalysisResult`` is always ``[]`` until WU3
-  ships; the docstring says so explicitly so nobody panics.
+* ``ChordEvent`` — frozen dataclass for timestamped chord events produced
+  by the chord estimation layer (``audio/_chord_estimation.py``).
 * ``analyze_audio`` / ``analyze_audio_async`` — module-level convenience
   wrappers. The async variant uses ``asyncio.to_thread`` to keep the
   blocking librosa work off the event loop.
@@ -50,19 +49,19 @@ class AudioImportError(ImportError):
 
 @dataclass(frozen=True)
 class ChordEvent:
-    """Placeholder for a single chord event in time.
+    """A single chord event with time bounds and confidence.
 
-    WU3 will populate this field with real chord transcription data
-    (root, quality, onset, duration, confidence). Until then, the
-    ``AudioAnalysisResult.chords`` field is intentionally an empty list,
-    and this dataclass exists only to give mypy something concrete to
-    check against ``list[ChordEvent]``.
-
-    A bare ``Any`` would silently pass the type checker and hide the WU3
-    handoff seam from grep — explicit stub is better than implicit hole.
+    Produced by the chord estimation layer. Each event represents
+    a contiguous time region where the algorithm detected the same chord
+    label. Confidence is the cosine similarity (post-tonal-bias) of the
+    best-matching template, averaged over the constituent windows.
     """
 
-    symbol: str
+    start_time: float
+    end_time: float
+    chord_label: str
+    confidence: float
+    is_diatonic: bool
 
 
 @dataclass(frozen=True)
@@ -78,8 +77,8 @@ class AudioAnalysisResult:
         cadences: V-I cadence detection result for the segment.
         region: Region classification (stable / modulation / modal_shift)
             comparing the local segment against the global key.
-        chords: WU3 will populate this; until then this is intentionally
-            empty. ``chords_as_symbols()`` returns ``[]`` to match.
+        chords: Populated by the chord estimation layer. Each entry is a
+            ``ChordEvent`` with time bounds and confidence.
         segment_start: Start of the analyzed segment in seconds. ``0.0``
             when no segment was specified.
         segment_end: End of the analyzed segment in seconds. Equal to
@@ -144,17 +143,16 @@ class AudioAnalysisResult:
         return f"{tonic} {mapped_mode}"
 
     def chords_as_symbols(self) -> list[str]:
-        """Return ``self.chords`` as a list of plain symbol strings.
+        """Return chord labels as a flat list of strings.
 
-        WU3 will populate ``self.chords``; until then this returns ``[]``.
-        Keeping the method here (rather than inlining
-        ``[c.symbol for c in result.chords]`` at every call site) gives
-        WU3 a single migration point when the real data lands.
+        Extracts ``chord_label`` from each ``ChordEvent`` in ``self.chords``.
+        The resulting list is directly compatible with
+        ``PatternAnalysisService.analyze_with_patterns_async(chord_symbols=...)``.
 
         Returns:
-            ``list[str]`` of chord symbols. Always ``[]`` in WU2.
+            ``list[str]`` of chord label strings (e.g. ``["C", "G", "Am", "F"]``).
         """
-        return [c.symbol for c in self.chords]
+        return [c.chord_label for c in self.chords]
 
 
 class AudioAdapter:
@@ -178,13 +176,29 @@ class AudioAdapter:
         AudioImportError: If librosa or soundfile is missing.
     """
 
-    def __init__(self, *, quiet: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        quiet: bool = False,
+        include_chords: bool = True,
+        chord_window_size_s: float = 0.5,
+        chord_hop_size_s: float = 0.25,
+        tonal_bias: float = 0.15,
+    ) -> None:
         """Initialize the adapter.
 
         Args:
             quiet: When ``True``, suppresses the ffmpeg-missing WARNING
                 log. Useful for test fixtures that want to avoid log-leak
                 noise. Defaults to ``False``.
+            include_chords: When ``True`` (default), the chord estimation
+                layer runs during ``from_audio()``. Set to ``False`` to
+                skip chord estimation entirely — useful when you only need
+                key/cadence/region results and want to shave a few ms.
+            chord_window_size_s: Chord estimation analysis window in seconds.
+            chord_hop_size_s: Chord estimation hop size in seconds.
+            tonal_bias: Bonus added to cosine similarity for diatonic chord
+                templates. Set to 0.0 to disable tonal weighting.
 
         Raises:
             AudioImportError: If ``librosa`` or ``soundfile`` cannot be
@@ -208,6 +222,11 @@ class AudioAdapter:
         from harmonic_analysis.audio._io import check_ffmpeg_available
 
         self.ffmpeg_available: bool = check_ffmpeg_available()
+
+        self._include_chords = include_chords
+        self._chord_window_size_s = chord_window_size_s
+        self._chord_hop_size_s = chord_hop_size_s
+        self._tonal_bias = tonal_bias
 
         if not quiet and not self.ffmpeg_available:
             # Single WARNING — informational, not a fail. WAV still works.
@@ -234,6 +253,7 @@ class AudioAdapter:
             4. Estimate local key from the time-averaged local chroma.
             5. Detect cadences from the raw 2D local chroma.
             6. Classify region against the global key.
+            7. Chord estimation via template matching on local chroma.
 
         Args:
             filepath: Path to an audio file (WAV directly; MP3/AAC/OGG
@@ -244,8 +264,8 @@ class AudioAdapter:
 
         Returns:
             ``AudioAnalysisResult`` with global + local keys, cadences,
-            region, segment bounds, and an empty ``chords`` list (WU3
-            populates that).
+            region, segment bounds, and chord events (when
+            ``include_chords`` is enabled).
 
         Raises:
             ValueError: Surfaced from ``audio/_io.py`` for empty / too-short
@@ -276,6 +296,7 @@ class AudioAdapter:
         import soundfile as sf
 
         with sf.SoundFile(str(filepath), "r") as f:
+            sr = f.samplerate
             file_duration_sec = len(f) / float(f.samplerate)
 
         if segment is None:
@@ -314,6 +335,25 @@ class AudioAdapter:
             local_cadence=cadences,
         )
 
+        # Step 7 — chord estimation. Uses the 2D local chroma and global key.
+        # Gated by _include_chords — skip the (cheap) computation when the
+        # caller explicitly opted out.
+        chords: list[ChordEvent] = []
+        if self._include_chords:
+            from harmonic_analysis.audio._chord_estimation import (
+                estimate_chord_progression,
+            )
+
+            chords = estimate_chord_progression(
+                local_chroma,
+                global_key,
+                sr=sr,
+                hop_length=512,
+                window_size_s=self._chord_window_size_s,
+                hop_size_s=self._chord_hop_size_s,
+                tonal_bias=self._tonal_bias,
+            )
+
         return AudioAnalysisResult(
             global_key=global_key,
             local_key=local_key,
@@ -321,7 +361,7 @@ class AudioAdapter:
             region=region,
             segment_start=resolved_start,
             segment_end=resolved_end,
-            chords=[],
+            chords=chords,
         )
 
 
@@ -330,6 +370,10 @@ def analyze_audio(
     *,
     segment: Optional[Tuple[float, Optional[float]]] = None,
     quiet: bool = False,
+    include_chords: bool = True,
+    chord_window_size_s: float = 0.5,
+    chord_hop_size_s: float = 0.25,
+    tonal_bias: float = 0.15,
 ) -> AudioAnalysisResult:
     """Synchronous convenience wrapper around ``AudioAdapter.from_audio``.
 
@@ -342,6 +386,10 @@ def analyze_audio(
         segment: Optional ``(start_sec, end_sec)`` window;
             ``end_sec`` may be ``None``.
         quiet: Suppresses the ffmpeg-missing WARNING when ``True``.
+        include_chords: Enable chord estimation (default ``True``).
+        chord_window_size_s: Chord estimation window size in seconds.
+        chord_hop_size_s: Chord estimation hop size in seconds.
+        tonal_bias: Diatonic similarity bonus for chord estimation.
 
     Returns:
         ``AudioAnalysisResult``.
@@ -350,7 +398,13 @@ def analyze_audio(
         AudioImportError: If librosa/soundfile are missing.
         ValueError: For empty segments / too-short audio.
     """
-    adapter = AudioAdapter(quiet=quiet)
+    adapter = AudioAdapter(
+        quiet=quiet,
+        include_chords=include_chords,
+        chord_window_size_s=chord_window_size_s,
+        chord_hop_size_s=chord_hop_size_s,
+        tonal_bias=tonal_bias,
+    )
     return adapter.from_audio(filepath, segment=segment)
 
 
@@ -359,6 +413,10 @@ async def analyze_audio_async(
     *,
     segment: Optional[Tuple[float, Optional[float]]] = None,
     quiet: bool = False,
+    include_chords: bool = True,
+    chord_window_size_s: float = 0.5,
+    chord_hop_size_s: float = 0.25,
+    tonal_bias: float = 0.15,
 ) -> AudioAnalysisResult:
     """Async convenience wrapper. Offloads librosa work to a worker thread.
 
@@ -367,6 +425,10 @@ async def analyze_audio_async(
         segment: Optional ``(start_sec, end_sec)`` window;
             ``end_sec`` may be ``None``.
         quiet: Suppresses the ffmpeg-missing WARNING when ``True``.
+        include_chords: Enable chord estimation (default ``True``).
+        chord_window_size_s: Chord estimation window size in seconds.
+        chord_hop_size_s: Chord estimation hop size in seconds.
+        tonal_bias: Diatonic similarity bonus for chord estimation.
 
     Returns:
         ``AudioAnalysisResult``.
@@ -378,5 +440,12 @@ async def analyze_audio_async(
     # to_thread instead of run_in_executor — DD1, avoids 3.10+
     # get_event_loop DeprecationWarning when called outside a running loop.
     return await asyncio.to_thread(
-        analyze_audio, filepath, segment=segment, quiet=quiet
+        analyze_audio,
+        filepath,
+        segment=segment,
+        quiet=quiet,
+        include_chords=include_chords,
+        chord_window_size_s=chord_window_size_s,
+        chord_hop_size_s=chord_hop_size_s,
+        tonal_bias=tonal_bias,
     )
