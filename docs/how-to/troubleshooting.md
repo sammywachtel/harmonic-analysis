@@ -1,272 +1,201 @@
-# Troubleshooting and Common Issues
+# Troubleshooting
 
-## Debugging Analysis Results
+Common errors and how to fix them.
 
-### Issue: Unexpected Modal Analysis Results
-**Symptoms**: Modal analysis returns incorrect mode or no modal interpretation
-**Common Causes**:
-1. Missing parent key context - modal analysis needs harmonic context
-2. Chord spelling variations (C vs B#) affecting pattern recognition
-3. Insufficient modal evidence (need characteristic intervals like bVII)
+## Imports and installation
 
-**Debugging Steps**:
+### `ImportError` when running audio analysis
+
+**Symptom:**
 ```python
-# Check modal evidence collection
-from src.harmonic_analysis.enhanced_modal_analyzer import EnhancedModalAnalyzer
-
-analyzer = EnhancedModalAnalyzer()
-result = analyzer.analyze_modal_characteristics(['G', 'F', 'G'])
-print(f"Mode: {result.mode_name}")
-print(f"Confidence: {result.confidence}")
-print(f"Evidence: {[str(e) for e in result.evidence]}")
-print(f"Parent Key: {result.parent_key_signature}")
+>>> from harmonic_analysis import analyze_audio_async
+>>> await analyze_audio_async("song.wav")
+AudioImportError: The audio extra is required for audio analysis. Install with: pip install harmonic-analysis[audio]
 ```
 
-### Issue: Low Functional Confidence Scores
-**Symptoms**: Functional analysis returns confidence below expected thresholds
-**Common Causes**:
-1. Weak cadential evidence (no V-I or other strong resolutions)
-2. Ambiguous chord progressions without clear tonal center
-3. Evidence weight distribution favoring other analysis types
+**Cause:** The library imports without errors even when audio dependencies (`librosa`, `soundfile`) are missing — the symbols are exported as stubs that raise on first use. This keeps the bare `import harmonic_analysis` cheap.
 
-**Debugging Steps**:
-```python
-# Trace functional analysis confidence calculation
-from src.harmonic_analysis.functional_harmony import FunctionalHarmonyAnalyzer
-
-analyzer = FunctionalHarmonyAnalyzer()
-result = analyzer.analyze_functionally(['C', 'F', 'G', 'C'])
-print(f"Base Confidence: {result.confidence}")
-print(f"Cadences: {[str(c) for c in result.cadences]}")
-print(f"Roman Numerals: {[c.roman_numeral for c in result.chords]}")
-
-# Check evidence generation in multiple interpretation service
-from src.harmonic_analysis.multiple_interpretation_service import MultipleInterpretationService
-service = MultipleInterpretationService()
-evidence = service._collect_functional_evidence(['C', 'F', 'G', 'C'], result)
-for e in evidence:
-    print(f"Evidence: {e.description} (strength: {e.strength})")
+**Fix:**
+```bash
+pip install harmonic-analysis[audio]
 ```
 
-### Issue: Test Case Failures
-**Symptoms**: Comprehensive tests failing with confidence mismatches
-**Root Cause Analysis Process**:
-1. **Identify Pattern**: Are failures in specific categories (functional, modal, chromatic)?
-2. **Compare Expectations**: Check test generator logic vs actual output
-3. **Validate Music Theory**: Ensure test expectations are theoretically sound
+If MP3/AAC files don't load after that, you also need `ffmpeg` on the system PATH. Install with `brew install ffmpeg` (macOS), `apt install ffmpeg` (Debian/Ubuntu), or [download a build](https://ffmpeg.org/download.html) for Windows.
 
-**Example Investigation**:
+### `ModuleNotFoundError: No module named 'src'`
+
+**Symptom:** Code copied from a doc or older example uses `from src.harmonic_analysis.X import Y`.
+
+**Cause:** The `src.` prefix only works when running from the repo root with `PYTHONPATH=src`. Pip-installed users don't have that.
+
+**Fix:** Use `from harmonic_analysis.X import Y`. The `src.` prefix never belongs in user code.
+
+### Importing internal modules works but isn't supported
+
+**Symptom:** You imported `PatternEngine`, `MultipleInterpretationService`, `EnhancedModalAnalyzer`, `FunctionalHarmonyAnalyzer`, or similar directly from internal paths.
+
+**Cause:** These are internal components. The `__all__` list in `harmonic_analysis/__init__.py` is the supported public surface. Internal classes can change without notice.
+
+**Fix:** Use the public services:
+
 ```python
-# Analyze specific failing test case
-import json
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+# Internal (avoid):
+from harmonic_analysis.core.pattern_engine import PatternEngine
+from harmonic_analysis.core.functional_harmony import FunctionalHarmonyAnalyzer
 
-# Load test case
-with open('tests/generated/comprehensive-multi-layer-tests.json') as f:
-    tests = json.load(f)
-
-failing_test = next(t for t in tests if t['id'] == 'multi-337')  # Replace with actual failing ID
-chords = failing_test['chords']
-expected = failing_test['expected_functional']
-
-# Run analysis
-service = PatternAnalysisService()
-result = await service.analyze_with_patterns_async(chords, profile="classical")
-actual = result.primary
-
-print(f"Test ID: {failing_test['id']}")
-print(f"Chords: {chords}")
-print(f"Expected Key: {expected['key_center']} (conf: {expected['confidence']})")
-print(f"Actual Key: {actual.key_signature} (conf: {actual.confidence})")
-print(f"Evidence Count: {len(result.evidence)}")
-print(f"Evidence Types: {[e.reason for e in result.evidence]}")
+# Public (use these):
+from harmonic_analysis import PatternAnalysisService, UnifiedPatternService
 ```
 
-## Performance Optimization
+## Result-shape gotchas
 
-### Memory Usage Optimization
-**Current Usage**: Minimal due to stateless design
-**Optimization Opportunities**:
-1. **Cache Tuning**: Adjust cache size and TTL for usage patterns
-2. **Chord Parser Optimization**: Most complex module (17% coverage)
-3. **Test Data Generation**: Large JSON files can be streamed
+### `AttributeError: 'AnalysisEnvelope' object has no attribute 'primary_analysis'`
+
+**Cause:** Older code or docs used `result.primary_analysis` and `result.alternative_analyses`. The current return type, `AnalysisEnvelope`, uses `.primary` and `.alternatives`.
+
+**Fix:**
 
 ```python
-# Optimize cache for specific usage patterns
-from src.harmonic_analysis.multiple_interpretation_service import AnalysisCache
+# Old (broken):
+result.primary_analysis.confidence
+result.alternative_analyses
 
-# Custom cache configuration
-cache = AnalysisCache(max_size=1000, ttl_minutes=30)  # Increased for high-volume usage
+# Current:
+result.primary.confidence
+result.alternatives
 ```
 
-### Analysis Speed Optimization
-**Current Speed**: ~2ms per progression
-**Bottlenecks**:
-1. Evidence collection (multiple loops over chord progressions)
-2. Parallel analysis coordination (async overhead)
-3. Confidence calculation (weighted evidence processing)
+### `AttributeError: 'AnalysisEnvelope' object has no attribute 'metadata'`
 
-**Optimization Strategies**:
+**Cause:** `AnalysisEnvelope` does not have a single `metadata` field. Metadata is split across named fields.
+
+**Fix:**
+
 ```python
-# Profile analysis performance
-import time
+result.analysis_time_ms     # Optional[float]
+result.chord_symbols        # List[str] — echo of the input
+result.evidence             # List[EvidenceDTO]
+result.schema_version       # str — e.g. "1.0"
+```
+
+### `TypeError: Object of type frozenset is not JSON serializable`
+
+**Cause:** `KeyInfo` (returned by audio analysis) carries a `diatonic_pitch_classes` field that is a `frozenset`. Naively serializing it via `dataclasses.asdict()` and `json.dumps()` raises.
+
+**Fix:** Build the response dict manually:
+
+```python
+key_dict = {
+    "tonic": result.global_key.tonic,
+    "mode": result.global_key.mode,
+    "key_signature": result.global_key.key_signature,
+    "confidence": result.global_key.confidence,
+}
+```
+
+The demo backend in `demo/backend/rest_api/routes.py` does this for every audio response — copy that pattern if you're building your own REST layer.
+
+## Async / sync confusion
+
+### `RuntimeError: This event loop is already running`
+
+**Cause:** You called the sync `analyze_with_patterns()` from inside an already-running event loop (e.g., from inside a Jupyter cell, or from inside another async function).
+
+**Fix:** Use the async version:
+
+```python
+result = await service.analyze_with_patterns_async(...)
+```
+
+The sync wrapper handles "no loop running" cases by spinning up its own; if you're already in a loop, `await` the async method directly.
+
+### Sync code, but I want async-style throughput
+
+```python
 import asyncio
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
 
-async def profile_analysis():
+async def batch():
     service = PatternAnalysisService()
-    test_progressions = [
-        ['C', 'F', 'G', 'C'],
-        ['Am', 'F', 'C', 'G'],
-        ['G', 'F', 'G'],
-        ['C', 'Am', 'Dm', 'G']
-    ]
-
-    start = time.time()
-    for progression in test_progressions:
-        result = await service.analyze_with_patterns_async(progression, profile="classical")
-    end = time.time()
-
-    print(f"Average analysis time: {(end - start) / len(test_progressions) * 1000:.2f}ms")
-
-asyncio.run(profile_analysis())
-```
-
-## Error Handling and Edge Cases
-
-### Malformed Chord Input
-**Handling Strategy**: Graceful degradation with informative errors
-```python
-# Example error handling patterns
-try:
-    service = PatternAnalysisService()
-    result = await service.analyze_with_patterns_async(['C', 'InvalidChord', 'G'], profile="classical")
-except ValueError as e:
-    print(f"Chord parsing error: {e}")
-    # Fallback to partial analysis or chord validation
-```
-
-### Empty or Single Chord Progressions
-**Current Behavior**: Library handles single chords and empty inputs
-**Edge Cases**:
-- Single chord: Returns basic harmonic information
-- Empty progression: Raises ValueError with clear message
-- Duplicate chords: Analyzes as intended (e.g., 'C C C' for pedal tones)
-
-### Enharmonic Equivalents
-**Handling**: Library normalizes enharmonic spellings
-**Examples**:
-- C# and Db are treated as equivalent
-- F# and Gb major scales produce identical analysis
-- Modal analysis preserves enharmonic context when relevant
-
-## Advanced Usage Patterns
-
-### Custom Evidence Types
-**Use Case**: Adding domain-specific analytical evidence
-**Implementation**:
-```python
-from src.harmonic_analysis.multiple_interpretation_service import EvidenceType, AnalysisEvidence
-
-# Extend evidence types for specific musical domains
-class CustomEvidenceType(EvidenceType):
-    JAZZ_SUBSTITUTION = "jazz_substitution"
-    VOICE_LEADING = "voice_leading"
-    HARMONIC_RHYTHM = "harmonic_rhythm"
-
-# Create custom evidence
-custom_evidence = AnalysisEvidence(
-    type=CustomEvidenceType.JAZZ_SUBSTITUTION,
-    strength=0.8,
-    description="Tritone substitution detected",
-    supported_interpretations=[InterpretationType.CHROMATIC],
-    musical_basis="bII7 substitutes for V7 in jazz harmony"
-)
-```
-
-### Batch Analysis Processing
-**Use Case**: Analyzing large datasets of chord progressions
-**Implementation**:
-```python
-async def batch_analyze_progressions(progressions_batch):
-    """Efficiently analyze multiple progressions with shared context"""
-    service = PatternAnalysisService()
-    results = await asyncio.gather(*[
-        service.analyze_with_patterns_async(progression, profile="classical")
-        for progression in progressions_batch
+    return await asyncio.gather(*[
+        service.analyze_with_patterns_async(prog, profile="classical")
+        for prog in progressions
     ])
 
-    # Aggregate results for pattern analysis
-    analysis_summary = {
-        'total_progressions': len(results),
-        'functional_dominant': sum(1 for r in results if r.primary_analysis.type == InterpretationType.FUNCTIONAL),
-        'modal_dominant': sum(1 for r in results if r.primary_analysis.type == InterpretationType.MODAL),
-        'average_confidence': sum(r.primary_analysis.confidence for r in results) / len(results)
-    }
-
-    return results, analysis_summary
+results = asyncio.run(batch())
 ```
 
-### Custom Confidence Calibration
-**Use Case**: Domain-specific confidence adjustments
-**Implementation**:
+## Analysis quality
+
+### "The library returned modal analysis but I expected functional"
+
+**Likely cause:** No `key_hint`. Without explicit key context, the engine picks the analysis type that best fits the chord set. If the progression is also a valid modal interpretation (e.g., `Dm7 G7 Cmaj7` could be ii-V-I or D Dorian vamp), modal sometimes wins.
+
+**Fix:** Pass `key_hint`:
+
 ```python
-class CustomMultipleInterpretationService(MultipleInterpretationService):
-    """Extended service with custom confidence calibration"""
-
-    def _calculate_confidence(self, evidence):
-        base_confidence = super()._calculate_confidence(evidence)
-
-        # Custom calibration for specific domains
-        if self._is_jazz_context(evidence):
-            return min(1.0, base_confidence + 0.1)  # Boost jazz confidence
-        elif self._is_classical_context(evidence):
-            return max(0.3, base_confidence - 0.1)  # More conservative for classical
-
-        return base_confidence
-
-    def _is_jazz_context(self, evidence):
-        jazz_indicators = ['extended', 'substitution', 'chromatic']
-        return any(indicator in e.description.lower() for e in evidence for indicator in jazz_indicators)
+result = await service.analyze_with_patterns_async(
+    chord_symbols=["Dm7", "G7", "Cmaj7"],
+    key_hint="C major",
+    profile="classical",
+)
+# Now produces functional analysis with Roman numerals.
 ```
 
-## Integration Testing Strategies
+The library will also surface a `parent_key_suggestions` entry on the envelope when adding a key would unlock better analysis.
 
-### Web API Integration Validation
+### "Confidence is below 0.5 — should I trust this?"
+
+**Use case-by-case judgment:**
+
+- **Below 0.4** — the library is uncertain. Try adding a `key_hint`, lengthening the progression, or checking that the input is actually within Western tonal/modal harmony.
+- **0.4–0.6** — multiple interpretations are valid. Look at `result.alternatives`; sometimes the second-place interpretation is the one you wanted.
+- **Above 0.6** — solid. The reasoning string explains why.
+
+### Audio analysis returned the wrong key
+
+**For relative-pair confusion (e.g., D major when you wanted B minor):**
+The default ensemble specifically disambiguates relative pairs. If you're getting the wrong one, turn on the diagnostic panel and inspect:
+
 ```python
-# Test web API integration
-import pytest
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
+result = await analyze_audio_async("song.wav", show_analysis_details=True)
 
-async def test_api_wrapper():
-    """Test API wrapper function for web services"""
-    progression = ["C", "F", "G", "C"]
-    service = PatternAnalysisService()
-    result = await service.analyze_with_patterns_async(progression, profile="classical")
+for approach in result.key_analysis_details["approaches"]:
+    print(approach["name"], approach["weight"])
+    for entry in approach["top_3"]:
+        print(" ", entry["key"]["tonic"], entry["key"]["mode"], entry["score"])
 
-    # Verify API response structure
-    assert hasattr(result, 'primary')
-    assert hasattr(result, 'alternative_analyses')
-    assert hasattr(result, 'metadata')
-    assert result.primary_analysis.confidence > 0.5
+print("Synthesis margin:", result.key_analysis_details["synthesis"]["margin"])
 ```
 
-### Application Integration Validation
+A small margin (< 0.1) means the ensemble was close to picking the relative pair partner. See [How to Analyze Audio](audio-analysis.md) for tuning options (`key_ensemble_weights`, weight overrides).
+
+**For "the K-S baseline got it right but the ensemble didn't":**
+Run with `key_detection="ks_only"` and see if it differs:
+
 ```python
-# Test application interface compatibility
-async def test_application_interface_compatibility():
-    """Ensure Python output provides expected data structure"""
-    service = PatternAnalysisService()
-    result = await service.analyze_with_patterns_async(['C', 'F', 'G', 'C'], profile="classical")
-
-    # Verify required fields for application consumption
-    assert hasattr(result.primary, 'type')
-    assert hasattr(result.primary_analysis, 'analysis')
-    assert hasattr(result.primary_analysis, 'confidence')
-    assert hasattr(result, 'alternative_analyses')
-    assert hasattr(result, 'metadata')
-
-    # Verify data types match application expectations
-    assert isinstance(result.primary_analysis.confidence, float)
-    assert 0.0 <= result.primary_analysis.confidence <= 1.0
+ks = await analyze_audio_async("song.wav", key_detection="ks_only")
+ensemble = await analyze_audio_async("song.wav", key_detection="default")
 ```
+
+If they agree, the bug isn't in the ensemble. If they disagree, file an issue with the diagnostic panel output and a representative recording.
+
+### "No chord events detected"
+
+**Causes:**
+- The clip is shorter than the chord-estimation window.
+- The audio is below the silence threshold (`min_chroma_norm=0.05` by default).
+- `include_chords=False` was passed.
+
+**Fix:** Pass a longer segment, lower `min_chroma_norm`, or check `include_chords=True`. Single-instrument lines (solo melody, percussion-only) don't produce reliable chord estimates by design.
+
+## Where to ask for help
+
+- **Bug reports / unexpected results:** open an issue at <https://github.com/sammywachtel/harmonic-analysis/issues> with a minimal reproducer (input, expected, actual).
+- **Feature requests:** same place — describe the use case, not just the feature.
+- **Understanding what the engine did:** [Debugging Patterns](debugging-patterns.md) and [Architecture Overview](../explanation/architecture.md) explain the internals.
+
+## See also
+
+- [API Quick Reference](../reference/api-quick-reference.md)
+- [Debugging Patterns](debugging-patterns.md)
+- [Audio Analysis Guide](audio-analysis.md)

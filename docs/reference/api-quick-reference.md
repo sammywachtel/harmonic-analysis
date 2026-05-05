@@ -1,353 +1,209 @@
 # API Quick Reference
 
-Comprehensive guide to all user-facing functions in the harmonic-analysis library.
+Condensed cheat sheet for the public API. For full signatures and examples, see [api-reference.md](api-reference.md). For audio analysis specifically, see [audio-api.md](audio-api.md).
 
-## Core Analysis Functions
+## Imports at a glance
 
-### Chord Progression Analysis
-
-#### `analyze_chord_progression(chords, options=None)`
-
-**Purpose**: Primary analysis function for chord progressions with multiple interpretations.
-
-**Input Formats**:
-- `List[str]` - Chord symbols: `["C", "Am", "F", "G"]`
-- `str` - Space-separated (auto-converted): `"C Am F G"`
-
-**Optional Parameters** (`AnalysisOptions`):
 ```python
-parent_key: Optional[str]          # Force key context ("C major", "A minor")
-pedagogical_level: str             # "beginner", "intermediate", "advanced"
-confidence_threshold: float = 0.5  # Minimum confidence for alternatives
-max_alternatives: int = 3          # Maximum alternative analyses
-include_borrowed_chords: bool = True
-include_secondary_dominants: bool = True
-```
+# Pattern analysis services (chord progressions, scales, melodies, romans)
+from harmonic_analysis import PatternAnalysisService, UnifiedPatternService
 
-**Returns**: `MultipleInterpretationResult` with:
-- `primary_analysis` - Best interpretation with confidence score
-- `alternative_analyses` - Other valid interpretations
-- `suggestions` - Bidirectional key/analysis improvements
-- `metadata` - Analysis statistics
+# Simple per-input analysis functions
+from harmonic_analysis import analyze_scale, analyze_melody
 
-**Example**:
-```python
-from harmonic_analysis import analyze_chord_progression
-
-result = analyze_chord_progression(["C", "Am", "F", "G"])
-print(f"Key: {result.primary_analysis.key_signature}")
-print(f"Romans: {result.primary_analysis.roman_numerals}")
-print(f"Confidence: {result.primary_analysis.confidence:.2f}")
-```
-
----
-
-### Scale & Melody Analysis
-
-#### `analyze_scale(notes, parent_key=None, melody=False)`
-
-**Purpose**: Identify scales, modes, and harmonic implications.
-
-**Input Formats**:
-- `List[str]` - Note names: `["D", "E", "F", "G", "A", "B", "C"]`
-- `str` - Space-separated: `"D E F G A B C"`
-
-**Parameters**:
-- `parent_key` (optional) - Modal analysis context
-- `melody` (bool) - True for melodic tonal hierarchy, False for scale pattern matching
-
-**Returns**: `ScaleMelodyAnalysisResult` with mode classification, parent key, confidence, and modal labels.
-
-#### `analyze_melody(notes, parent_key=None)`
-
-**Purpose**: Analyze melodic contour, intervals, and harmonic implications.
-
-**Returns**: Melodic contour description, intervallic analysis, and phrase structure.
-
----
-
-### Pattern Analysis Service
-
-#### `PatternAnalysisService.analyze_with_patterns_async(chords, profile="classical", key_hint=None)`
-
-**Purpose**: Unified pattern engine analysis with profile-specific patterns.
-
-**Profiles**:
-- `"classical"` - Common Practice period patterns
-- `"jazz"` - Jazz harmony patterns
-- `"pop"` - Contemporary pop patterns
-
-**Example**:
-```python
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
-
-service = PatternAnalysisService()
-result = await service.analyze_with_patterns_async(
-    chord_symbols=['Dm7', 'G7', 'Cmaj7'],
-    profile='jazz',
-    key_hint='C major'
+# Result types
+from harmonic_analysis import (
+    AnalysisEnvelope,        # the wrapper returned by analyze_with_patterns
+    AnalysisSummary,         # primary + alternatives are this type
+    ScaleMelodyAnalysisResult,
+    AnalysisType,            # enum: FUNCTIONAL, MODAL, CHROMATIC
 )
 
-print(f"Patterns detected: {len(result.pattern_matches)}")
-for match in result.pattern_matches:
-    print(f"  - {match.name}: {match.score:.2f}")
+# Audio analysis (requires `pip install harmonic-analysis[audio]`)
+from harmonic_analysis import (
+    analyze_audio_async,
+    analyze_audio,
+    AudioAdapter,
+    AudioAnalysisResult,
+    ChordEvent,
+    AudioImportError,
+)
 ```
 
----
+## Chord progression analysis
 
-## Character & Emotional Analysis
-
-### `analyze_progression_character(chords, key_context=None)`
-
-**Purpose**: Emotional and character analysis of progressions.
-
-**Returns**: `ProgressionCharacter` with mood, emotional trajectory, and cadence strength.
-
-### `get_mode_emotional_profile(mode_name)`
-
-**Purpose**: Get emotional characteristics of musical modes.
-
-**Returns**: `EmotionalProfile` with brightness, energy, tension, and typical genres.
-
-**Example**:
 ```python
-from harmonic_analysis import get_mode_emotional_profile
+service = PatternAnalysisService()  # or UnifiedPatternService for the next-gen path
+result = await service.analyze_with_patterns_async(
+    chord_symbols=["C", "Am", "F", "G"],
+    key_hint="C major",          # optional; required for some scale/roman inputs
+    profile="classical",          # "classical" | "jazz" | "pop"
+)
 
-profile = get_mode_emotional_profile("Dorian")
-print(f"Brightness: {profile.brightness}")  # "neutral"
-print(f"Primary emotions: {profile.primary_emotions}")
+# Sync wrapper exists too:
+result = service.analyze_with_patterns(chord_symbols=["C", "Am", "F", "G"])
 ```
 
-### `get_modes_by_brightness(brightness_category)`
+**Returns:** `AnalysisEnvelope` with:
 
-**Purpose**: Get modes organized by emotional brightness.
+| Field | Type | What it is |
+|-------|------|------------|
+| `primary` | `AnalysisSummary` | Highest-confidence interpretation |
+| `alternatives` | `List[AnalysisSummary]` | Other interpretations above threshold |
+| `evidence` | `List[EvidenceDTO]` | Pattern matches and supporting evidence |
+| `analysis_time_ms` | `Optional[float]` | Wall-clock time |
+| `chord_symbols` | `List[str]` | Echo of the input |
+| `schema_version` | `str` | DTO schema version (currently `"1.0"`) |
 
-**Input**: `"bright"`, `"neutral"`, or `"dark"`
+**Reading the result:**
 
-**Returns**: List of mode names matching the brightness category.
+```python
+result.primary.type            # AnalysisType.FUNCTIONAL | MODAL | CHROMATIC
+result.primary.key_signature   # e.g. "C major"
+result.primary.roman_numerals  # e.g. ["I", "vi", "IV", "V"]
+result.primary.confidence      # 0.0–1.0
+result.primary.reasoning       # human-readable explanation
+result.primary.patterns        # list of detected patterns
+result.primary.chromatic_elements  # secondary dominants, borrowed chords, etc.
 
----
-
-## Utility Functions
-
-### `get_interval_name(semitones)`
-
-Convert semitone distance (0-11) to interval name.
-
-**Example**: `get_interval_name(7)` → `"Perfect Fifth"`
-
-### `get_modal_characteristics(mode_name)`
-
-Get theoretical characteristics of a mode.
-
-**Returns**: `ModalCharacteristics` with characteristic degrees, harmonic implications, and typical applications.
-
-### `describe_contour(contour_pattern)`
-
-Convert melodic contour pattern to human-readable description.
-
-**Input**: `["U", "D", "R"]` (Up/Down/Repeat)
-
-**Returns**: Narrative contour description
-
----
-
-## Input Format Summary
-
-| Function Type | Primary Input | Alternative Formats | Key Parameters |
-|---------------|---------------|---------------------|----------------|
-| Chord Progression | `List[str]` | `"C Am F G"` | `parent_key`, `pedagogical_level` |
-| Scale Analysis | `List[str]` | `"D E F G A B C"` | `parent_key`, `melody` (bool) |
-| Melody Analysis | `List[str]` | Sequential notes | `parent_key` |
-| Character Analysis | Various | Context-dependent | `target_emotion`, `brightness_level` |
-| Reference Data | `str` | Mode/scale names | None (read-only) |
-
----
-
-## Output Confidence Levels
-
-| Analysis Type | Typical Range | High (>0.8) | Low (<0.5) |
-|---------------|---------------|-------------|------------|
-| Functional Harmony | 0.6-0.95 | Clear I-IV-V | Ambiguous tonality |
-| Modal Analysis | 0.5-0.9 | Strong characteristics | Mixed signals |
-| Scale Recognition | 0.7-1.0 | Exact matches | Incomplete scales |
-| Character Analysis | 0.3-0.8 | Strong emotion | Neutral |
-
-**Confidence Interpretation**:
-- **0.85-1.0**: Very confident - clear, unambiguous patterns
-- **0.6-0.85**: Confident - some ambiguity, clear primary interpretation
-- **0.4-0.6**: Moderate - multiple valid interpretations
-- **0.0-0.4**: Low - highly ambiguous or insufficient context
-
----
-
-## Analysis Flow
-
-```
-INPUT PARSING
-    ↓
-FUNCTIONAL ANALYSIS (Primary)
-├─ Roman Numeral Analysis
-├─ Chord Function Identification
-└─ Cadence Detection
-    ↓
-MODAL ENHANCEMENT (If Applicable)
-├─ Modal Characteristics Detection
-├─ Parent Key Relationship
-└─ Modal Implications
-    ↓
-CHROMATIC ANALYSIS (Advanced)
-├─ Secondary Dominants
-├─ Borrowed Chords
-└─ Chromatic Mediants
-    ↓
-CHARACTER ANALYSIS (Optional)
-├─ Emotional Profile
-├─ Mood Analysis
-└─ Character Suggestions
-    ↓
-ENHANCEMENT SUGGESTIONS
-├─ Key Context Improvements
-├─ Alternative Interpretations
-└─ Emotional Enhancements
+for alt in result.alternatives:
+    print(alt.type, alt.confidence, alt.reasoning)
 ```
 
----
+## Roman numeral input
 
-## Available Constants
+```python
+result = await service.analyze_with_patterns_async(
+    romans=["ii", "V7", "I"],
+    key_hint="C major",   # required for roman input
+    profile="classical",
+)
+```
 
-Access these constants for reference data:
+## Scale analysis
+
+```python
+# Via the service (richer summary)
+result = await service.analyze_with_patterns_async(
+    notes=["D", "E", "F", "G", "A", "B", "C"],
+    key_hint="D dorian",   # required for scale input
+    profile="classical",
+)
+result.primary.scale_summary  # detected_mode, parent_key, characteristic_notes, ...
+
+# Or the simple function
+from harmonic_analysis import analyze_scale
+res = analyze_scale(notes=["D", "E", "F", "G", "A", "B", "C"])
+```
+
+## Melody analysis
+
+```python
+result = await service.analyze_with_patterns_async(
+    melody=["C4", "D4", "E4", "G4", "E4", "D4", "C4"],
+    key_hint="C major",
+    profile="classical",
+)
+result.primary.melody_summary  # contour, range_semitones, characteristics, ...
+
+from harmonic_analysis import analyze_melody
+res = analyze_melody(notes=["C4", "D4", "E4", "F4", "G4"])
+```
+
+## Audio analysis
+
+```python
+from harmonic_analysis import analyze_audio_async
+
+result = await analyze_audio_async(
+    "song.wav",
+    key_detection="default",          # or "ks_only" / "full" / list / dict
+    show_analysis_details=True,        # populates result.key_analysis_details
+    segment=(0.0, 30.0),               # optional (start, end) in seconds
+)
+
+result.global_key.tonic       # e.g. "B"
+result.global_key.mode        # e.g. "Aeolian"
+result.global_key.confidence  # 0.0–1.0
+result.local_key              # KeyInfo for the analyzed segment
+result.cadences.detected      # bool
+result.cadences.strength      # 0.0–1.0
+result.region.type            # "stable" | "modulation" | "modal_shift"
+result.region.borrowed        # list of pitch-class names borrowed from outside the global key
+result.chords                 # list[ChordEvent] with start_time, end_time, chord_label, confidence, is_diatonic
+result.key_hint               # property: "<tonic> <mode>" — feed back to PatternAnalysisService.key_hint
+```
+
+When `show_analysis_details=True`:
+
+```python
+details = result.key_analysis_details
+details["approaches"]    # per-approach top-3 with weights
+details["synthesis"]     # winner, runner_up, margin, key_score_table (24 keys)
+details["modulations"]   # None until iteration_02 ships HMM
+```
+
+See [audio-api.md](audio-api.md) for the full ensemble parameter, weights table, and result schema.
+
+## Musical data API (always available)
 
 ```python
 from harmonic_analysis import (
-    ALL_MAJOR_KEYS,      # All major key signatures
-    ALL_MINOR_KEYS,      # All minor key signatures
-    ALL_MODES,           # Complete modal system
-    MODAL_CHARACTERISTICS  # Mode characteristic degrees
+    # Mode and scale data
+    get_scale_notes,                     # ("D", "Dorian") → ["D", "E", "F", ...]
+    get_modal_characteristics,           # ("Dorian") → ModalCharacteristics
+    get_modes_by_brightness,             # "bright" → ["Ionian", "Lydian", ...]
+    get_circle_of_fifths,                # → {"major": [...], "minor": [...]}
+    get_relative_major_minor_pairs,      # → {"C major": "A minor", ...}
+    get_all_scale_systems,               # → {"major_scale": {...}, ...}
+
+    # Note utilities
+    normalize_note_name,                 # "Db" → "D♭"
+    note_to_pitch_class,                 # "C#" → 1
+    pitch_class_to_note,                 # 1 → "C#"
+    canonicalize_key_signature,          # "D♭ major" → standardized form
+
+    # Constants
+    ALL_KEYS, ALL_MAJOR_KEYS, ALL_MINOR_KEYS, ALL_MODES,
+    MODAL_CHARACTERISTICS, NOTE_TO_PITCH_CLASS,
 )
 ```
 
----
+## Character analysis
 
-## Educational Content System
-
-### `EducationalService`
-
-**Purpose**: Provide learning context for analysis results.
-
-**Example**:
 ```python
-from harmonic_analysis.educational import (
-    EducationalService,
-    EducationalFormatter,
-    LearningLevel
-)
-
-service = EducationalService()
-
-# Get educational context
-context = service.explain_pattern(
-    "cadence.authentic.perfect",
-    LearningLevel.BEGINNER
-)
-
-# Format for display
-formatter = EducationalFormatter()
-print(formatter.format_text(context))
-
-# Generate practice suggestions
-suggestions = service.generate_practice_suggestions(
-    ["cadence.authentic.perfect", "functional.ii_V_I"],
-    LearningLevel.INTERMEDIATE
+from harmonic_analysis import (
+    get_mode_emotional_profile,    # "Dorian" → EmotionalProfile
+    analyze_progression_character, # chord list → ProgressionCharacter
+    describe_emotional_contour,    # contour pattern → narrative string
+    describe_contour,              # ["U", "D", "U"] → narrative
 )
 ```
 
-**Learning Levels**:
-- `BEGINNER` - Simple language, emotional context
-- `INTERMEDIATE` - Theory concepts, Roman numerals
-- `ADVANCED` - Technical depth, historical context
+## Optional features
 
----
-
-## Music21 Integration
-
-### `Music21Adapter`
-
-**Purpose**: Parse MusicXML and MIDI files for analysis.
-
-**Example**:
 ```python
+# Educational explanations (Bernstein-style)
+from harmonic_analysis.educational import EducationalService
+# pip install harmonic-analysis[educational]
+
+# MusicXML / MIDI parsing
 from harmonic_analysis.integrations import Music21Adapter
-
-adapter = Music21Adapter()
-
-# From MusicXML
-score, metadata = adapter.from_musicxml("chorale.xml")
-chords = adapter._extract_chord_symbols(score)
-
-# From MIDI
-score, metadata = adapter.from_midi("progression.mid")
-key = adapter._extract_key(score)
+# pip install harmonic-analysis[music21]
 ```
 
-**Features**:
-- MusicXML and MIDI parsing
-- Chord symbol extraction with chordify
-- Key and metadata extraction
-- Structural analysis (measures, parts, sections)
+## Confidence interpretation
 
----
+| Range | Meaning |
+|-------|---------|
+| 0.85–1.0 | Very confident — clear, unambiguous patterns |
+| 0.6–0.85 | Confident — some ambiguity, clear primary interpretation |
+| 0.4–0.6  | Moderate — multiple valid interpretations likely |
+| < 0.4    | Low — highly ambiguous or outside the library's expertise |
 
-## Complete API Documentation
+## See also
 
-For full details on all functions, data structures, and advanced usage:
-
-- **[API Guide](API_GUIDE.md)** - Comprehensive API documentation
-- **[Tutorials](../tutorials/)** - Step-by-step learning guides
-- **[How-to Guides](../how-to/)** - Specific task solutions
-- **[Architecture](../explanation/architecture.md)** - System design and internals
-
----
-
-## Quick Start Examples
-
-### Basic Progression Analysis
-```python
-from harmonic_analysis import analyze_chord_progression
-
-result = analyze_chord_progression(["C", "F", "G", "C"])
-print(f"Analysis: {result.primary_analysis.analysis}")
-print(f"Confidence: {result.primary_analysis.confidence:.0%}")
-```
-
-### Scale with Modal Analysis
-```python
-from harmonic_analysis import analyze_scale
-
-result = analyze_scale(
-    notes=["D", "E", "F", "G", "A", "B", "C"],
-    parent_key="D dorian"
-)
-print(f"Mode: {result.primary_analysis.classification}")
-```
-
-### Pattern-Based Analysis
-```python
-from harmonic_analysis.services.pattern_analysis_service import PatternAnalysisService
-import asyncio
-
-async def analyze():
-    service = PatternAnalysisService()
-    result = await service.analyze_with_patterns_async(
-        ['Dm7', 'G7', 'Cmaj7'],
-        profile='jazz'
-    )
-    for pattern in result.pattern_matches:
-        print(f"{pattern.name}: {pattern.score:.2f}")
-
-asyncio.run(analyze())
-```
-
----
-
-For questions or issues, see [CONTRIBUTING.md](../../CONTRIBUTING.md) or [TROUBLESHOOTING.md](../TROUBLESHOOTING.md).
+- [Full API Reference](api-reference.md) — complete signatures and examples
+- [Audio API Reference](audio-api.md) — audio-only surface
+- [Getting Started Tutorial](../tutorials/getting-started.md)
+- [Architecture Overview](../explanation/architecture.md)

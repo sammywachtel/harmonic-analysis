@@ -58,32 +58,35 @@ Input: ['Am', 'F', 'C', 'G']
    ├── Alternative Analyses (above threshold)
    └── Relationship Descriptions
     ↓
-Output: MultipleInterpretationResult
+Output: AnalysisEnvelope (with .primary and .alternatives)
 ```
 
 #### Analysis Engine Interaction
 ```python
-# How the engines work together
-class MultipleInterpretationService:
-    def __init__(self):
-        self.functional_analyzer = FunctionalHarmonyAnalyzer()
-        self.modal_analyzer = EnhancedModalAnalyzer()
+# How the services orchestrate analysis
+from harmonic_analysis import PatternAnalysisService, UnifiedPatternService
 
-    async def analyze_progression(self, chords):
-        # Run analyzers in parallel
-        functional_result, modal_result = await asyncio.gather(
-            self._run_functional_analysis(chords),
-            self._run_modal_analysis(chords)
-        )
+# PatternAnalysisService delegates to UnifiedPatternService internally,
+# then runs an arbitration step that may produce alternative interpretations.
+service = PatternAnalysisService()
 
-        # Create interpretations with evidence
-        interpretations = await self._calculate_interpretations(
-            chords, functional_result, modal_result
-        )
+result = await service.analyze_with_patterns_async(
+    chord_symbols=['Am', 'F', 'C', 'G'],
+    profile='classical',
+    key_hint='C major',
+)
 
-        # Rank by confidence and filter
-        return self._create_final_result(interpretations)
+# result is an AnalysisEnvelope:
+result.primary          # AnalysisSummary — the highest-confidence interpretation
+result.alternatives     # List[AnalysisSummary] — other interpretations above threshold
+result.evidence         # List[EvidenceDTO] — pattern matches and supporting evidence
+result.analysis_time_ms # Optional[float]
 ```
+
+Internally, the unified pattern engine evaluates the chord progression against
+36 patterns spanning functional, modal, and chromatic harmony, aggregates
+evidence across track-based scoring, and applies quality-gated calibration to
+produce confidence scores.
 
 ### Key Technical Concepts
 
@@ -145,16 +148,11 @@ Current thresholds based on music theory expert guidance:
 
 ## Performance and Optimization
 
-### Current Performance Characteristics
-- **Test Coverage**: 72% (good foundation, room for improvement)
-- **Analysis Speed**: ~2ms per progression (includes caching)
+### Performance Characteristics
+- **Analysis Speed**: ~2ms per progression (chord-only path, includes caching)
 - **Memory Usage**: Minimal (stateless analyzers, LRU cache)
-- **Concurrency**: Full async support with parallel analysis engines
-
-### Optimization Opportunities
-1. **Chord Parser (17% coverage)**: Most complex module, needs attention
-2. **Comprehensive Analysis (29% coverage)**: Main orchestrator optimization
-3. **Test Suite Performance**: Currently 32% overall success rate (target: 70%+)
+- **Concurrency**: Full async support; sync wrappers run via `asyncio.run` in a worker thread when called from inside an event loop
+- **Audio Pipeline**: ~10–30s for a 3-minute MP3 with the default ensemble; scales with file length and which approaches are enabled
 
 ## Integration Considerations
 
@@ -169,7 +167,7 @@ async def analyze_progression_endpoint(progression: List[str]):
     service = PatternAnalysisService()
     result = await service.analyze_with_patterns_async(progression, profile="classical")
     return {
-        "primary_analysis": result.primary.to_dict(),
+        "primary": result.primary.to_dict(),
         "alternatives": [alt.to_dict() for alt in result.alternatives],
         "analysis_time_ms": result.analysis_time_ms
     }
@@ -189,6 +187,6 @@ analysis_summary = {
     "roman_numerals": result.primary.roman_numerals,
     "confidence": result.primary.confidence,
     "key_signature": result.primary.key_signature,
-    "evidence_count": len(result.primary_analysis.evidence)
+    "evidence_count": len(result.evidence)
 }
 ```
