@@ -292,3 +292,127 @@ def extract_local_chroma(
     # without runtime overhead on the happy path.
     assert local_chroma is not None, "local_chroma unset — neither branch ran"
     return local_chroma
+
+
+# C2 is roughly 65 Hz, B3 is roughly 245 Hz — that's two octaves of bass
+# register, which covers electric/acoustic bass guitar, piano left hand,
+# upright bass, kick-drum tonals, and most synth bass voices. Going lower
+# than C2 starts catching room rumble and HVAC; going higher than B3 starts
+# catching guitar voicings and weakens the "this is the chord root"
+# inference. Both magic constants come from MIR literature on bass chroma.
+_BASS_FMIN_NOTE = "C2"
+_BASS_N_OCTAVES = 2
+
+
+def extract_local_bass_chroma(
+    filepath: PathLike,
+    *,
+    start_time: float = 0.0,
+    end_time: Optional[float] = None,
+) -> np.ndarray:
+    """Bass-register chroma for the same time window as ``extract_local_chroma``.
+
+    Computes ``chroma_cqt`` with ``fmin`` set to C2 and ``n_octaves`` set to
+    2, focusing the analysis on the bass register where chord roots
+    actually live. Same streaming/in-memory split, same padding behavior,
+    same hop length — frames align with ``extract_local_chroma`` output so
+    you can index into both with the same window indices.
+
+    Why a separate function instead of an option on ``extract_local_chroma``:
+    keeping the two-pass shape explicit at the call site means the chord
+    estimator's "I want both" intent is obvious, and it avoids regressing
+    callers that only need the full-spectrum chroma. The cost is a second
+    pass through the file — measurable on long files but typically <100 ms
+    for songs under ~5 minutes. See `process/audio-chord-estimation.md`
+    for the algorithm rationale.
+
+    Args:
+        filepath: Same as ``extract_local_chroma``.
+        start_time: Same.
+        end_time: Same.
+
+    Returns:
+        ``np.ndarray`` shape ``(12, T)``. Same time axis as
+        ``extract_local_chroma`` for the same ``(start_time, end_time)``.
+        Each column is the bass-register chroma at one frame.
+
+    Raises:
+        Same as ``extract_local_chroma`` — passes through the underlying
+        librosa/soundfile errors and the empty-segment ValueError.
+    """
+    bass_fmin = float(librosa.note_to_hz(_BASS_FMIN_NOTE))
+
+    with sf.SoundFile(str(filepath), "r") as f:
+        sr = f.samplerate
+        file_duration_sec = len(f) / float(sr)
+
+    segment_start_sec = float(start_time)
+    if end_time is not None and end_time <= file_duration_sec:
+        segment_end_sec = float(end_time)
+    else:
+        segment_end_sec = file_duration_sec
+    segment_duration_sec = segment_end_sec - segment_start_sec
+
+    if segment_duration_sec <= 0:
+        raise ValueError("The specified segment is empty or out of bounds.")
+
+    start_sample = librosa.time_to_samples(segment_start_sec, sr=sr)
+    end_sample = librosa.time_to_samples(segment_end_sec, sr=sr)
+    num_samples_to_read = int(end_sample - start_sample)
+
+    if num_samples_to_read <= 0:
+        raise ValueError("The specified segment is empty or out of bounds.")
+
+    chunk_size = sr * _CHUNK_SIZE_SECONDS
+    bass_chroma: Optional[np.ndarray] = None
+
+    if segment_duration_sec > LOCAL_ANALYSIS_STREAMING_THRESHOLD_S:
+        bass_chroma_list: list[np.ndarray] = []
+        with sf.SoundFile(str(filepath), "r") as f:
+            f.seek(int(start_sample))
+            samples_processed = 0
+            while samples_processed < num_samples_to_read:
+                samples_this_chunk = min(
+                    chunk_size, num_samples_to_read - samples_processed
+                )
+                block = f.read(samples_this_chunk, dtype="float32", always_2d=True)
+                if not block.size:
+                    break
+                y_chunk = np.mean(block.T, axis=0)
+                samples_processed += len(block)
+                chunk_len = len(y_chunk)
+                if chunk_len == 0:
+                    continue
+                if chunk_len < MIN_SAMPLES_FOR_CQT:
+                    pad_width = MIN_SAMPLES_FOR_CQT - chunk_len
+                    y_chunk = np.pad(y_chunk, (0, pad_width), "constant")
+                chunk_chroma = librosa.feature.chroma_cqt(
+                    y=y_chunk,
+                    sr=sr,
+                    fmin=bass_fmin,
+                    n_octaves=_BASS_N_OCTAVES,
+                )
+                bass_chroma_list.append(chunk_chroma)
+        if not bass_chroma_list:
+            raise ValueError("Could not process the local segment (no audio read).")
+        bass_chroma = np.concatenate(bass_chroma_list, axis=1)
+    else:
+        with sf.SoundFile(str(filepath), "r") as f:
+            f.seek(int(start_sample))
+            y_segment_frames = f.read(
+                num_samples_to_read, dtype="float32", always_2d=True
+            )
+            y_segment = np.mean(y_segment_frames.T, axis=0)
+            segment_len = len(y_segment)
+            if segment_len < MIN_SAMPLES_FOR_CQT:
+                pad_width = MIN_SAMPLES_FOR_CQT - segment_len
+                y_segment = np.pad(y_segment, (0, pad_width), "constant")
+            bass_chroma = librosa.feature.chroma_cqt(
+                y=y_segment,
+                sr=sr,
+                fmin=bass_fmin,
+                n_octaves=_BASS_N_OCTAVES,
+            )
+
+    assert bass_chroma is not None, "bass_chroma unset — neither branch ran"
+    return bass_chroma
