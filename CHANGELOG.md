@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Audio analysis subpackage** (`harmonic_analysis.audio`): ported Krumhansl-Schmuckler key detection,
+  V-I cadence detection, and harmonic region classification into a new private subpackage with zero
+  music21 coupling and zero audio I/O dependencies. Pure numpy. 26 unit tests, 100% line coverage.
+  (Public adapter API deferred to the next work unit.)
+
+- **Test suite documentation** (`tests/README.md`): recorded the `tests/integration/` directory naming
+  convention so future contributors don't have to play archaeological detective.
+
+### Fixed
+
+- **Coverage measurement was broken since forever** (`pyproject.toml`): `[tool.coverage.run].source`
+  pointed at `["app"]` — the demo backend — instead of `["src/harmonic_analysis"]`. Coverage reports
+  were silently measuring the wrong tree. Fixed as part of this scope; actual library coverage is now
+  on the scoreboard for the first time.
+
 ## [0.3.0] - 2026-05-04
 
 ### Added

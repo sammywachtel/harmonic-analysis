@@ -191,7 +191,7 @@ disallow_untyped_defs = false
 
 [tool.coverage.run]
 source = [
-    "app",
+    "src/harmonic_analysis",
 ]
 omit = [
     "*/tests/*",
