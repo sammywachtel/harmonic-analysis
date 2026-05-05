@@ -20,7 +20,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 
 def _make_synth_wav(path: Path, duration: float = 5.0, sr: int = 22050) -> Path:
@@ -121,10 +121,11 @@ async def _run(
     end: Optional[float],
     as_json: bool,
     tonal_bias: float,
-    window: float,
-    hop: float,
+    window: Optional[float],
+    hop: Optional[float],
     bass_chroma: bool,
     bass_bonus: float,
+    rubato: Union[str, float] = "moderate",
 ) -> int:
     try:
         from harmonic_analysis import analyze_audio_async
@@ -145,6 +146,7 @@ async def _run(
         chord_hop_size_s=hop,
         use_bass_chroma=bass_chroma,
         bass_bonus=bass_bonus,
+        rubato=rubato,
     )
 
     if as_json:
@@ -195,14 +197,26 @@ def main() -> int:
     parser.add_argument(
         "--window",
         type=float,
-        default=0.5,
-        help="chord window size in seconds (default 0.5)",
+        default=None,
+        help="chord window size in seconds (default: from rubato preset)",
     )
     parser.add_argument(
         "--hop",
         type=float,
-        default=0.25,
-        help="chord hop size in seconds (default 0.25)",
+        default=None,
+        help="chord hop size in seconds (default: from rubato preset)",
+    )
+    # Rubato: controls the temporal resolution of chord estimation.
+    # Named after the musical term because that's what it controls --
+    # how tightly the analysis window tracks the beat grid. Accepts
+    # preset names or a float 0.0-1.0 for continuous interpolation.
+    parser.add_argument(
+        "--rubato",
+        default="moderate",
+        help=(
+            "temporal resolution preset: strict, moderate, loose, free, "
+            "or a float 0.0-1.0 (default: moderate)"
+        ),
     )
     # Bass-aware chord estimation. Off by default — opt in to A/B against
     # the existing full-spectrum-only behavior. Disambiguates relative
@@ -246,6 +260,15 @@ def main() -> int:
         print(f"error: no such file: {args.filepath}", file=sys.stderr)
         return 2
 
+    # Parse rubato: try float first, fall back to string preset name.
+    # argparse gives us a string either way; the adapter's _resolve_rubato
+    # handles the actual validation and will raise ValueError for garbage.
+    rubato_raw = args.rubato
+    try:
+        rubato_val: Union[str, float] = float(rubato_raw)
+    except ValueError:
+        rubato_val = rubato_raw
+
     return asyncio.run(
         _run(
             args.filepath,
@@ -257,6 +280,7 @@ def main() -> int:
             args.hop,
             args.bass_chroma,
             args.bass_bonus,
+            rubato=rubato_val,
         )
     )
 

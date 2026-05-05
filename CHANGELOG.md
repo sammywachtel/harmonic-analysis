@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Bass-aware chord estimation** — new `use_bass_chroma` parameter on `analyze_audio`, `analyze_audio_async`, and `AudioAdapter` (default `False`) for disambiguating slash chords and inversions (e.g., Bm vs D/B). When enabled, low-frequency chroma frames bias template-match scoring toward chords whose root or third matches the detected bass note.
+- **Rubato temporal flexibility** — new `rubato` parameter on the same three audio APIs accepting four named presets (`"strict"`, `"moderate"`, `"loose"`, `"free"`) or a float in `[0.0, 1.0]` that interpolates between preset window/hop/median-kernel triples. Default `"moderate"` matches previous behavior exactly. Unknown strings raise `ValueError`.
+
+### Fixed
+
+- **Phantom chord events during silent audio** — analysis windows whose chroma L2 norm falls below the new `min_chroma_norm=0.05` threshold are now skipped, eliminating spurious chord detections in leading silence and quiet sections. Soft-attack content above threshold continues to produce chord events with correct timestamps.
+
+### Changed
+
+- **Audio analysis documentation** — `docs/how-to/audio-analysis.md`, `docs/reference/audio-api.md`, and `docs/explanation/audio-analysis-internals.md` updated with new parameter tables, tuning guidance, and design rationale for bass-chroma and silence suppression. Fixed a `G7`→`Gm` example typo in the reference doc.
+
 ## [0.3.1-beta.1] - 2026-05-05
 
 ### Added

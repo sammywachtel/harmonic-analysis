@@ -21,7 +21,9 @@ librosa = pytest.importorskip("librosa")
 sf = pytest.importorskip("soundfile")
 
 from harmonic_analysis.audio._chord_estimation import (  # noqa: E402
+    _CHORD_QUALITY_DEFS,
     CHORD_TEMPLATES,
+    _build_chord_templates,
     _root_pitch_class,
     estimate_chord_progression,
 )
@@ -127,14 +129,14 @@ def test_module_docstring():
 
 
 def test_templates_are_unit_norm():
-    """All 48 templates should have L2 norm ≈ 1.0."""
+    """All 24 templates should have L2 norm ≈ 1.0."""
     for label, template in CHORD_TEMPLATES.items():
         norm = np.linalg.norm(template)
         assert abs(norm - 1.0) < 1e-10, f"Template '{label}' has norm {norm}"
 
 
 def test_template_count():
-    """12 roots x 2 qualities = 48 templates."""
+    """12 roots x 2 qualities = 24 templates."""
     assert len(CHORD_TEMPLATES) == 24  # 12 major + 12 minor
     # Verify naming convention
     for name in PITCH_CLASSES:
@@ -450,3 +452,142 @@ def test_wrong_shape_input():
     key = _c_major_key()
     events = estimate_chord_progression(chroma, key, sr=_SR, hop_length=_HOP)
     assert events == []
+
+
+# ---------------------------------------------------------------------------
+# AC-4-a — Template snapshot: ordering is load-bearing, lock it down
+# ---------------------------------------------------------------------------
+
+
+def test_template_key_ordering_snapshot():
+    """AC-4-a: Template keys have exactly 24 entries in root-major-minor order.
+
+    The ordering is: C, Cm, C#, C#m, D, Dm, ..., B, Bm. This is load-bearing
+    because the median smoother operates on integer indices. If someone
+    reorders these, the smoother silently mixes up chord labels and you
+    get mysterious misclassifications that only show up in integration tests.
+    Lock the ordering here so it fails fast.
+    """
+    keys = list(CHORD_TEMPLATES.keys())
+    assert len(keys) == 24, f"Expected 24 templates, got {len(keys)}"
+
+    # Spot-check the first six and last four to pin the ordering
+    assert keys[:6] == [
+        "C",
+        "Cm",
+        "C#",
+        "C#m",
+        "D",
+        "Dm",
+    ], f"First six keys: {keys[:6]}"
+    assert keys[-4:] == ["A#", "A#m", "B", "Bm"], f"Last four keys: {keys[-4:]}"
+
+    # Full ordering check: for each root, major then minor
+    expected = []
+    for root in PITCH_CLASSES:
+        expected.append(root)
+        expected.append(f"{root}m")
+    assert keys == expected
+
+
+# ---------------------------------------------------------------------------
+# AC-4-b — Extensibility: appending a quality rebuilds correctly
+# ---------------------------------------------------------------------------
+
+
+def test_extensibility_new_quality(monkeypatch):
+    """AC-4-b: Appending a new quality to _CHORD_QUALITY_DEFS produces
+    12 additional templates with the right naming convention.
+
+    Uses monkeypatch to temporarily extend the defs and restore them after.
+    The real _CHORD_QUALITY_DEFS is module-level state, so we need to be
+    careful not to leave garbage behind. monkeypatch handles that.
+    """
+    import harmonic_analysis.audio._chord_estimation as chord_mod
+
+    extended_defs = list(_CHORD_QUALITY_DEFS) + [("dim", (0, 3, 6))]
+    monkeypatch.setattr(chord_mod, "_CHORD_QUALITY_DEFS", extended_defs)
+
+    templates = _build_chord_templates()
+    assert len(templates) == 36, f"Expected 36 (12 x 3), got {len(templates)}"
+
+    # Spot-check some diminished keys
+    assert "Cdim" in templates, "Missing Cdim template"
+    assert "C#dim" in templates, "Missing C#dim template"
+    assert "Bdim" in templates, "Missing Bdim template"
+
+    # Verify all templates are unit-norm (the math doesn't care what
+    # intervals you hand it, but let's be sure)
+    for label, tmpl in templates.items():
+        norm = np.linalg.norm(tmpl)
+        assert abs(norm - 1.0) < 1e-10, f"Template {label!r} has norm {norm}"
+
+
+# ---------------------------------------------------------------------------
+# AC-1-b — Bass-chroma disambiguation
+# ---------------------------------------------------------------------------
+
+
+def test_bass_chroma_disambiguates_relative_pair():
+    """AC-1-b: With bass chroma suggesting B as root, the estimator should
+    prefer Bm over D. Without bass chroma, D (the relative major) wins
+    because D major and B minor share two out of three pitch classes and
+    D major's template has higher cosine similarity against a treble
+    chroma that's ambiguous between the two.
+
+    This is the whole reason the bass-chroma feature exists: relative
+    major/minor pairs (D/Bm, C/Am, F/Dm, etc.) are indistinguishable
+    in full-spectrum chroma when the bass note is the only discriminator.
+    """
+    num_frames = int(3.0 * _FRAMES_PER_SEC)
+
+    # Treble chroma: D major pitch classes (D=2, F#=6, A=9) with some
+    # B minor bleed (B=11) to make it ambiguous. This is realistic --
+    # a Bm chord in first inversion (D in the treble) looks a lot like
+    # D major in chroma space.
+    treble = np.full((12, num_frames), 0.05, dtype=np.float64)
+    treble[2, :] = 0.7  # D
+    treble[6, :] = 0.6  # F#
+    treble[9, :] = 0.5  # A
+    treble[11, :] = 0.4  # B — the minor-third bleed
+
+    # Bass chroma: strong B, weak everything else. This is what a bass
+    # guitar playing B2 looks like after chroma extraction.
+    bass = np.full((12, num_frames), 0.02, dtype=np.float64)
+    bass[11, :] = 0.9  # B is dominant in the bass register
+
+    key = KeyInfo(tonic="D", mode="major", key_signature="D major", confidence=0.9)
+
+    # With bass chroma + bonus: should lean toward Bm
+    events_with_bass = estimate_chord_progression(
+        treble,
+        key,
+        sr=_SR,
+        hop_length=_HOP,
+        window_size_s=0.5,
+        hop_size_s=0.25,
+        bass_chroma_frames=bass,
+        bass_bonus=0.3,
+    )
+
+    # Without bass chroma: should produce D
+    events_no_bass = estimate_chord_progression(
+        treble,
+        key,
+        sr=_SR,
+        hop_length=_HOP,
+        window_size_s=0.5,
+        hop_size_s=0.25,
+    )
+
+    assert len(events_with_bass) > 0, "Bass-aware path produced no events"
+    assert len(events_no_bass) > 0, "No-bass path produced no events"
+
+    # The bass-aware result should contain Bm somewhere
+    bass_labels = [e.chord_label for e in events_with_bass]
+    no_bass_labels = [e.chord_label for e in events_no_bass]
+
+    assert "Bm" in bass_labels, f"Expected 'Bm' with bass chroma, got: {bass_labels}"
+    assert (
+        "D" in no_bass_labels
+    ), f"Expected 'D' without bass chroma, got: {no_bass_labels}"
