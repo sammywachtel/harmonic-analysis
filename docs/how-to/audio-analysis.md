@@ -198,6 +198,107 @@ result = await analyze_audio_async("live_recording.wav", min_chroma_norm=0.10)
 
 The default (`0.05`) is conservative: it catches genuine silence and room tone while preserving *pianissimo* dynamics. Raise it if you see suspicious chord labels during quiet passages; lower it (toward `0.0`) only if you are losing legitimate soft chords.
 
+## How to Debug a Wrong Key Verdict
+
+If the analyzer returns a key that doesn't match what you hear in the recording — D major when you swear it's in B minor, for instance — the relative-pair confusion problem is usually the culprit. The audio pipeline ships an ensemble of independent key-detection approaches that vote on the verdict; turning on the diagnostic panel shows you why each approach voted the way it did.
+
+### Step 1: Enable `show_analysis_details`
+
+```python
+from harmonic_analysis import analyze_audio_async
+
+result = await analyze_audio_async(
+    "song.wav",
+    show_analysis_details=True,
+)
+
+print(f"Verdict: {result.global_key.tonic} {result.global_key.mode}")
+for approach in result.key_analysis_details["approaches"]:
+    print(f"\n{approach['name']} (weight={approach['weight']}):")
+    for entry in approach["top_3"]:
+        key = entry["key"]
+        print(f"  {key['tonic']} {key['mode']:<8}  score={entry['score']:.3f}")
+
+synth = result.key_analysis_details["synthesis"]
+print(f"\nSynthesis: {synth['winner']['tonic']} {synth['winner']['mode']} "
+      f"(runner-up: {synth['runner_up']['tonic']} {synth['runner_up']['mode']}, "
+      f"margin: {synth['margin']:.3f})")
+```
+
+### Step 2: Read the panel
+
+A typical "wrong K-S, right ensemble" pattern looks like this:
+
+```
+template_correlation (weight=1.0):
+  D Ionian        score=0.930
+  F# Aeolian      score=0.884
+  B Aeolian       score=0.882
+
+boundary_chords (weight=0.8):
+  B Aeolian       score=0.714
+  B Ionian        score=0.357
+  E Ionian        score=0.286
+
+bass_dominance (weight=0.6):
+  B Ionian        score=0.179
+  B Aeolian       score=0.179
+  F# Ionian       score=0.170
+
+cadential (weight=0.7):
+  D Ionian        score=1.000
+  G Aeolian       score=1.000
+  B Aeolian       score=1.000
+
+Synthesis: B Aeolian (runner-up: D Ionian, margin: 0.483)
+```
+
+K-S alone returns D Ionian with high confidence — that's the relative-pair problem. The boundary_chords approach correctly notices the song starts and ends on Bm; bass_dominance sees B in the bass; cadential picks up the V→i pattern. Together they outweigh K-S and the synthesis lands on B Aeolian.
+
+### Step 3: Override weights if needed
+
+If the default weights don't suit your repertoire (e.g., a corpus where boundary chords are unreliable but the bass is rock-solid), pass custom weights:
+
+```python
+result = await analyze_audio_async(
+    "song.wav",
+    show_analysis_details=True,
+    key_ensemble_weights={
+        "boundary_chords": 0.4,  # weaker
+        "bass_dominance": 1.2,   # stronger
+    },
+)
+```
+
+Approaches not listed retain their default weight; the override is additive, not replacement.
+
+### Step 4: Compare against `ks_only`
+
+To see what the pre-ensemble code path would have returned:
+
+```python
+ks_result = await analyze_audio_async("song.wav", key_detection="ks_only")
+print(f"K-S only: {ks_result.global_key.tonic} {ks_result.global_key.mode}")
+```
+
+This is the migration backstop — if your test suite previously asserted D major on a recording that's audibly B minor, the assertion was actually checking K-S behavior, and you can pin it via `key_detection="ks_only"` while the rest of your code uses the ensemble.
+
+### CLI Workflow
+
+The same diagnostic flow works from the command line:
+
+```bash
+python scripts/try_audio.py song.wav --show-analysis-details
+
+# Override weights from the CLI
+python scripts/try_audio.py song.wav --show-analysis-details \
+    --ensemble-weights '{"boundary_chords": 0.4, "bass_dominance": 1.2}'
+
+# Compare ensemble vs K-S-only on the same file
+python scripts/try_audio.py song.wav
+python scripts/try_audio.py song.wav --key-detection ks_only
+```
+
 ## See Also
 
 - **[Audio Quick Start Tutorial](../tutorials/audio-quickstart.md)** — 5-minute hands-on introduction

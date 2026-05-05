@@ -10,6 +10,8 @@ Usage:
     python scripts/try_audio.py path/to/your.wav --start 0 --end 30
     python scripts/try_audio.py --synth  # generate + analyze /tmp/a_major.wav
     python scripts/try_audio.py path/to/your.wav --json # raw JSON-ish dump
+    python scripts/try_audio.py path/to/your.wav --show-analysis-details
+    python scripts/try_audio.py path/to/your.wav --key-detection ks_only
 
 Requires: pip install -e ".[audio]"  (librosa + soundfile)
 """
@@ -20,7 +22,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 
 def _make_synth_wav(path: Path, duration: float = 5.0, sr: int = 22050) -> Path:
@@ -72,11 +74,83 @@ def _print_human(result) -> None:
     else:
         print("chords       : none detected")
 
+    # Diagnostic panel — only populated when --show-analysis-details was set.
+    details = getattr(result, "key_analysis_details", None)
+    if details:
+        _print_analysis_panel(details)
+
+
+def _print_analysis_panel(details: Dict[str, Any]) -> None:
+    """Render the per-approach breakdown as a human-friendly table."""
+    print()
+    print("=" * 64)
+    print("KEY ANALYSIS DETAILS")
+    print("=" * 64)
+
+    approaches = details.get("approaches", [])
+    if approaches:
+        # Header. Width chosen so most approach names + a 3-row top-3
+        # block fit cleanly in 80-column terminals.
+        print(f"{'Approach':<24} {'Weight':>7}  Top 3 Candidates")
+        print("-" * 64)
+        for a in approaches:
+            name = a.get("name", "?")
+            weight = a.get("weight", 0.0)
+            top_3 = a.get("top_3", [])
+            # First top-3 row on the same line as the approach name.
+            if top_3:
+                first = top_3[0]
+                key_str = (
+                    f"{first['key']['tonic']} {first['key']['mode']}"
+                    if isinstance(first.get("key"), dict)
+                    else str(first.get("key"))
+                )
+                print(
+                    f"{name:<24} {weight:>7.2f}  "
+                    f"1) {key_str:<14} score={first['score']:.3f}"
+                )
+                for i, entry in enumerate(top_3[1:], start=2):
+                    key_str = (
+                        f"{entry['key']['tonic']} {entry['key']['mode']}"
+                        if isinstance(entry.get("key"), dict)
+                        else str(entry.get("key"))
+                    )
+                    print(
+                        f"{'':<24} {'':>7}  "
+                        f"{i}) {key_str:<14} score={entry['score']:.3f}"
+                    )
+            else:
+                # Empty ranked list (e.g. cadential with no V→I cadences).
+                print(f"{name:<24} {weight:>7.2f}  (no candidates)")
+            print()
+
+    synth = details.get("synthesis")
+    if synth:
+        print("-" * 64)
+        print("Synthesis:")
+        winner = synth.get("winner") or {}
+        winner_str = f"{winner.get('tonic', '?')} {winner.get('mode', '?')}"
+        print(f"  method      : {synth.get('method')}")
+        print(f"  winner      : {winner_str}")
+        runner = synth.get("runner_up")
+        if runner:
+            runner_str = f"{runner.get('tonic', '?')} {runner.get('mode', '?')}"
+            print(f"  runner-up   : {runner_str}")
+        margin = synth.get("margin")
+        if margin is not None:
+            print(f"  margin      : {margin:.3f}")
+
+    if details.get("modulations"):
+        print(
+            f"  modulations : {len(details['modulations'])} segment(s) "
+            f"(see HMM section)"
+        )
+
 
 def _to_json(result) -> dict:
     """Manual dict construction. asdict() chokes on KeyInfo's frozenset
     field — same trap the route dodges. Don't reach for asdict here."""
-    return {
+    payload: Dict[str, Any] = {
         "global": {
             "tonic": result.global_key.tonic,
             "mode": result.global_key.mode,
@@ -113,6 +187,10 @@ def _to_json(result) -> dict:
             for c in result.chords
         ],
     }
+    details = getattr(result, "key_analysis_details", None)
+    if details is not None:
+        payload["key_analysis_details"] = details
+    return payload
 
 
 async def _run(
@@ -126,6 +204,9 @@ async def _run(
     bass_chroma: bool,
     bass_bonus: float,
     rubato: Union[str, float] = "moderate",
+    key_detection: Union[str, list, dict] = "default",
+    show_analysis_details: bool = False,
+    key_ensemble_weights: Optional[Dict[str, float]] = None,
 ) -> int:
     try:
         from harmonic_analysis import analyze_audio_async
@@ -147,6 +228,9 @@ async def _run(
         use_bass_chroma=bass_chroma,
         bass_bonus=bass_bonus,
         rubato=rubato,
+        key_detection=key_detection,
+        show_analysis_details=show_analysis_details,
+        key_ensemble_weights=key_ensemble_weights,
     )
 
     if as_json:
@@ -234,6 +318,34 @@ def main() -> int:
         dest="bass_bonus",
         help="bass-root-match bonus when --bass-chroma is on (default 0.3)",
     )
+    # Ensemble key-detection knobs (audio_score_alignment-02).
+    # --key-detection accepts presets or a JSON list of approach names.
+    # --ensemble-weights takes a JSON object mapping approach name → weight.
+    # --show-analysis-details renders the per-approach diagnostic panel.
+    parser.add_argument(
+        "--show-analysis-details",
+        action="store_true",
+        dest="show_analysis_details",
+        help="emit the per-approach diagnostic panel (text or JSON)",
+    )
+    parser.add_argument(
+        "--key-detection",
+        default="default",
+        dest="key_detection",
+        help=(
+            "ensemble preset (default | ks_only | full) or a JSON list of "
+            'approach names (e.g. \'["template_correlation","boundary_chords"]\')'
+        ),
+    )
+    parser.add_argument(
+        "--ensemble-weights",
+        default=None,
+        dest="ensemble_weights",
+        help=(
+            "JSON object overriding default per-approach weights, "
+            'e.g. \'{"template_correlation": 1.5, "boundary_chords": 0.5}\''
+        ),
+    )
     args = parser.parse_args()
 
     if args.synth:
@@ -269,6 +381,54 @@ def main() -> int:
     except ValueError:
         rubato_val = rubato_raw
 
+    # Parse key_detection. Preset strings pass through; everything else
+    # tries JSON. This matches the route's behavior so the CLI and HTTP
+    # surfaces stay symmetric.
+    valid_presets = {"default", "ks_only", "full"}
+    key_det_arg: Union[str, list, dict]
+    if args.key_detection in valid_presets:
+        key_det_arg = args.key_detection
+    else:
+        try:
+            key_det_arg = json.loads(args.key_detection)
+        except json.JSONDecodeError as exc:
+            print(
+                f"error: --key-detection must be a preset "
+                f"({', '.join(sorted(valid_presets))}) or JSON list/dict; "
+                f"got {args.key_detection!r} ({exc})",
+                file=sys.stderr,
+            )
+            return 2
+
+    # Parse --ensemble-weights. None passes through unchanged.
+    parsed_weights: Optional[Dict[str, float]] = None
+    if args.ensemble_weights is not None:
+        try:
+            raw_weights = json.loads(args.ensemble_weights)
+        except json.JSONDecodeError as exc:
+            print(
+                f"error: --ensemble-weights must be a JSON object "
+                f"like '{{\"approach_name\": 1.0}}'; got {args.ensemble_weights!r} "
+                f"({exc})",
+                file=sys.stderr,
+            )
+            return 2
+        if not isinstance(raw_weights, dict):
+            print(
+                "error: --ensemble-weights must be a JSON object, not a "
+                f"{type(raw_weights).__name__}",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            parsed_weights = {str(k): float(v) for k, v in raw_weights.items()}
+        except (TypeError, ValueError):
+            print(
+                "error: --ensemble-weights values must all be numeric",
+                file=sys.stderr,
+            )
+            return 2
+
     return asyncio.run(
         _run(
             args.filepath,
@@ -281,6 +441,9 @@ def main() -> int:
             args.bass_chroma,
             args.bass_bonus,
             rubato=rubato_val,
+            key_detection=key_det_arg,
+            show_analysis_details=args.show_analysis_details,
+            key_ensemble_weights=parsed_weights,
         )
     )
 

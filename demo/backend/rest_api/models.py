@@ -7,7 +7,7 @@ These models provide automatic validation, serialization, and OpenAPI documentat
 
 from __future__ import annotations
 
-from typing import Any, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -260,5 +260,64 @@ class AudioAnalysisResponse(BaseModel):
     analysis: _AnalysisModel
     chord_progression: List[ChordEventModel]
     segment: _SegmentModel
+    key_analysis_details: Optional["KeyAnalysisDetails"] = None
 
     model_config = {"populate_by_name": True}
+
+
+# Diagnostic-panel models. The route returns Dict[str, Any], so these
+# exist to document the shape and feed OpenAPI. Same loose-typing pattern
+# as the rest of the audio response models above.
+
+
+class _RankedKey(BaseModel):
+    """One row in an approach's top_3 ranking — KeyInfo + score."""
+
+    key: _KeyInfoModel
+    score: float
+
+
+class KeyApproachDetail(BaseModel):
+    """One approach's contribution to the diagnostic panel.
+
+    Each approach reports its name, the weight applied during synthesis,
+    and the top-3 candidates it produced. The full ranked list lives in
+    the synthesis ``key_score_table`` — top_3 is what humans look at first.
+    """
+
+    name: str = Field(description="Approach identifier, e.g. 'template_correlation'")
+    weight: float = Field(description="Weight applied to this approach's votes")
+    top_3: List[_RankedKey] = Field(
+        default_factory=list,
+        description="Top-3 (KeyInfo, score) candidates from this approach",
+    )
+
+
+class SynthesisDetail(BaseModel):
+    """Synthesizer's output for the diagnostic panel.
+
+    Mirrors ``SynthesisResult`` but uses dict-of-floats for the score
+    table so the JSON response can be parsed without custom decoders.
+    """
+
+    method: str = Field(description="Synthesis method, e.g. 'weighted_sum'")
+    winner: _KeyInfoModel
+    runner_up: Optional[_KeyInfoModel] = None
+    margin: float = Field(description="winner_total - runner_up_total")
+    key_score_table: Dict[str, float] = Field(
+        default_factory=dict,
+        description="All candidates' summed weighted scores, keyed by key_signature",
+    )
+
+
+class KeyAnalysisDetails(BaseModel):
+    """Top-level diagnostic-panel payload.
+
+    Populated only when the request includes ``show_details=true``.
+    iteration_01 doesn't ship HMM segmentation, so ``modulations`` is
+    always None for now.
+    """
+
+    approaches: List[KeyApproachDetail] = Field(default_factory=list)
+    synthesis: SynthesisDetail
+    modulations: Optional[List[dict]] = None

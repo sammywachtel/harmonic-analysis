@@ -1,0 +1,191 @@
+"""Cadential V→i / V→I scoring approach.
+
+Cadences are the strongest functional signal in tonal music — they're
+literally the harmonic punctuation that establishes "here's the tonic."
+Scanning the chord event sequence for V→I (major key) and V→i (minor
+key) transitions, then scoring each candidate key by how many of its
+diagnostic cadences appear, is one of the most musically grounded ways
+to break a relative-pair tie.
+
+Limitations honestly disclosed:
+    * The chord estimator only recognizes major/minor triads. No V7
+      (which would be a stronger cadential signal). No diminished VII°
+      either.
+    * We score perfect cadences (V→I or V→i) only. Plagal (IV→I),
+      deceptive (V→vi), and half-cadences are treated as non-events
+      because they're ambiguous between candidate keys.
+
+iteration_01_a fix — mode-agnostic crediting:
+    Cadential's job is to identify *which tonic root* receives a
+    cadential resolution. It is NOT cadential's job to pre-decide major
+    vs. minor — that's what the synthesizer + bass_dominance + K-S
+    template fit do, with orthogonal evidence. The previous code
+    branched on the tonic chord's quality and credited only the matching
+    mode (Ionian for major tonic, Aeolian for minor tonic), which
+    produced a silent major-bias bug: F#→Bm (a textbook minor authentic
+    cadence — V in minor is always major) scored zero for B Aeolian on
+    real recordings. We now credit BOTH Ionian and Aeolian slots equally
+    when a major-V resolves to any tonic chord; the rest of the ensemble
+    sorts mode out.
+
+Empty chord_events: returns an empty ranked list — graceful degradation
+contract.
+"""
+
+from __future__ import annotations
+
+from typing import List, Optional, Tuple
+
+from .._key_ensemble import (
+    KeyDetectionApproach,
+    KeyDetectionContext,
+    KeyDetectionVerdict,
+)
+from .._profiles import PITCH_CLASSES
+from .._types import KeyInfo
+
+
+def _root_pitch_class(chord_label: str) -> Optional[int]:
+    """Extract pitch-class index from a chord label, or None."""
+    root_name = chord_label.rstrip("m") if chord_label.endswith("m") else chord_label
+    try:
+        return PITCH_CLASSES.index(root_name)
+    except ValueError:
+        return None
+
+
+def _is_minor_label(chord_label: str) -> bool:
+    """True if the chord is minor (e.g. 'Am', 'Bm', 'F#m')."""
+    return chord_label.endswith("m")
+
+
+class CadentialApproach(KeyDetectionApproach):
+    """Score keys by counting major-V → tonic resolutions (mode-agnostic).
+
+    Walks the chord_events list looking for adjacent (a, b) pairs where
+    ``a`` is a major triad whose root is the dominant of ``b``'s root.
+    When found, both Ionian and Aeolian candidates of the resolved tonic
+    receive equal credit — cadential identifies that there's a cadence
+    on this tonic root, not which parallel-mode the piece is in.
+
+    For each (major V → tonic) pair we credit:
+        cadence_counts[tonic_pc * 2]     += 1   # Ionian slot
+        cadence_counts[tonic_pc * 2 + 1] += 1   # Aeolian slot
+
+    The score is the cadence count divided by the maximum observed count
+    across all keys, normalized to [0, 1]. A key with no cadences scores
+    zero; the key with the most cadences scores 1.0. Because Ionian and
+    Aeolian of the same tonic always increment together, they always
+    appear with equal score in the ranked output — the synthesizer +
+    bass_dominance + K-S sort out which mode is actually right.
+    """
+
+    name: str = "cadential"
+
+    def detect(self, ctx: KeyDetectionContext) -> KeyDetectionVerdict:
+        """Score each of 24 keys by cadential evidence.
+
+        Args:
+            ctx: KeyDetectionContext. Consults ``chord_events`` only.
+
+        Returns:
+            KeyDetectionVerdict. Empty ranked list when chord_events is
+            absent or empty.
+        """
+        events = ctx.chord_events
+        if not events or len(events) < 2:
+            # Need at least a transition. One chord can't cadence.
+            return KeyDetectionVerdict(
+                name=self.name,
+                ranked=[],
+                meta={"reason": "insufficient_chord_events"},
+            )
+
+        # Pre-extract (root_pc, is_minor) pairs for every event we can
+        # parse. Unparseable labels become None and don't contribute to
+        # any cadence pair.
+        parsed: List[Optional[Tuple[int, bool]]] = []
+        for ev in events:
+            label = getattr(ev, "chord_label", None)
+            if not label:
+                parsed.append(None)
+                continue
+            pc = _root_pitch_class(label)
+            if pc is None:
+                parsed.append(None)
+                continue
+            parsed.append((pc, _is_minor_label(label)))
+
+        # Score per (tonic_pc, mode) candidate. Stored in a 24-element
+        # array indexed (tonic_pc * 2 + minor_flag).
+        cadence_counts: List[int] = [0] * 24
+
+        for i in range(len(parsed) - 1):
+            a = parsed[i]
+            b = parsed[i + 1]
+            if a is None or b is None:
+                continue
+
+            a_pc, a_minor = a
+            b_pc, _b_minor = b  # b's quality intentionally ignored — see below
+
+            # 'a' must be a major triad to function as a dominant.
+            # The chord estimator only outputs major/minor triads; minor
+            # dominants are theoretically possible but vanishingly rare
+            # in tonal repertoire and we don't credit them here.
+            if a_minor:
+                continue
+
+            # Walk all 12 tonic candidates; credit equally for both
+            # Ionian and Aeolian when a is the dominant of tonic_pc and
+            # b lands on tonic_pc (regardless of b's quality).
+            for tonic_pc in range(12):
+                expected_dominant_pc = (tonic_pc + 7) % 12
+                if a_pc != expected_dominant_pc or b_pc != tonic_pc:
+                    continue
+
+                # Mode-agnostic dual credit. Both Ionian and Aeolian of
+                # the same tonic root get +1 because cadential can't
+                # (and shouldn't) tell parallel-mode apart from a single
+                # V → tonic motion. F#→Bm is a minor authentic cadence;
+                # F#→B is a major authentic cadence; the chord-after-
+                # the-V information alone doesn't distinguish "the piece
+                # is in B" from "the piece is in B major vs B minor."
+                # Let the rest of the ensemble vote on mode.
+                cadence_counts[tonic_pc * 2] += 1  # Ionian slot
+                cadence_counts[tonic_pc * 2 + 1] += 1  # Aeolian slot
+
+        max_count = max(cadence_counts)
+        if max_count == 0:
+            # No cadences detected — return empty ranked list. Cadential
+            # has nothing to say about non-cadential progressions.
+            return KeyDetectionVerdict(
+                name=self.name,
+                ranked=[],
+                meta={"reason": "no_cadences_detected"},
+            )
+
+        ranked: List[Tuple[KeyInfo, float]] = []
+
+        for tonic_pc, tonic_name in enumerate(PITCH_CLASSES):
+            for slot_offset, mode_label in enumerate(("Ionian", "Aeolian")):
+                count = cadence_counts[tonic_pc * 2 + slot_offset]
+                normalized = count / max_count
+
+                key_is_minor = mode_label == "Aeolian"
+                key_str = f"{tonic_name} {'major' if not key_is_minor else 'minor'}"
+                key_info = KeyInfo(
+                    tonic=tonic_name,
+                    mode=mode_label,
+                    key_signature=key_str,
+                    confidence=round(normalized, 4),
+                )
+                ranked.append((key_info, normalized))
+
+        ranked.sort(key=lambda pair: pair[1], reverse=True)
+
+        return KeyDetectionVerdict(
+            name=self.name,
+            ranked=ranked,
+            meta={"max_cadence_count": max_count},
+        )

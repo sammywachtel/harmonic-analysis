@@ -4,7 +4,7 @@ Field-by-field reference for the audio analysis surface. For the core pattern an
 
 ## Module-Level Convenience Functions
 
-### `analyze_audio(path, *, segment=None, quiet=False, include_chords=True, chord_window_size_s=None, chord_hop_size_s=None, tonal_bias=0.15, rubato="moderate", use_bass_chroma=False, bass_bonus=0.3, min_chroma_norm=0.05)`
+### `analyze_audio(path, *, segment=None, quiet=False, include_chords=True, chord_window_size_s=None, chord_hop_size_s=None, tonal_bias=0.15, rubato="moderate", use_bass_chroma=False, bass_bonus=0.3, min_chroma_norm=0.05, key_detection="default", show_analysis_details=False, key_ensemble_weights=None)`
 
 Synchronous convenience wrapper. Constructs a fresh `AudioAdapter` per call — cheap, the only real work in construction is an ffmpeg-on-PATH check.
 
@@ -23,14 +23,17 @@ Synchronous convenience wrapper. Constructs a fresh `AudioAdapter` per call — 
 | `use_bass_chroma` | `bool` | `False` | Enable bass-aware chord estimation using a second chroma extraction focused on low frequencies |
 | `bass_bonus` | `float` | `0.3` | Maximum bonus added to template cosine similarity when the chord root matches the bass chroma peak. Scaled per-window by bass-chroma confidence so noisy bass detections contribute less. Only effective when `use_bass_chroma=True` |
 | `min_chroma_norm` | `float` | `0.05` | Minimum L2 norm threshold for chord detection windows. Windows below this norm are treated as silence and produce no chord label |
+| `key_detection` | `str \| list[str] \| dict[str, float]` | `"default"` | Ensemble preset (`"default"`, `"ks_only"`, `"full"`), explicit list of approach names, or `{name: weight}` dict. See [Key Detection Ensemble](#key-detection-ensemble) below |
+| `show_analysis_details` | `bool` | `False` | When `True`, populates `result.key_analysis_details` with per-approach breakdown for debugging |
+| `key_ensemble_weights` | `dict[str, float] \| None` | `None` | Optional override mapping approach name → weight; replaces preset defaults |
 
 **Returns:** `AudioAnalysisResult`
 
 **Raises:**
 - `AudioImportError` — if `librosa` or `soundfile` are not installed
-- `ValueError` — for empty or too-short segments
+- `ValueError` — for empty or too-short segments, unknown `key_detection` preset names, empty list/dict `key_detection` specs
 
-### `analyze_audio_async(path, *, segment=None, quiet=False, include_chords=True, chord_window_size_s=None, chord_hop_size_s=None, tonal_bias=0.15, rubato="moderate", use_bass_chroma=False, bass_bonus=0.3, min_chroma_norm=0.05)`
+### `analyze_audio_async(path, *, segment=None, quiet=False, include_chords=True, chord_window_size_s=None, chord_hop_size_s=None, tonal_bias=0.15, rubato="moderate", use_bass_chroma=False, bass_bonus=0.3, min_chroma_norm=0.05, key_detection="default", show_analysis_details=False, key_ensemble_weights=None)`
 
 Async convenience wrapper. Uses `asyncio.to_thread` to keep the blocking librosa work off the event loop. Same parameters and return type as `analyze_audio`.
 
@@ -49,6 +52,9 @@ Async convenience wrapper. Uses `asyncio.to_thread` to keep the blocking librosa
 | `use_bass_chroma` | `bool` | `False` | Enable bass-aware chord estimation using a second chroma extraction focused on low frequencies |
 | `bass_bonus` | `float` | `0.3` | Maximum bonus added to template cosine similarity when the chord root matches the bass chroma peak. Scaled per-window by bass-chroma confidence so noisy bass detections contribute less. Only effective when `use_bass_chroma=True` |
 | `min_chroma_norm` | `float` | `0.05` | Minimum L2 norm threshold for chord detection windows. Windows below this norm are treated as silence and produce no chord label |
+| `key_detection` | `str \| list[str] \| dict[str, float]` | `"default"` | See [Key Detection Ensemble](#key-detection-ensemble) below |
+| `show_analysis_details` | `bool` | `False` | Populate `result.key_analysis_details` with per-approach breakdown |
+| `key_ensemble_weights` | `dict[str, float] \| None` | `None` | Override per-approach weights |
 
 ## `AudioAdapter`
 
@@ -113,13 +119,14 @@ The top-level result returned by `analyze_audio` and `AudioAdapter.from_audio`.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `global_key` | `KeyInfo` | K-S key estimate over the whole file |
-| `local_key` | `KeyInfo` | K-S key estimate over the analyzed segment |
+| `global_key` | `KeyInfo` | Ensemble key estimate over the whole file (was K-S only before iteration 02) |
+| `local_key` | `KeyInfo` | Key estimate over the analyzed segment |
 | `cadences` | `CadenceInfo` | V-I cadence detection result |
 | `region` | `RegionInfo` | Region classification (stable / modulation / modal_shift) |
 | `chords` | `list[ChordEvent]` | Timestamped chord events (empty if `include_chords=False`) |
 | `segment_start` | `float` | Start of analyzed segment in seconds |
 | `segment_end` | `float` | End of analyzed segment in seconds |
+| `key_analysis_details` | `dict \| None` | Per-approach diagnostic payload — `None` unless `show_analysis_details=True`. See [Key Analysis Details Schema](#key-analysis-details-schema) |
 
 **Properties:**
 
@@ -188,6 +195,76 @@ try:
 except AudioImportError:
     print("Install with: pip install harmonic-analysis[audio]")
 ```
+
+## Key Detection Ensemble
+
+As of audio_score_alignment-02, the audio pipeline uses an ensemble of independent key-detection approaches that vote on the final key verdict. The single-algorithm Krumhansl-Schmuckler estimator can't reliably tell relative major/minor pairs apart (D Ionian vs B Aeolian have identical pitch-class sets); orthogonal evidence from boundary chords, bass dominance, and cadential motion breaks those ties.
+
+### Approach Catalog (iteration_01)
+
+| Approach | Default? | Default weight | What it does |
+|----------|----------|----------------|--------------|
+| `template_correlation` | Yes | 1.0 | The original K-S correlation against pitch-class profiles. Foundational; everyone else breaks its ties |
+| `boundary_chords` | Yes | 0.8 | Scores keys by whether the first/last chord events match the candidate's tonic (or dominant) |
+| `bass_dominance` | Yes | 0.6 | Aggregates the bass chroma over the whole segment, scores keys by tonic + dominant emphasis |
+| `cadential` | Yes | 0.7 | Counts V→I (major) / V→i (minor) transitions in the chord-event sequence |
+| `pattern_engine` | No (iteration_02) | 0.9 | Calls `PatternAnalysisService` per top-K candidate key; returns its confidence |
+| `hmm` | No (iteration_02) | 0.5 | Viterbi over a 24-state key HMM; produces local-key segments for modulating music |
+
+### Presets
+
+The `key_detection` parameter accepts these preset strings:
+
+- `"default"` — runs `template_correlation`, `boundary_chords`, `bass_dominance`, and `cadential`. The recommended setting for most use cases.
+- `"ks_only"` — runs only `template_correlation`. Mirrors the pre-ensemble code path; use this to recover the exact behavior of versions before audio_score_alignment-02.
+- `"full"` — runs every approach including the iteration_02 opt-ins. Currently equivalent to `"default"` until iteration_02 ships the opt-ins.
+
+You can also pass an explicit list of approach names (`["template_correlation", "boundary_chords"]`) or a dict mapping name → weight (`{"template_correlation": 1.5, "cadential": 0.0}`).
+
+### Two-Stage Orchestration
+
+The chord estimator needs a key (for `tonal_bias`), and the chord-event-based approaches (`boundary_chords`, `cadential`) need chord events. The pipeline resolves this circularity in two stages:
+
+1. **Stage 1:** Run `template_correlation` alone on the global chroma → `ks_key`.
+2. **Stage 2:** Use `ks_key` to bias chord estimation. Output: chord events.
+3. **Stage 3:** Run the full ensemble with chord events available. Output: `ensemble_key`.
+4. **Stage 4:** `result.global_key = ensemble_key`.
+
+The chord estimator's `tonal_bias` still uses the stage-1 K-S result (not the ensemble winner). For relative pairs this is lossless because both keys share the same diatonic set.
+
+### Key Analysis Details Schema
+
+When `show_analysis_details=True`, `result.key_analysis_details` is populated with this structure:
+
+```python
+{
+    "approaches": [
+        {
+            "name": "template_correlation",
+            "weight": 1.0,
+            "top_3": [
+                {"key": {"tonic": "B", "mode": "Aeolian", ...}, "score": 0.957},
+                ...
+            ],
+        },
+        # ... one entry per enabled approach
+    ],
+    "synthesis": {
+        "method": "weighted_sum",
+        "winner": {"tonic": "B", "mode": "Aeolian", ...},
+        "runner_up": {"tonic": "D", "mode": "Ionian", ...},
+        "margin": 0.483,
+        "key_score_table": {"B Aeolian": 2.51, "D Ionian": 2.03, ...},
+    },
+    "modulations": None,  # iteration_02 will populate this when HMM is on
+}
+```
+
+When `show_analysis_details=False` (the default), `result.key_analysis_details is None` — no payload bloat for production callers.
+
+### Backward Compatibility
+
+The old `find_best_key` import path (`from harmonic_analysis.audio._key_estimation import find_best_key`) still works and produces bit-identical results to pre-ensemble behavior. To get the same end-to-end behavior as before the ensemble shipped, pass `key_detection="ks_only"`.
 
 ## See Also
 
