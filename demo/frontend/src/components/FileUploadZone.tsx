@@ -1,5 +1,6 @@
-// File upload zone - drag-and-drop interface with file picker fallback
-// This gives users a nice visual target for uploading music files
+// Drag-and-drop file picker. Coral primary border on dragover, dashed slate
+// otherwise. Eighth-note glyph instead of an emoji folder so it shares the
+// header's typographic voice.
 
 import { useRef, useState } from 'react';
 
@@ -8,65 +9,59 @@ interface FileUploadZoneProps {
   acceptedTypes?: string[];
   maxSizeMB?: number;
   disabled?: boolean;
+  /** Override the centered headline. */
+  hint?: string;
 }
+
+const NoteIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    className="w-10 h-10 text-slate-400 mx-auto"
+    fill="currentColor"
+  >
+    <path d="M19 3v11.55a4 4 0 1 1-2-3.46V6.62L9 8.5v8.55a4 4 0 1 1-2-3.46V6l12-3z" />
+  </svg>
+);
 
 const FileUploadZone = ({
   onFileSelected,
   acceptedTypes = ['.xml', '.musicxml', '.mxl', '.mid', '.midi'],
   maxSizeMB = 10,
   disabled = false,
+  hint,
 }: FileUploadZoneProps) => {
-  // State management - track whether user is dragging over the zone
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Main play: handle drag events to show visual feedback
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!disabled) {
-      setIsDragging(true);
-    }
+    if (!disabled) setIsDragging(true);
   };
-
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
-
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   };
-
-  // Big play: handle the drop event and validate the file
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-
     if (disabled) return;
-
     const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      onFileSelected(files[0]);
-    }
+    if (files && files.length > 0) onFileSelected(files[0]);
   };
-
-  // Fallback: handle file picker selection
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      onFileSelected(files[0]);
-    }
+    if (files && files.length > 0) onFileSelected(files[0]);
   };
-
-  // Click to open file picker
   const handleClick = () => {
-    if (!disabled && fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    if (!disabled && fileInputRef.current) fileInputRef.current.click();
   };
 
   return (
@@ -76,15 +71,14 @@ const FileUploadZone = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={handleClick}
-      className={`
-        border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
-        transition-all duration-200
-        ${isDragging
-          ? 'border-blue-500 bg-blue-50'
-          : 'border-gray-300 hover:border-gray-400 bg-gray-50 hover:bg-gray-100'
-        }
-        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-      `}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      onKeyDown={(e) => { if (!disabled && (e.key === 'Enter' || e.key === ' ')) handleClick(); }}
+      className={`border-2 border-dashed rounded-xl px-6 py-10 text-center cursor-pointer transition-all duration-200 ${
+        isDragging
+          ? 'border-primary-500 bg-primary-50/60'
+          : 'border-slate-300 hover:border-primary-400 bg-slate-50/40 hover:bg-slate-50'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       <input
         ref={fileInputRef}
@@ -96,16 +90,13 @@ const FileUploadZone = ({
       />
 
       <div className="space-y-3">
-        <div className="text-5xl">📁</div>
+        <NoteIcon />
         <div>
-          <p className="text-lg font-semibold text-gray-900">
-            {isDragging ? 'Drop file here' : 'Drop file or click to browse'}
+          <p className="text-base font-semibold text-slate-900 font-serif">
+            {hint ?? (isDragging ? 'Drop file here' : 'Drop a file or click to browse')}
           </p>
-          <p className="text-sm text-gray-600 mt-2">
-            Accepted formats: {acceptedTypes.join(', ')}
-          </p>
-          <p className="text-sm text-gray-600">
-            Maximum file size: {maxSizeMB}MB
+          <p className="text-xs text-slate-600 mt-2 font-mono">
+            {acceptedTypes.join(' · ')} · max {maxSizeMB} MB
           </p>
         </div>
       </div>

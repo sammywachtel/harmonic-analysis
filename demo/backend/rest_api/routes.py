@@ -346,12 +346,12 @@ async def analyze_file_endpoint(
         raise HTTPException(status_code=400, detail="No filename provided")
 
     file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in [".xml", ".mxl", ".mid", ".midi"]:
+    if file_ext not in [".xml", ".musicxml", ".mxl", ".mid", ".midi"]:
         raise HTTPException(
             status_code=400,
             detail=(
                 f"Unsupported file format: {file_ext}. "
-                "Expected .xml, .mxl, .mid, or .midi"
+                "Expected .xml, .musicxml, .mxl, .mid, or .midi"
             ),
         )
 
@@ -423,6 +423,9 @@ async def analyze_audio_endpoint(
     show_details: bool = Form(False),
     key_detection: str = Form("default"),
     key_ensemble_weights: Optional[str] = Form(None),
+    tonal_bias: Optional[float] = Form(None),
+    bass_bonus: Optional[float] = Form(None),
+    use_bass_chroma: Optional[bool] = Form(None),
 ) -> Dict[str, Any]:
     """
     Analyze an audio file (WAV, MP3, etc.) for key, chords, and cadences.
@@ -440,6 +443,17 @@ async def analyze_audio_endpoint(
             is the four-approach ensemble.
         key_ensemble_weights: Optional JSON object mapping approach name
             to weight, overriding the preset's defaults.
+        tonal_bias: Optional float 0.0–0.5. Diatonic similarity bonus for
+            chord estimation. Library default is 0.15. Higher values bias
+            chord matching toward in-key chords; useful for tonal music
+            with clear key centers. ``None`` lets the library pick its
+            default.
+        bass_bonus: Optional float 0.0–1.0. Magnitude of the root-match
+            bonus when ``use_bass_chroma`` is enabled. Library default
+            is 0.3. ``None`` lets the library pick its default.
+        use_bass_chroma: Optional bool. Extract bass-register chroma for
+            root-disambiguation; helps separate Am vs C, Bm vs D. Library
+            default is ``False``. ``None`` lets the library pick.
     """
     # Import guard — audio deps are optional; fail loudly with install hint
     try:
@@ -514,14 +528,24 @@ async def analyze_audio_endpoint(
         # Build segment tuple if the caller specified a window
         segment = (start, end) if start is not None else None
 
+        # Build the kwargs dict so we only pass through the optional tuning
+        # parameters when the caller actually set them. Letting None hit the
+        # library would clobber its calibrated defaults.
+        analyze_kwargs: Dict[str, Any] = {
+            "segment": segment,
+            "key_detection": parsed_key_detection,
+            "show_analysis_details": show_details,
+            "key_ensemble_weights": parsed_weights,
+        }
+        if tonal_bias is not None:
+            analyze_kwargs["tonal_bias"] = float(tonal_bias)
+        if bass_bonus is not None:
+            analyze_kwargs["bass_bonus"] = float(bass_bonus)
+        if use_bass_chroma is not None:
+            analyze_kwargs["use_bass_chroma"] = bool(use_bass_chroma)
+
         try:
-            result = await analyze_audio_async(
-                temp_file_path,
-                segment=segment,
-                key_detection=parsed_key_detection,
-                show_analysis_details=show_details,
-                key_ensemble_weights=parsed_weights,
-            )
+            result = await analyze_audio_async(temp_file_path, **analyze_kwargs)
         except ValueError as exc:
             # resolve_preset() raises ValueError for unknown presets
             # passed via the JSON-decoded path. Surface as 400.

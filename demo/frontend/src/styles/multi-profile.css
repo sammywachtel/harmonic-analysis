@@ -55,21 +55,22 @@
   transition: max-height 0.3s ease-in-out;
 }
 
-/* Style-specific confidence bar colors */
+/* Style-specific confidence bar colors. Tuned to coexist with the coral primary
+   without color collisions. Each style still reads distinctly across the four. */
 .bar-classical {
-  background-color: #3b82f6; /* blue-500 */
+  background-color: #4338ca; /* indigo-700 — formal/royal */
 }
 
 .bar-jazz {
-  background-color: #8b5cf6; /* purple-500 */
+  background-color: #8b5cf6; /* violet-500 — jazz blue purple */
 }
 
 .bar-pop {
-  background-color: #f97316; /* orange-500 */
+  background-color: #f43f5e; /* rose-500 — pop punch */
 }
 
 .bar-modal {
-  background-color: #10b981; /* green-500 */
+  background-color: #10b981; /* emerald-500 — modal green */
 }
 
 /* Confidence bar container */
@@ -104,8 +105,8 @@
   color: #1e293b; /* slate-800 */
 }
 
-/* Accessible focus styles */
+/* Accessible focus styles — coral ring matches the rest of the chrome */
 .style-analysis-toggle:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #ff5e2b;
   outline-offset: 2px;
 }

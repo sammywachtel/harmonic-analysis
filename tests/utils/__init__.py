@@ -14,13 +14,6 @@ from .debug_helpers import (
     list_available_cases,
     run_debug_case,
 )
-from .test_debug_utils import (
-    DebugContext,
-    DebugTestRunner,
-    TestFailureDebugger,
-    debug_chord_progression,
-    debug_failing_test,
-)
 from .unified_debug import (
     DebugConfig,
     UnifiedDebugger,
@@ -40,12 +33,6 @@ __all__ = [
     "COMMON_DEBUG_CASES",
     "get_case_by_name",
     "list_available_cases",
-    # Test debug utils
-    "TestFailureDebugger",
-    "DebugTestRunner",
-    "DebugContext",
-    "debug_failing_test",
-    "debug_chord_progression",
     # Unified debug system
     "debug_on_failure",
     "debug_always",

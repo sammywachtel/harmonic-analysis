@@ -8,5 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // Keep Playwright e2e specs out of Vitest's runner — they live in /e2e
+    // and execute under @playwright/test.
+    exclude: ['node_modules', 'dist', 'e2e/**'],
   },
 });

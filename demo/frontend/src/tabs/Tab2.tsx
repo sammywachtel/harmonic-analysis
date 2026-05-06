@@ -1,103 +1,87 @@
-// Tab 2: File upload - upload MusicXML or MIDI files for automatic chord extraction
-// This is the "I have sheet music" workflow - upload and let the engine do the work
+// Tab 2 — Notation upload. Drop a MusicXML/MIDI file; the engine extracts
+// chords, runs the same analysis as Tab 1, and renders File Information +
+// Extracted Chords + Analysis Summary banner + the full AnalysisResults tree.
 
 import { useState } from 'react';
 import { analyzeFile } from '../api/analysis';
 import type { FileAnalysisResponse } from '../types/analysis';
 import FileUploadZone from '../components/FileUploadZone';
 import AnalysisResults from '../components/AnalysisResults';
+import SectionCard from '../components/ui/SectionCard';
+import Tag from '../components/ui/Tag';
+import Eyebrow from '../components/ui/Eyebrow';
+
+const ACCEPTED_TYPES = ['.xml', '.musicxml', '.mxl', '.mid', '.midi'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const Tab2 = () => {
-  // State management - following Tab1 pattern exactly
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<FileAnalysisResponse | null>(null);
 
-  // Client-side validation constants
-  const ACCEPTED_TYPES = ['.xml', '.musicxml', '.mxl', '.mid', '.midi'];
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-  // Guard clause: validate file type and size
   const validateFile = (file: File): string | null => {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-
     if (!ACCEPTED_TYPES.includes(ext)) {
-      return `File format not supported. Please upload MusicXML (.xml, .musicxml, .mxl) or MIDI (.mid, .midi) files.`;
+      return 'File format not supported. Drop a MusicXML (.xml, .musicxml, .mxl) or MIDI (.mid, .midi) file.';
     }
-
     if (file.size > MAX_FILE_SIZE) {
-      return `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size: 10MB`;
+      return `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum size: 10 MB.`;
     }
-
-    return null; // Valid file
+    return null;
   };
 
-  // Main play: handle file selection from upload zone
   const handleFileSelected = (file: File) => {
     const validationError = validateFile(file);
-
     if (validationError) {
       setError(validationError);
       setSelectedFile(null);
       setResults(null);
       return;
     }
-
     setSelectedFile(file);
     setError(null);
     setResults(null);
   };
 
-  // Big play: analyze the selected file
   const handleAnalyze = async () => {
     if (!selectedFile) {
       setError('Please select a file first');
       return;
     }
-
     try {
       setLoading(true);
       setError(null);
       setResults(null);
-
-      // Fire off the file upload and analysis
       const response = await analyzeFile(selectedFile, {
         runAnalysis: true,
         profile: 'classical',
       });
-
       setResults(response);
     } catch (err) {
       console.error('File analysis failed:', err);
-
-      // Extract helpful error message from backend
+      // FastAPI's validation errors come back as a list — surface the first
+      // one helpfully instead of a generic "Failed to analyze".
       let errorMessage = 'Failed to analyze file. Please try again.';
       if (err && typeof err === 'object') {
-        const error = err as { response?: { data?: { detail?: string | Array<{ loc?: string[]; msg: string }> } }; message?: string };
-        if (error.response?.data?.detail) {
-          const detail = error.response.data.detail;
-          // Handle FastAPI validation errors (array of objects)
+        const e = err as { response?: { data?: { detail?: string | Array<{ loc?: string[]; msg: string }> } }; message?: string };
+        if (e.response?.data?.detail) {
+          const detail = e.response.data.detail;
           if (Array.isArray(detail) && detail.length > 0) {
-            // Extract first error message: "run_analysis: Input should be a valid boolean"
-            const firstError = detail[0];
-            errorMessage = `${firstError.loc?.slice(-1)[0] || 'Validation'}: ${firstError.msg}`;
+            errorMessage = `${detail[0].loc?.slice(-1)[0] || 'Validation'}: ${detail[0].msg}`;
           } else if (typeof detail === 'string') {
-            // Handle string detail (other error types)
             errorMessage = detail;
           }
-        } else if (error.message) {
-          errorMessage = error.message;
+        } else if (e.message) {
+          errorMessage = e.message;
         }
       }
-
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Reset workflow: start over with a new file
   const handleReset = () => {
     setSelectedFile(null);
     setError(null);
@@ -106,35 +90,50 @@ const Tab2 = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Main upload interface - show this when no results yet */}
+    <div className="space-y-8">
+      {/* Page intro */}
+      <header>
+        <h1 className="font-serif font-semibold text-4xl text-slate-900 tracking-tight">
+          Analyze notation
+        </h1>
+        <p className="mt-2 text-slate-600 max-w-2xl text-base leading-relaxed">
+          Drop a MusicXML or MIDI file. The engine extracts the chord progression and runs the
+          full pattern analysis — same engine as manual entry, just fed from sheet music.
+        </p>
+      </header>
+
+      {/* Upload + selected-file state. While analyzing, the form stays visible
+          so you can swap files; only after results land do we hide it. */}
       {!results && (
-        <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Upload Music File</h2>
-
-          <div className="space-y-4">
-            {/* File upload zone - drag-and-drop or click to browse */}
-            <FileUploadZone
-              onFileSelected={handleFileSelected}
-              acceptedTypes={ACCEPTED_TYPES}
-              maxSizeMB={10}
-              disabled={loading}
-            />
-
-            {/* Show selected file info */}
-            {selectedFile && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold text-blue-900">Selected File</p>
-                    <p className="text-sm text-blue-800 mt-1">{selectedFile.name}</p>
-                    <p className="text-xs text-blue-600 mt-1">
+        <SectionCard
+          eyebrow="Upload"
+          title="Drop a score"
+          subtitle="MusicXML (.xml, .musicxml, .mxl) or MIDI (.mid, .midi), up to 10 MB"
+        >
+          <div className="space-y-5">
+            {!selectedFile ? (
+              <FileUploadZone
+                onFileSelected={handleFileSelected}
+                acceptedTypes={ACCEPTED_TYPES}
+                maxSizeMB={10}
+                disabled={loading}
+              />
+            ) : (
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/40">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <Eyebrow tone="primary">Selected file</Eyebrow>
+                    <div className="mt-1 font-mono text-sm text-slate-900 truncate">
+                      {selectedFile.name}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500 font-mono tabular-nums">
                       {(selectedFile.size / 1024).toFixed(1)} KB
-                    </p>
+                    </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => setSelectedFile(null)}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    className="text-sm text-slate-600 hover:text-slate-900 underline"
                     disabled={loading}
                   >
                     Remove
@@ -143,122 +142,124 @@ const Tab2 = () => {
               </div>
             )}
 
-            {/* Analyze button - the main action */}
             <button
+              type="button"
               onClick={handleAnalyze}
               disabled={loading || !selectedFile}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition shadow-sm"
+              className="w-full bg-primary-600 hover:bg-primary-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition shadow-sm"
             >
-              {loading ? 'Analyzing File...' : 'Analyze File'}
+              {loading ? 'Analyzing file…' : 'Analyze file'}
             </button>
 
-            {/* Help text */}
-            <div className="bg-gray-50 border border-gray-200 rounded p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">How it works</h3>
-              <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
-                <li>Upload a MusicXML or MIDI file</li>
-                <li>The system extracts chords automatically</li>
-                <li>Harmonic analysis identifies keys and patterns</li>
-                <li>View results with confidence scores</li>
-              </ul>
+            <div className="text-xs text-slate-500 space-y-1.5">
+              <Eyebrow tone="slate">How it works</Eyebrow>
+              <ol className="list-decimal list-inside space-y-1 mt-1.5">
+                <li>Drop a MusicXML or MIDI score above.</li>
+                <li>The engine extracts a chord progression from the notation.</li>
+                <li>Pattern analysis identifies the key, Roman numerals, and stylistic patterns.</li>
+                <li>You see the result with confidence scores and educational notes.</li>
+              </ol>
             </div>
           </div>
-        </div>
+        </SectionCard>
       )}
 
-      {/* Error display - clear and helpful */}
+      {/* Error banner */}
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-          <div className="flex items-start">
-            <div className="flex-1">
-              <p className="text-red-800 font-semibold">Error</p>
-              <p className="text-red-700 text-sm mt-1">{error}</p>
-            </div>
-          </div>
-        </div>
+        <SectionCard
+          eyebrow="Error"
+          title="Couldn't analyze that file"
+          className="border-rose-200 bg-rose-50/50"
+        >
+          <p className="text-sm text-rose-800">{error}</p>
+        </SectionCard>
       )}
 
-      {/* Results display - the payoff */}
+      {/* Results: File Info → Extracted Chords → AnalysisResults → Reset */}
       {results && (
-        <div className="space-y-6">
-          {/* File metadata section */}
-          <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-sm">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">File Information</h3>
-
-            <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-8">
+          <SectionCard eyebrow="File" title="File information">
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
               {results.metadata?.title && (
                 <div>
-                  <span className="text-sm font-semibold text-gray-700">Title: </span>
-                  <span className="text-sm text-gray-900">{results.metadata.title}</span>
+                  <dt className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500">Title</dt>
+                  <dd className="text-slate-900 mt-0.5">{String(results.metadata.title)}</dd>
                 </div>
               )}
               {results.metadata?.composer && (
                 <div>
-                  <span className="text-sm font-semibold text-gray-700">Composer: </span>
-                  <span className="text-sm text-gray-900">{results.metadata.composer}</span>
+                  <dt className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500">Composer</dt>
+                  <dd className="text-slate-900 mt-0.5">{String(results.metadata.composer)}</dd>
                 </div>
               )}
               <div>
-                <span className="text-sm font-semibold text-gray-700">File Type: </span>
-                <span className="text-sm text-gray-900">{results.is_midi ? 'MIDI' : 'MusicXML'}</span>
+                <dt className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500">File type</dt>
+                <dd className="mt-0.5">
+                  <Tag tone={results.is_midi ? 'indigo' : 'primary'}>
+                    {results.is_midi ? 'MIDI' : 'MusicXML'}
+                  </Tag>
+                </dd>
               </div>
               <div>
-                <span className="text-sm font-semibold text-gray-700">Measures: </span>
-                <span className="text-sm text-gray-900">{results.measure_count}</span>
+                <dt className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500">Measures</dt>
+                <dd className="text-slate-900 mt-0.5 font-mono tabular-nums">{results.measure_count}</dd>
               </div>
               {results.key_hint && (
                 <div>
-                  <span className="text-sm font-semibold text-gray-700">Detected Key: </span>
-                  <span className="text-sm text-gray-900">{results.key_hint}</span>
+                  <dt className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500">Detected key</dt>
+                  <dd className="text-slate-900 mt-0.5 font-serif italic">{results.key_hint}</dd>
                 </div>
               )}
-            </div>
-
+            </dl>
             {results.truncated_for_display && (
-              <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded p-3">
-                <p className="text-sm text-yellow-800">
-                  Note: Display limited to first portion of file for performance
-                </p>
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
+                Display limited to the first portion of the file for performance.
               </div>
             )}
-          </div>
+          </SectionCard>
 
-          {/* Extracted chords section */}
-          <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-sm">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Extracted Chords</h3>
-
+          {/* Extracted chord pills — mono grid per design spec. */}
+          <SectionCard
+            eyebrow="Extracted"
+            title={`Extracted chords · ${results.chord_symbols?.length ?? 0}`}
+            subtitle="Chord symbols pulled from the notation"
+          >
             {results.chord_symbols && results.chord_symbols.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {results.chord_symbols.slice(0, 50).map((chord, idx) => (
                   <span
                     key={idx}
-                    className="inline-block bg-gray-100 text-gray-800 px-3 py-1 rounded font-mono text-sm"
+                    className="inline-flex bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-md font-mono text-sm text-slate-800"
                   >
                     {chord}
                   </span>
                 ))}
                 {results.chord_symbols.length > 50 && (
-                  <span className="inline-block text-gray-600 px-3 py-1 text-sm">
-                    ... and {results.chord_symbols.length - 50} more
+                  <span className="inline-flex items-center text-xs text-slate-500 px-2 py-1.5 font-mono tabular-nums">
+                    + {results.chord_symbols.length - 50} more
                   </span>
                 )}
               </div>
             ) : (
-              <p className="text-gray-600">No chords extracted</p>
+              <p className="text-sm text-slate-500">No chords were extracted from this file.</p>
             )}
-          </div>
+          </SectionCard>
 
-          {/* Analysis results - reuse AnalysisResults component if available */}
+          {/* Full analysis tree (re-uses Tab 1's machinery). */}
           {results.analysis_result && (
-            <AnalysisResults results={results.analysis_result} />
+            <AnalysisResults
+              results={results.analysis_result}
+              chords={results.chord_symbols ?? []}
+            />
           )}
 
-          {/* Reset button - analyze another file */}
+          {/* Reset CTA */}
           <button
+            type="button"
             onClick={handleReset}
-            className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 font-semibold py-3 px-6 rounded-lg transition"
+            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold py-3 px-6 rounded-lg transition border border-slate-200"
           >
-            Analyze Another File
+            Analyze another file
           </button>
         </div>
       )}

@@ -1,35 +1,37 @@
-// Tab navigation component - switches between Manual Entry and File Upload
-// Clean, accessible, and shows which tab is active
+// Tab navigation — sub-shell underline pattern from the design README.
+// Three tabs (Manual entry · Analyze notation · Audio analysis) sit on a
+// hairline separator; the active tab gets a coral underline + slate-900 text.
 
 import { Link, useLocation } from 'react-router-dom';
+
+const TABS = [
+  { name: 'Manual entry',     path: '/',       description: 'Type chord symbols and analyze' },
+  { name: 'Analyze notation', path: '/upload', description: 'Upload MusicXML or MIDI' },
+  { name: 'Audio analysis',   path: '/audio',  description: 'Upload an audio recording' },
+];
 
 const TabNavigation = () => {
   const location = useLocation();
 
-  const tabs = [
-    { name: 'Manual Entry', path: '/', description: 'Enter chords manually' },
-    { name: 'File Upload', path: '/upload', description: 'Upload music files (coming soon)' },
-  ];
-
   return (
-    <div className="border-b border-gray-300 mb-6">
-      <nav className="flex space-x-1" aria-label="Tabs">
-        {tabs.map((tab) => {
+    <div className="border-b border-slate-200 mb-8 -mt-2">
+      <nav
+        aria-label="Tabs"
+        className="max-w-6xl mx-auto flex gap-8 -mb-px"
+      >
+        {TABS.map((tab) => {
           const isActive = location.pathname === tab.path;
           return (
             <Link
               key={tab.path}
               to={tab.path}
-              className={`
-                px-6 py-3 text-sm font-medium rounded-t-lg transition
-                ${
-                  isActive
-                    ? 'bg-white text-blue-700 border-b-2 border-blue-700'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }
-              `}
               aria-current={isActive ? 'page' : undefined}
               title={tab.description}
+              className={`py-3.5 text-sm transition-colors border-b-2 ${
+                isActive
+                  ? 'text-slate-900 border-primary-600 font-medium'
+                  : 'text-slate-500 hover:text-slate-800 border-transparent'
+              }`}
             >
               {tab.name}
             </Link>

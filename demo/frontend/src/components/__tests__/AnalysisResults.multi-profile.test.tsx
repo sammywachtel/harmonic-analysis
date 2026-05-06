@@ -111,9 +111,10 @@ describe('AnalysisResults - Multi-Profile UI', () => {
     it('falls back to analysis type badge when no dominant style', () => {
       render(<AnalysisResults results={mockLegacyResponse} chords={['C', 'F', 'G', 'C']} />);
 
-      // Should show type badge instead (no style badge)
+      // Should show type badge instead (no style badge). Reskin also surfaces
+      // the type as a confidence-bar label, so we tolerate multiple matches.
       expect(screen.queryByTestId(/style-badge-/)).not.toBeInTheDocument();
-      expect(screen.getByText('Functional')).toBeInTheDocument();
+      expect(screen.getAllByText('Functional').length).toBeGreaterThan(0);
     });
   });
 
@@ -123,7 +124,9 @@ describe('AnalysisResults - Multi-Profile UI', () => {
 
       const section = screen.getByTestId('style-confidence-section');
       expect(section).toBeInTheDocument();
-      expect(within(section).getByText('Style Confidence:')).toBeInTheDocument();
+      // Reskin moves the heading into a SectionCard title; assert the SectionCard
+      // chrome rendered and the per-style data is reachable.
+      expect(screen.getByText('Style confidence')).toBeInTheDocument();
     });
 
     it('displays all styles sorted by confidence (highest first)', () => {
@@ -174,8 +177,14 @@ describe('AnalysisResults - Multi-Profile UI', () => {
     it('shows correct count in toggle button', () => {
       render(<AnalysisResults results={mockMultiProfileResponse} chords={['C', 'Am', 'Dm', 'G']} />);
 
+      // Reskin: count lives in the SectionCard title; aria-label on the toggle
+      // button still exposes the styled count for assistive tech.
       const button = screen.getByTestId('style-analysis-toggle');
-      expect(button).toHaveTextContent('View analysis through different styles (3)');
+      expect(button).toHaveAttribute(
+        'aria-label',
+        'View analysis through 3 different musical styles',
+      );
+      expect(screen.getByText('View analysis through different styles (3)')).toBeInTheDocument();
     });
 
     it('is collapsed by default', () => {

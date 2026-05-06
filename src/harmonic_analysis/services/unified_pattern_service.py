@@ -716,11 +716,17 @@ class UnifiedPatternService:
             ],  # Diminished characteristics (uppercase)
         }
 
-        # Victory lap: detect mode based on signatures and context
-        # Split roman signature into individual numerals for exact matching
-        roman_numerals_upper = [r.strip() for r in roman_signature_upper.split()]
+        # Detect mode based on signatures and context.
+        #
+        # Signature matching is CASE-SENSITIVE on purpose: the table above
+        # encodes uppercase tokens like "IV" and "VI" because the Dorian
+        # signature is specifically the MAJOR IV chord (D Dorian: Dm-G).
+        # If we uppercase first, every minor "iv7" looks like major "IV7"
+        # — which used to misclassify Em-...-Cmaj7-Am7-...-Em as E Dorian
+        # purely on the strength of the (minor) iv7 it contained.
+        roman_numerals_tokens = [r.strip() for r in " ".join(roman_numerals).split()]
         for mode_name, signatures in mode_signatures.items():
-            if any(sig in roman_numerals_upper for sig in signatures):
+            if any(sig in roman_numerals_tokens for sig in signatures):
                 # Additional context checks for accuracy
                 if mode_name == "mixolydian":
                     if key_type == "major" and (
@@ -755,24 +761,24 @@ class UnifiedPatternService:
 
         # Check for simple modal loops (contextless patterns)
         if len(roman_numerals) <= 4 and len(set(roman_numerals)) <= 3:
-            if any(r == "I" for r in roman_numerals_upper) and any(
-                r == "♭VII" for r in roman_numerals_upper
+            if any(r == "I" for r in roman_numerals_tokens) and any(
+                r == "♭VII" for r in roman_numerals_tokens
             ):
                 return f"{modal_tonic} Mixolydian"
             elif any(r == "i" for r in roman_numerals) and any(
-                r == "♭II" for r in roman_numerals_upper
+                r == "♭II" for r in roman_numerals_tokens
             ):
                 return f"{modal_tonic} Phrygian"
-            elif any(r == "I" for r in roman_numerals_upper) and any(
-                r == "♭II" for r in roman_numerals_upper
+            elif any(r == "I" for r in roman_numerals_tokens) and any(
+                r == "♭II" for r in roman_numerals_tokens
             ):
                 return f"{modal_tonic} Locrian"
             elif any(r == "i" for r in roman_numerals) and any(
-                r == "IV" for r in roman_numerals_upper
+                r == "IV" for r in roman_numerals_tokens
             ):
                 return f"{modal_tonic} Dorian"
-            elif any(r == "I" for r in roman_numerals_upper) and any(
-                r == "♯IV" for r in roman_numerals_upper
+            elif any(r == "I" for r in roman_numerals_tokens) and any(
+                r == "♯IV" for r in roman_numerals_tokens
             ):
                 return f"{modal_tonic} Lydian"
 

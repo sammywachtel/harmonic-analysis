@@ -1,47 +1,45 @@
-// Footer component - version info, links, copyright
-// Keep it simple and informative
+// Slim footer — reference links + version, sitting on a hairline divider.
+// Keeps the page calm; nothing competes with the Roman numerals up top.
 
 import { getLibraryVersion } from '../config/environment';
 
 const Footer = () => {
   const version = getLibraryVersion();
-  const currentYear = new Date().getFullYear();
+  const year = new Date().getFullYear();
 
   return (
-    <footer className="bg-gray-100 border-t border-gray-300 mt-auto">
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <div className="text-sm text-gray-600">
-            <p>Harmonic Analysis Library v{version}</p>
-            <p className="text-xs mt-1">© {currentYear} MIT License</p>
-          </div>
-
-          <div className="flex space-x-6 text-sm">
-            <a
-              href="https://github.com/sammywachtel/harmonic-analysis"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 transition"
-            >
-              GitHub
-            </a>
-            <a
-              href="https://github.com/sammywachtel/harmonic-analysis/blob/main/docs/README.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 transition"
-            >
-              Documentation
-            </a>
-            <a
-              href="https://github.com/sammywachtel/harmonic-analysis/blob/main/LICENSE"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 transition"
-            >
-              License
-            </a>
-          </div>
+    <footer className="mt-12 pt-6 border-t border-slate-200">
+      <div className="max-w-6xl mx-auto px-6 pb-8 flex items-center justify-between flex-wrap gap-2 text-xs text-slate-500">
+        <div>
+          Demo frontend for the{' '}
+          <span className="font-mono text-slate-700">harmonic-analysis</span>{' '}
+          Python library · v{version} · © {year} MIT License
+        </div>
+        <div className="flex items-center gap-4">
+          <a
+            href="https://github.com/sammywachtel/harmonic-analysis/blob/main/docs/README.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-700"
+          >
+            API reference
+          </a>
+          <a
+            href="https://github.com/sammywachtel/harmonic-analysis"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-700"
+          >
+            GitHub
+          </a>
+          <a
+            href="https://github.com/sammywachtel/harmonic-analysis/blob/main/LICENSE"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-700"
+          >
+            License
+          </a>
         </div>
       </div>
     </footer>

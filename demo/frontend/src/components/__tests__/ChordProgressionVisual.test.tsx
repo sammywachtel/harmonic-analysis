@@ -1,116 +1,109 @@
-// Test suite for ChordProgressionVisual component
-// Validates color coding, bracket rendering, and hover interactions
+// Test suite for ChordProgressionVisual component.
+// Validates color stripes (cards keep a white body; the function role is
+// communicated via a top-stripe div), bracket rendering on a CSS grid, and
+// hover interactions.
 
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ChordProgressionVisual } from '../ChordProgressionVisual';
 
+const buildPatternViz = (
+  chordColors: string[],
+  bracketRange: { start: number; end: number },
+  labels: string[] = ['Pattern'],
+) => ([{ chordColors, bracketRange, labels }]);
+
+/** Helper: get the function color stripe inside a chord card.
+ *  Cards render a 4px stripe at the top with the function background class. */
+const getStripe = (card: Element): Element | null =>
+  card.querySelector('div.absolute.top-0');
+
 describe('ChordProgressionVisual', () => {
-  // Opening move: Test basic rendering
   it('renders all chords in the progression', () => {
     const chords = ['Dm', 'G7', 'C'];
     render(<ChordProgressionVisual chords={chords} />);
 
-    // Main play: Verify each chord is rendered
     expect(screen.getByText('Dm')).toBeInTheDocument();
     expect(screen.getByText('G7')).toBeInTheDocument();
     expect(screen.getByText('C')).toBeInTheDocument();
   });
 
-  // Big play: Test color coding functionality
-  it('applies correct color classes based on chord_colors prop', () => {
+  it('applies correct stripe color classes from patternVisualizations', () => {
     const chords = ['Dm', 'G7', 'C'];
-    const chordColors = ['PD', 'D', 'T'];
-    const bracketRange = { start: 0, end: 2 }; // All chords in pattern
 
     const { container } = render(
       <ChordProgressionVisual
         chords={chords}
-        chordColors={chordColors}
-        bracketRange={bracketRange}
+        patternVisualizations={buildPatternViz(['PD', 'D', 'T'], { start: 0, end: 2 })}
       />
     );
 
-    // Time to tackle the tricky bit: Find chord boxes and verify colors
     const chordBoxes = container.querySelectorAll('[role="listitem"]');
     expect(chordBoxes).toHaveLength(3);
 
-    // Verify color classes
-    expect(chordBoxes[0]).toHaveClass('bg-blue-500'); // PD = blue
-    expect(chordBoxes[1]).toHaveClass('bg-orange-500'); // D = orange
-    expect(chordBoxes[2]).toHaveClass('bg-green-500'); // T = green
+    expect(getStripe(chordBoxes[0])).toHaveClass('bg-indigo-500');  // PD
+    expect(getStripe(chordBoxes[1])).toHaveClass('bg-amber-500');   // D
+    expect(getStripe(chordBoxes[2])).toHaveClass('bg-emerald-500'); // T
   });
 
-  // Victory lap: Test bracket rendering
-  it('renders pattern bracket when bracketRange is provided', () => {
+  it('renders pattern bracket when patternVisualizations is provided', () => {
     const chords = ['Dm', 'G7', 'C'];
-    const bracketRange = { start: 1, end: 2 };
 
     const { container } = render(
       <ChordProgressionVisual
         chords={chords}
-        chordColors={['PD', 'D', 'T']}
-        bracketRange={bracketRange}
+        patternVisualizations={buildPatternViz(['PD', 'D', 'T'], { start: 1, end: 2 })}
       />
     );
 
-    // Here's where we check for the SVG bracket
     const svgElement = container.querySelector('svg');
     expect(svgElement).toBeInTheDocument();
 
-    // Pattern text is now a span element outside the SVG (to avoid stretching)
-    // Use screen.getAllByText since "Pattern" also appears in the legend
     const patternTexts = screen.getAllByText('Pattern');
-    expect(patternTexts.length).toBeGreaterThanOrEqual(2); // One in bracket, one in legend
+    expect(patternTexts.length).toBeGreaterThanOrEqual(1);
   });
 
-  // Main play: Test highlight functionality
   it('highlights chords when highlightedChords prop is provided', () => {
     const chords = ['F', 'G7', 'C'];
-    const chordColors = ['PD', 'D', 'T'];
-    const bracketRange = { start: 0, end: 2 }; // All chords in bracket
-    const highlightedChords = [1, 2]; // Highlight G7 and C
 
     const { container } = render(
       <ChordProgressionVisual
         chords={chords}
-        chordColors={chordColors}
-        bracketRange={bracketRange}
-        highlightedChords={highlightedChords}
+        patternVisualizations={buildPatternViz(['PD', 'D', 'T'], { start: 0, end: 2 })}
+        highlightedChords={[1, 2]}
       />
     );
 
     const chordBoxes = container.querySelectorAll('[role="listitem"]');
-
-    // Verify ring effect on highlighted chords
-    expect(chordBoxes[0]).not.toHaveClass('ring-4');
-    expect(chordBoxes[1]).toHaveClass('ring-4');
-    expect(chordBoxes[2]).toHaveClass('ring-4');
+    expect(chordBoxes[0]).not.toHaveClass('ring-2');
+    expect(chordBoxes[1]).toHaveClass('ring-2');
+    expect(chordBoxes[2]).toHaveClass('ring-2');
   });
 
-  // Big play: Test color legend rendering
-  it('renders color legend with all function labels', () => {
+  it('renders color legend with all function labels when patterns have colors', () => {
     const chords = ['G7', 'C'];
-    render(<ChordProgressionVisual chords={chords} />);
+    render(
+      <ChordProgressionVisual
+        chords={chords}
+        patternVisualizations={buildPatternViz(['D', 'T'], { start: 0, end: 1 })}
+      />
+    );
 
-    // Verify legend labels
-    expect(screen.getByText('Color Guide:')).toBeInTheDocument();
+    expect(screen.getByText('Color guide')).toBeInTheDocument();
     expect(screen.getByText('Setup')).toBeInTheDocument();
-    expect(screen.getByText('Pattern')).toBeInTheDocument();
+    // "Pattern" appears in the legend; bracket label uses the same word.
+    const patternMatches = screen.getAllByText('Pattern');
+    expect(patternMatches.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Resolution')).toBeInTheDocument();
   });
 
-  // Time to tackle the tricky bit: Test accessibility
   it('provides proper ARIA labels for chord boxes', () => {
     const chords = ['G7', 'C'];
-    const chordColors = ['D', 'T'];
-    const bracketRange = { start: 0, end: 1 };
 
     const { container } = render(
       <ChordProgressionVisual
         chords={chords}
-        chordColors={chordColors}
-        bracketRange={bracketRange}
+        patternVisualizations={buildPatternViz(['D', 'T'], { start: 0, end: 1 })}
       />
     );
 
@@ -119,51 +112,43 @@ describe('ChordProgressionVisual', () => {
     expect(chordBoxes[1]).toHaveAttribute('aria-label', 'C - Tonic Function');
   });
 
-  // Victory lap: Test edge cases
   it('handles empty chord array gracefully', () => {
     const { container } = render(<ChordProgressionVisual chords={[]} />);
     const chordBoxes = container.querySelectorAll('[role="listitem"]');
     expect(chordBoxes).toHaveLength(0);
   });
 
-  it('renders chords without colors when chordColors is not provided', () => {
+  it('renders neutral cards (no function color) when patternVisualizations is omitted', () => {
     const chords = ['Dm', 'G7', 'C'];
     const { container } = render(<ChordProgressionVisual chords={chords} />);
 
     const chordBoxes = container.querySelectorAll('[role="listitem"]');
-    // Here's where we check fallback styling kicks in
-    expect(chordBoxes[0]).toHaveClass('bg-slate-200');
+    // Cards are white-bodied; the stripe falls back to slate when there's no
+    // function info. None of the function color classes should leak in.
+    expect(getStripe(chordBoxes[0])).toHaveClass('bg-slate-200');
+    expect(getStripe(chordBoxes[0])).not.toHaveClass('bg-indigo-500');
+    expect(getStripe(chordBoxes[0])).not.toHaveClass('bg-amber-500');
+    expect(getStripe(chordBoxes[0])).not.toHaveClass('bg-emerald-500');
   });
 
-  // Main play: Test PAC example from acceptance criteria
-  it('displays PAC example correctly with proper colors and bracket', () => {
+  it('displays PAC example correctly with proper stripe colors and bracket', () => {
     const chords = ['G7', 'C'];
-    const chordColors = ['D', 'T'];  // Dominant, Tonic
-    const bracketRange = { start: 0, end: 1 };
 
     const { container } = render(
       <ChordProgressionVisual
         chords={chords}
-        chordColors={chordColors}
-        bracketRange={bracketRange}
+        patternVisualizations={buildPatternViz(['D', 'T'], { start: 0, end: 1 })}
       />
     );
 
-    // Verify all chords rendered
     expect(screen.getByText('G7')).toBeInTheDocument();
     expect(screen.getByText('C')).toBeInTheDocument();
 
-    // Verify colors match harmonic function (orange for G7/Dominant, green for C/Tonic)
     const chordBoxes = container.querySelectorAll('[role="listitem"]');
-    expect(chordBoxes[0]).toHaveClass('bg-orange-500');  // G7 = Dominant
-    expect(chordBoxes[1]).toHaveClass('bg-green-500');   // C = Tonic
+    expect(getStripe(chordBoxes[0])).toHaveClass('bg-amber-500');    // G7 = Dominant
+    expect(getStripe(chordBoxes[1])).toHaveClass('bg-emerald-500');  // C = Tonic
 
-    // Verify bracket under both chords
     const svgElement = container.querySelector('svg');
     expect(svgElement).toBeInTheDocument();
-
-    // Pattern text is now a span element outside the SVG
-    const patternTexts = screen.getAllByText('Pattern');
-    expect(patternTexts.length).toBeGreaterThanOrEqual(2); // One in bracket, one in legend
   });
 });

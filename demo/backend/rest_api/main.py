@@ -52,17 +52,11 @@ def create_app() -> "FastAPI":
     )
 
     # Big play: configure CORS for local development
-    # Allow requests from frontend (typically localhost:5173 for Vite)
+    # Vite likes to drift ports (5173 → 5174 → 5175...) when one's busy,
+    # so match any localhost/127.0.0.1 port instead of curating a list.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",  # Vite default
-            "http://localhost:3000",  # React/Next.js default
-            "http://localhost:8080",  # Alternative dev port
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:3000",
-            "http://127.0.0.1:8080",
-        ],
+        allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

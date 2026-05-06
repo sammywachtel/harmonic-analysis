@@ -1,8 +1,10 @@
-// Card displaying per-style analysis details with patterns and features
-// Shows confidence, style notes, detected patterns, and characteristic features
+// Per-style breakdown card — restyled to match the SectionCard family while
+// preserving all the data-testid hooks the e2e suite relies on.
 
 import type { StyleAnalysisDetail } from '../types/analysis';
 import { getStyleConfig } from '../utils/styleConfig';
+import Tag from './ui/Tag';
+import type { TagTone } from './ui/Tag';
 
 interface StyleDetailCardProps {
   styleName: string;
@@ -12,56 +14,59 @@ interface StyleDetailCardProps {
 
 const StyleDetailCard = ({ styleName, detail, isDominant }: StyleDetailCardProps) => {
   const config = getStyleConfig(styleName);
+  const tone = (['indigo', 'purple', 'rose', 'emerald'] as TagTone[]).includes(
+    config.tone as TagTone,
+  )
+    ? (config.tone as TagTone)
+    : 'slate';
 
-  // Determine card border and background based on style and dominance
-  const cardClasses = isDominant
-    ? `border-2 ${config.colorClass.split(' ')[1].replace('text-', 'border-')} bg-white`
-    : 'border border-slate-300 bg-slate-50';
+  // Dominant style gets a coral primary border; the rest get the quiet slate.
+  const containerClasses = isDominant
+    ? 'border-2 border-primary-300 bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)]'
+    : 'border border-slate-200 bg-slate-50/40';
 
   return (
     <div
-      className={`rounded-lg p-4 ${cardClasses} style-card`}
+      className={`rounded-xl p-4 ${containerClasses} style-card`}
       data-testid={`style-card-${styleName.toLowerCase()}`}
     >
-      {/* Header: icon, title, confidence, dominant badge */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-xl" aria-hidden="true">
-            {config.icon}
-          </span>
-          <h5 className="font-semibold text-slate-900">{config.label} Interpretation</h5>
+          <span className="text-xl" aria-hidden="true">{config.icon}</span>
+          <h5 className="font-serif font-semibold text-slate-900 tracking-tight">
+            {config.label} interpretation
+          </h5>
         </div>
         <div className="flex items-center gap-2">
           <span
-            className="px-2 py-1 bg-slate-200 text-slate-800 text-sm font-medium rounded"
+            className="px-2 py-0.5 bg-slate-100 text-slate-800 text-xs font-mono tabular-nums rounded-md border border-slate-200"
             data-testid={`confidence-${styleName.toLowerCase()}`}
           >
             {(detail.confidence * 100).toFixed(0)}%
           </span>
           {isDominant && (
-            <span
-              className="px-2 py-1 bg-primary-600 text-white text-xs font-semibold rounded"
-              data-testid="dominant-badge"
-            >
-              Primary
+            <span data-testid="dominant-badge">
+              <Tag tone="primary">Primary</Tag>
             </span>
           )}
+          {!isDominant && <Tag tone={tone}>{config.label}</Tag>}
         </div>
       </div>
 
-      {/* Style notes: contextual explanation */}
       {detail.style_notes && (
-        <p className="text-slate-700 text-sm mb-3 italic" data-testid="style-notes">
+        <p
+          className="text-sm text-slate-600 italic leading-relaxed mb-3"
+          data-testid="style-notes"
+        >
           {detail.style_notes}
         </p>
       )}
 
-      {/* Detected patterns */}
       {detail.patterns && detail.patterns.length > 0 && (
         <div className="mb-3">
-          <h6 className="text-xs font-semibold text-slate-600 uppercase mb-2">
-            Detected Patterns
-          </h6>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mb-2">
+            Detected patterns
+          </div>
           <div className="space-y-1">
             {detail.patterns.map((pattern, idx) => (
               <div
@@ -70,19 +75,20 @@ const StyleDetailCard = ({ styleName, detail, isDominant }: StyleDetailCardProps
                 data-testid={`pattern-item-${idx}`}
               >
                 <span className="text-slate-900">{pattern.name}</span>
-                <span className="text-slate-600">{(pattern.score * 100).toFixed(0)}%</span>
+                <span className="text-slate-500 font-mono tabular-nums text-xs">
+                  {(pattern.score * 100).toFixed(0)}%
+                </span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Characteristic features */}
       {detail.characteristic_features && detail.characteristic_features.length > 0 && (
         <div>
-          <h6 className="text-xs font-semibold text-slate-600 uppercase mb-2">
-            Characteristic Features
-          </h6>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 mb-2">
+            Characteristic features
+          </div>
           <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
             {detail.characteristic_features.map((feature, idx) => (
               <li key={idx} data-testid={`feature-${idx}`}>

@@ -144,13 +144,19 @@ describe('EnhancedPatternCard', () => {
     it('displays score as percentage', () => {
       render(<EnhancedPatternCard pattern={mockPattern} />);
 
-      expect(screen.getByText('Score: 95%')).toBeInTheDocument();
+      // "score 95%" — text nodes are split across sibling spans, so match the
+      // wrapper element by its rendered textContent.
+      expect(
+        screen.getByText((_content, el) => el?.textContent === 'score 95%'),
+      ).toBeInTheDocument();
     });
 
     it('displays chord range', () => {
       render(<EnhancedPatternCard pattern={mockPattern} />);
 
-      expect(screen.getByText(/Chords 2–4/)).toBeInTheDocument();
+      expect(
+        screen.getByText((_content, el) => el?.textContent === 'chords 2–4'),
+      ).toBeInTheDocument();
     });
 
     it('displays cadence role badge', () => {
@@ -163,13 +169,14 @@ describe('EnhancedPatternCard', () => {
       const patternWithClosure = { ...mockPattern, is_section_closure: true };
       render(<EnhancedPatternCard pattern={patternWithClosure} />);
 
-      expect(screen.getByText('Section Closure')).toBeInTheDocument();
+      // Reskin uses lowercase "section closure" inside a Tag.
+      expect(screen.getByText('section closure')).toBeInTheDocument();
     });
 
     it('does not display section closure badge when false', () => {
       render(<EnhancedPatternCard pattern={mockPattern} />);
 
-      expect(screen.queryByText('Section Closure')).not.toBeInTheDocument();
+      expect(screen.queryByText('section closure')).not.toBeInTheDocument();
     });
 
     it('handles missing cadence role', () => {
@@ -295,21 +302,27 @@ describe('EnhancedPatternCard', () => {
       const patternZeroScore = { ...mockPattern, score: 0 };
       render(<EnhancedPatternCard pattern={patternZeroScore} />);
 
-      expect(screen.getByText('Score: 0%')).toBeInTheDocument();
+      expect(
+        screen.getByText((_c, el) => el?.textContent === 'score 0%'),
+      ).toBeInTheDocument();
     });
 
     it('handles pattern spanning single chord', () => {
       const patternSingleChord = { ...mockPattern, start: 2, end: 2 };
       render(<EnhancedPatternCard pattern={patternSingleChord} />);
 
-      expect(screen.getByText(/Chords 2–2/)).toBeInTheDocument();
+      expect(
+        screen.getByText((_c, el) => el?.textContent === 'chords 2–2'),
+      ).toBeInTheDocument();
     });
 
     it('rounds score to nearest integer', () => {
       const patternDecimalScore = { ...mockPattern, score: 0.8567 };
       render(<EnhancedPatternCard pattern={patternDecimalScore} />);
 
-      expect(screen.getByText('Score: 86%')).toBeInTheDocument();
+      expect(
+        screen.getByText((_c, el) => el?.textContent === 'score 86%'),
+      ).toBeInTheDocument();
     });
   });
 });

@@ -1,73 +1,142 @@
 @import "tailwindcss";
 
-@theme {
-  /* Opening move: Custom color palette with WCAG-compliant contrast */
-  --color-primary-50: #f0f9ff;
-  --color-primary-100: #e0f2fe;
-  --color-primary-200: #bae6fd;
-  --color-primary-300: #7dd3fc;
-  --color-primary-400: #38bdf8;
-  --color-primary-500: #0ea5e9;
-  --color-primary-600: #0284c7;
-  --color-primary-700: #0369a1;
-  --color-primary-800: #075985;
-  --color-primary-900: #0c4a6e;
+/* Editorial typeface stack — Source Serif 4 for tonics & numerals, Inter for UI,
+   JetBrains Mono for tabular/code. Loaded once here so every component inherits
+   the same metrics. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-  --color-success-50: #f0fdf4;
+@theme {
+  /* Coral / orange ramp — the editorial primary scale. Warm and saturated to
+     pair against serif tonics and slate neutrals. Spec: design README. */
+  --color-primary-50:  #fff5f1;
+  --color-primary-100: #ffe4d9;
+  --color-primary-200: #ffc7b0;
+  --color-primary-300: #ff9d76;
+  --color-primary-400: #ff7a4f;
+  --color-primary-500: #ff5e2b;
+  --color-primary-600: #e8420f;
+  --color-primary-700: #c2330b;
+  --color-primary-800: #992409;
+  --color-primary-900: #6e1806;
+
+  /* Status scales preserved for legacy components (success/warning/error/info). */
+  --color-success-50:  #f0fdf4;
   --color-success-100: #dcfce7;
   --color-success-500: #22c55e;
   --color-success-700: #15803d;
   --color-success-800: #166534;
   --color-success-900: #14532d;
 
-  --color-warning-50: #fffbeb;
+  --color-warning-50:  #fffbeb;
   --color-warning-100: #fef3c7;
   --color-warning-500: #f59e0b;
   --color-warning-700: #b45309;
 
-  --color-error-50: #fef2f2;
-  --color-error-100: #fee2e2;
-  --color-error-500: #ef4444;
-  --color-error-700: #b91c1c;
-  --color-error-800: #991b1b;
+  --color-error-50:    #fef2f2;
+  --color-error-100:   #fee2e2;
+  --color-error-500:   #ef4444;
+  --color-error-700:   #b91c1c;
+  --color-error-800:   #991b1b;
 
-  --color-info-50: #eff6ff;
-  --color-info-100: #dbeafe;
-  --color-info-200: #bfdbfe;
-  --color-info-500: #3b82f6;
-  --color-info-700: #1d4ed8;
-  --color-info-800: #1e40af;
-  --color-info-900: #1e3a8a;
+  --color-info-50:     #eff6ff;
+  --color-info-100:    #dbeafe;
+  --color-info-200:    #bfdbfe;
+  --color-info-500:    #3b82f6;
+  --color-info-700:    #1d4ed8;
+  --color-info-800:    #1e40af;
+  --color-info-900:    #1e3a8a;
 
-  /* Big play: Typography scale */
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
+  /* Typography — three families, one job each. */
+  --font-sans:  'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-serif: '"Source Serif 4"', Georgia, serif;
+  --font-mono:  '"JetBrains Mono"', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --font-size-xs:   0.75rem;
+  --font-size-sm:   0.875rem;
   --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
+  --font-size-lg:   1.125rem;
+  --font-size-xl:   1.25rem;
+  --font-size-2xl:  1.5rem;
 
-  --line-height-xs: 1rem;
-  --line-height-sm: 1.25rem;
+  --line-height-xs:   1rem;
+  --line-height-sm:   1.25rem;
   --line-height-base: 1.5rem;
-  --line-height-lg: 1.75rem;
-  --line-height-xl: 1.75rem;
-  --line-height-2xl: 2rem;
+  --line-height-lg:   1.75rem;
+  --line-height-xl:   1.75rem;
+  --line-height-2xl:  2rem;
 
-  /* Victory lap: Custom spacing */
-  --spacing-18: 4.5rem;
-  --spacing-88: 22rem;
+  --spacing-18:  4.5rem;
+  --spacing-88:  22rem;
   --spacing-100: 25rem;
+
+  /* Soft elevation used by SectionCard chrome. */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Range sliders for the audio segment selector + advanced controls. The two
+   handles overlap on the same track. Critical detail: the track has
+   `pointer-events: none` so it doesn't capture clicks at all — only the thumb
+   pseudo-elements do, via `pointer-events: auto`. Without this, whichever
+   range input is rendered second in the DOM (the end thumb in our case) sits
+   on top and steals every click — the start thumb becomes unreachable. */
+.audio-range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+.audio-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: white;
+  border: 2px solid #e8420f;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.audio-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: white;
+  border: 2px solid #e8420f;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.audio-range::-webkit-slider-runnable-track { background: transparent; }
+.audio-range::-moz-range-track { background: transparent; }
+
+/* Single-handle variant — track clicks should seek, so re-enable pointer
+   events on the whole input. The dual-handle SegmentRange must NOT use this
+   variant or the second thumb steals clicks meant for the first. */
+.audio-range-single {
+  pointer-events: auto;
+}
+
+@keyframes loading-bar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(166%); }
 }

@@ -8,6 +8,16 @@ export interface AnalysisRequest {
   include_educational?: boolean;
 }
 
+// Glossary entry shape from the engine. Older endpoints emitted a bare term
+// string; newer ones emit an object with definition + example fields. We
+// tolerate both at the type level so consumers can guard at runtime.
+export interface GlossaryEntry {
+  definition?: string;
+  example_in_C_major?: string;
+  term?: string;
+  type?: string;
+}
+
 // Pattern match details from the unified pattern engine
 export interface PatternMatch {
   start: number;
@@ -19,7 +29,7 @@ export interface PatternMatch {
   evidence: Array<{
     features: Record<string, number>;
   }>;
-  glossary: string | null;
+  glossary: GlossaryEntry | string | null;
   section: string | null;
   cadence_role: string | null;
   is_section_closure: boolean;

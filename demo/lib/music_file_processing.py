@@ -79,7 +79,7 @@ async def analyze_uploaded_file(
     harmonic analysis on the extracted chord progression.
 
     Args:
-        file_path: Path to uploaded file (.xml, .mxl, .mid, .midi)
+        file_path: Path to uploaded file (.xml, .musicxml, .mxl, .mid, .midi)
         add_chordify: Whether to add chordify staff to score
         label_chords: Whether to add chord symbol labels
         run_analysis: Whether to run harmonic analysis on chords
@@ -133,10 +133,10 @@ async def analyze_uploaded_file(
 
     # Validate file extension
     file_ext = os.path.splitext(file_path)[1].lower()
-    if file_ext not in [".xml", ".mxl", ".mid", ".midi"]:
+    if file_ext not in [".xml", ".musicxml", ".mxl", ".mid", ".midi"]:
         raise ValueError(
             f"Unsupported file format: {file_ext}. "
-            "Expected .xml, .mxl, .mid, or .midi"
+            "Expected .xml, .musicxml, .mxl, .mid, or .midi"
         )
 
     # Track if this is a MIDI file
@@ -149,7 +149,7 @@ async def analyze_uploaded_file(
     with warnings.catch_warnings(record=True) as caught_warnings:
         warnings.simplefilter("always")
 
-        if file_ext in [".xml", ".mxl"]:
+        if file_ext in [".xml", ".musicxml", ".mxl"]:
             parsing_logs.append(
                 f"📄 Parsing MusicXML file: {os.path.basename(file_path)}"
             )
