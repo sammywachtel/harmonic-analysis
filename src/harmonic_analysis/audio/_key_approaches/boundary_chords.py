@@ -56,13 +56,17 @@ _DEFAULT_MIN_DURATION_S = 0.5
 def _root_pitch_class(chord_label: str) -> Optional[int]:
     """Extract pitch-class index from a chord label.
 
-    Handles 'C', 'C#', 'Cm', 'C#m', 'Bm', etc. Returns None for unparseable
-    labels so callers don't have to wrap in try/except.
+    Handles every label the chord estimator can emit: 'C', 'C#', 'Cm',
+    'C#m', 'Bm', 'C7', 'Cm7', 'Cmaj7', 'Cdim', 'Cdim7', 'Cm7b5', etc.
+    Returns None for unparseable labels so callers don't have to wrap
+    in try/except.
     """
-    # Strip trailing 'm' for minor; preserve sharps. The chord estimator
-    # only outputs major/minor triads (no extensions, no slash chords),
-    # so this simple peel is sufficient.
-    root_name = chord_label.rstrip("m") if chord_label.endswith("m") else chord_label
+    if not chord_label:
+        return None
+    if len(chord_label) >= 2 and chord_label[1] == "#":
+        root_name = chord_label[:2]
+    else:
+        root_name = chord_label[:1]
     try:
         return PITCH_CLASSES.index(root_name)
     except ValueError:
@@ -70,8 +74,28 @@ def _root_pitch_class(chord_label: str) -> Optional[int]:
 
 
 def _is_minor_label(chord_label: str) -> bool:
-    """True if the chord is minor (e.g. 'Am', 'Bm', 'F#m')."""
-    return chord_label.endswith("m")
+    """True if the chord is functionally minor.
+
+    'Cm', 'Am', 'F#m' → True. 'Cm7', 'Am7' → True (still minor).
+    'C', 'G7', 'Cmaj7' → False (major). 'Cdim', 'Cdim7', 'Cm7b5' →
+    False (diminished/half-dim aren't really minor for boundary
+    purposes — they wouldn't function as a minor tonic).
+    """
+    if not chord_label:
+        return False
+    suffix = (
+        chord_label[2:]
+        if len(chord_label) >= 2 and chord_label[1] == "#"
+        else chord_label[1:]
+    )
+    # 'maj7' starts with 'm' but is decidedly major — special-case it.
+    if suffix.startswith("maj"):
+        return False
+    # Plain 'm' or 'm' followed by '7' / nothing → minor.
+    # 'm7b5' is half-diminished, not minor in the boundary sense.
+    if suffix == "m" or suffix == "m7":
+        return True
+    return False
 
 
 class BoundaryChordsApproach(KeyDetectionApproach):
