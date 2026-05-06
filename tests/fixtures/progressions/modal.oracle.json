@@ -8,135 +8,310 @@
   "progressions": [
     {
       "name": "d_dorian_i_IV_classic",
-      "chords": ["Dm", "G", "Dm", "G"],
+      "chords": [
+        "Dm",
+        "G",
+        "Dm",
+        "G"
+      ],
       "key": "D minor",
       "key_hint": "D minor",
-      "roman_numerals": ["i", "IV", "i", "IV"],
+      "roman_numerals": [
+        "i",
+        "IV",
+        "i",
+        "IV"
+      ],
       "mode_expected": "D Dorian",
       "comment": "Textbook Dorian vamp. G major contains B-natural — that's the raised 6th, the Dorian signature against natural minor (which has B♭). The major IV chord IS the distinguishing feature; if classified as Aeolian/minor, that's wrong."
     },
     {
       "name": "e_dorian_i_IV_classic",
-      "chords": ["Em", "A", "Em", "A"],
+      "chords": [
+        "Em",
+        "A",
+        "Em",
+        "A"
+      ],
       "key": "E minor",
       "key_hint": "E minor",
-      "roman_numerals": ["i", "IV", "i", "IV"],
+      "roman_numerals": [
+        "i",
+        "IV",
+        "i",
+        "IV"
+      ],
       "mode_expected": "E Dorian",
       "comment": "Same shape transposed to E. A major contains C♯ — the Dorian #6 in E. Confirms Dorian detection isn't D-specific."
     },
     {
       "name": "d_dorian_with_minor_v",
-      "chords": ["Dm", "G", "Am", "G", "Dm"],
+      "chords": [
+        "Dm",
+        "G",
+        "Am",
+        "G",
+        "Dm"
+      ],
       "key": "D minor",
       "key_hint": "D minor",
-      "roman_numerals": ["i", "IV", "v", "IV", "i"],
+      "roman_numerals": [
+        "i",
+        "IV",
+        "v",
+        "IV",
+        "i"
+      ],
       "mode_expected": "D Dorian",
       "comment": "Dorian with the natural-minor v (Am, no leading tone). Important: the v stays MINOR (lowercase) — Dorian doesn't raise the 7th. The IV major is what makes it Dorian, not the v."
     },
     {
       "name": "a_dorian_iv_then_IV_juxtaposition",
-      "chords": ["Am", "Dm", "Am", "D", "Am"],
+      "chords": [
+        "Am",
+        "Dm",
+        "Am",
+        "D",
+        "Am"
+      ],
       "key": "A minor",
       "key_hint": "A minor",
-      "roman_numerals": ["i", "iv", "i", "IV", "i"],
+      "roman_numerals": [
+        "i",
+        "iv",
+        "i",
+        "IV",
+        "i"
+      ],
       "mode_expected": "A Dorian",
       "comment": "The piece de resistance: minor iv (Dm) and major IV (D) side by side. The IV chord with F♯ is the Dorian raised 6; the iv with F-natural is the natural-minor 6. Real music does this — same scale degree, different quality. Analyzer should commit to Dorian on the strength of the major IV."
     },
     {
       "name": "d_mixolydian_bVII_drone",
-      "chords": ["D", "C", "G", "D"],
+      "chords": [
+        "D",
+        "C",
+        "G",
+        "D"
+      ],
       "key": "D major",
       "key_hint": "D major",
-      "roman_numerals": ["I", "♭VII", "IV", "I"],
+      "roman_numerals": [
+        "I",
+        "♭VII",
+        "IV",
+        "I"
+      ],
       "mode_expected": "D Mixolydian",
       "comment": "Classic Mixolydian: I-♭VII-IV-I. C major has C-natural, the lowered 7th of D — the Mixolydian signature against D major's leading-tone C♯."
     },
     {
       "name": "a_mixolydian_southern_rock",
-      "chords": ["A", "G", "D", "A"],
+      "chords": [
+        "A",
+        "G",
+        "D",
+        "A"
+      ],
       "key": "A major",
       "key_hint": "A major",
-      "roman_numerals": ["I", "♭VII", "IV", "I"],
+      "roman_numerals": [
+        "I",
+        "♭VII",
+        "IV",
+        "I"
+      ],
       "mode_expected": "A Mixolydian",
       "comment": "Same shape, A tonic. G major has G-natural = ♭7 of A. The classic 'Sweet Home Alabama' / 'Cinnamon Girl' / Southern-rock Mixolydian color."
     },
     {
       "name": "g_mixolydian_simple_vamp",
-      "chords": ["G", "F", "G", "F", "G"],
+      "chords": [
+        "G",
+        "F",
+        "G",
+        "F",
+        "G"
+      ],
       "key": "G major",
       "key_hint": "G major",
-      "roman_numerals": ["I", "♭VII", "I", "♭VII", "I"],
+      "roman_numerals": [
+        "I",
+        "♭VII",
+        "I",
+        "♭VII",
+        "I"
+      ],
       "mode_expected": "G Mixolydian",
       "comment": "Two-chord vamp showing Mixolydian needs only the ♭VII to read. The IV chord isn't required for classification, just the ♭7 above the tonic."
     },
     {
       "name": "e_phrygian_bII_signature",
-      "chords": ["Em", "F", "Em", "F", "Em"],
+      "chords": [
+        "Em",
+        "F",
+        "Em",
+        "F",
+        "Em"
+      ],
       "key": "E minor",
       "key_hint": "E minor",
-      "roman_numerals": ["i", "♭II", "i", "♭II", "i"],
+      "roman_numerals": [
+        "i",
+        "♭II",
+        "i",
+        "♭II",
+        "i"
+      ],
       "mode_expected": "E Phrygian",
       "comment": "Phrygian's distinguishing chord: a major triad on the lowered 2nd. F major over E tonic gives the half-step-above-tonic flavor that's instantly recognizable as Phrygian (Spanish/flamenco color)."
     },
     {
       "name": "b_phrygian_bII_alternation",
-      "chords": ["Bm", "C", "Bm", "C", "Bm"],
+      "chords": [
+        "Bm",
+        "C",
+        "Bm",
+        "C",
+        "Bm"
+      ],
       "key": "B minor",
       "key_hint": "B minor",
-      "roman_numerals": ["i", "♭II", "i", "♭II", "i"],
+      "roman_numerals": [
+        "i",
+        "♭II",
+        "i",
+        "♭II",
+        "i"
+      ],
       "mode_expected": "B Phrygian",
       "comment": "Same Phrygian shape, B tonic. C major over B is the bII. Confirms detection is tonic-agnostic."
     },
     {
       "name": "c_lydian_attempt_documents_gap",
-      "chords": ["C", "D", "C", "D"],
+      "chords": [
+        "C",
+        "D",
+        "C",
+        "D"
+      ],
       "key": "C major",
       "key_hint": "C major",
-      "roman_numerals": ["I", "II", "I", "II"],
+      "roman_numerals": [
+        "I",
+        "II",
+        "I",
+        "II"
+      ],
       "mode_expected": "C Lydian",
-      "comment": "EXPECTED-FAIL bug ticket: D major in C contains F♯ — the Lydian #4. But the analyzer's Lydian signature looks for '♯IV' or '♭V' tokens; this progression produces 'II' instead. The pitch evidence IS Lydian, but the current signature matcher misses it. This case documents that gap — the right fix is teaching the matcher that 'II' (a major chord on the natural 2nd) over a major tonic IS a Lydian indicator (it implies #4 in the chord). Until then, this fails."
+      "comment": "EXPECTED-FAIL bug ticket: D major in C contains F♯ — the Lydian #4. But the analyzer's Lydian signature looks for '♯IV' or '♭V' tokens; this progression produces 'II' instead. The pitch evidence IS Lydian, but the current signature matcher misses it. This case documents that gap — the right fix is teaching the matcher that 'II' (a major chord on the natural 2nd) over a major tonic IS a Lydian indicator (it implies #4 in the chord). Until then, this fails.",
+      "expected_to_fail": true
     },
     {
       "name": "f_lydian_attempt_documents_gap",
-      "chords": ["F", "G", "F", "G", "F"],
+      "chords": [
+        "F",
+        "G",
+        "F",
+        "G",
+        "F"
+      ],
       "key": "F major",
       "key_hint": "F major",
-      "roman_numerals": ["I", "II", "I", "II", "I"],
+      "roman_numerals": [
+        "I",
+        "II",
+        "I",
+        "II",
+        "I"
+      ],
       "mode_expected": "F Lydian",
-      "comment": "EXPECTED-FAIL: same Lydian-detection gap as previous, F tonic. G major contains B-natural = #4 of F. The pitch evidence is unambiguous Lydian. Two failing cases on the same gap make the bug ticket harder to ignore."
+      "comment": "EXPECTED-FAIL: same Lydian-detection gap as previous, F tonic. G major contains B-natural = #4 of F. The pitch evidence is unambiguous Lydian. Two failing cases on the same gap make the bug ticket harder to ignore.",
+      "expected_to_fail": true
     },
     {
       "name": "b_aeolian_pure_natural_minor_documents_dorian_misfire",
-      "chords": ["Bm", "A", "G", "A", "Bm"],
+      "chords": [
+        "Bm",
+        "A",
+        "G",
+        "A",
+        "Bm"
+      ],
       "key": "B minor",
       "key_hint": "B minor",
-      "roman_numerals": ["i", "♭VII", "VI", "♭VII", "i"],
+      "roman_numerals": [
+        "i",
+        "♭VII",
+        "VI",
+        "♭VII",
+        "i"
+      ],
       "mode_expected": "B Aeolian",
-      "comment": "EXPECTED-FAIL bug ticket. Chord pitches are pure B Aeolian (B C♯ D E F♯ G A — no G♯ which would be Dorian's raised 6). But the analyzer reports 'B Dorian' because the Dorian signature ['VI', '♯VI', 'II', 'IV'] matches the bare 'VI' token in the romans. The 'VI' here is the codebase's label for the chord on natural ♭6 (G in B minor) — but the Dorian matcher reads it as raised-6 evidence. This is the concrete functional consequence of the convention ambiguity tracked in task #9: 'VI' (without ♭) is overloaded across modes. Fix is either (a) emit '♭VI' at slot 8 (cascades into other oracle cases), or (b) make the Dorian matcher check actual chord pitches, not just roman tokens. Either fix would unblock this case."
+      "comment": "EXPECTED-FAIL bug ticket. Chord pitches are pure B Aeolian (B C♯ D E F♯ G A — no G♯ which would be Dorian's raised 6). But the analyzer reports 'B Dorian' because the Dorian signature ['VI', '♯VI', 'II', 'IV'] matches the bare 'VI' token in the romans. The 'VI' here is the codebase's label for the chord on natural ♭6 (G in B minor) — but the Dorian matcher reads it as raised-6 evidence. This is the concrete functional consequence of the convention ambiguity tracked in task #9: 'VI' (without ♭) is overloaded across modes. Fix is either (a) emit '♭VI' at slot 8 (cascades into other oracle cases), or (b) make the Dorian matcher check actual chord pitches, not just roman tokens. Either fix would unblock this case.",
+      "expected_to_fail": true
     },
     {
       "name": "modal_too_short_to_commit",
-      "chords": ["Em", "Am", "Em"],
+      "chords": [
+        "Em",
+        "Am",
+        "Em"
+      ],
       "key": "E minor",
-      "roman_numerals": ["i", "iv", "i"],
-      "mode_must_not_be": ["E Dorian", "E Phrygian", "E Lydian", "E Mixolydian", "E Locrian"],
+      "roman_numerals": [
+        "i",
+        "iv",
+        "i"
+      ],
+      "mode_must_not_be": [
+        "E Dorian",
+        "E Phrygian",
+        "E Lydian",
+        "E Mixolydian",
+        "E Locrian"
+      ],
       "comment": "Just i-iv-i. No mode-characteristic notes (Am has C-natural and E, both ambiguous between Aeolian and Phrygian; F-natural absent rules out Lydian/major; C♯ absent rules out Dorian; etc.). The analyzer must NOT over-commit. Aeolian or None are both fine; anything else is a false positive."
     },
     {
       "name": "major_with_borrowed_iv_not_modal",
-      "chords": ["C", "F", "Fm", "C"],
+      "chords": [
+        "C",
+        "F",
+        "Fm",
+        "C"
+      ],
       "key": "C major",
       "key_hint": "C major",
-      "roman_numerals": ["I", "IV", "iv", "I"],
-      "mode_must_not_be": ["C Dorian", "C Phrygian", "C Lydian", "C Mixolydian", "C Locrian"],
+      "roman_numerals": [
+        "I",
+        "IV",
+        "iv",
+        "I"
+      ],
+      "mode_must_not_be": [
+        "C Dorian",
+        "C Phrygian",
+        "C Lydian",
+        "C Mixolydian",
+        "C Locrian"
+      ],
       "comment": "Modal mixture, NOT a mode change. The minor iv (Fm with A♭) is borrowed from C minor — a textbook chromatic color in major-key tonal music. Should NOT classify as Dorian (which has the OPPOSITE: major IV in a minor key). The presence of MAJOR IV first establishes the major-key context; the brief minor iv is decoration."
     },
     {
       "name": "brief_dorian_color_in_minor",
-      "chords": ["Am", "D", "Am"],
+      "chords": [
+        "Am",
+        "D",
+        "Am"
+      ],
       "key": "A minor",
       "key_hint": "A minor",
-      "roman_numerals": ["i", "IV", "i"],
+      "roman_numerals": [
+        "i",
+        "IV",
+        "i"
+      ],
       "mode_expected": "A Dorian",
       "comment": "Three chords, raised 6 (D major has F♯, the raised 6 of A natural minor). Even a brief major-IV gesture committee to Dorian — the F♯ is unambiguous. If the analyzer demands more evidence than this, the threshold is too high."
     }

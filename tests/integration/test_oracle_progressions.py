@@ -45,12 +45,39 @@ def _case_id(item: Tuple[str, Dict[str, Any]]) -> str:
     return f"{short}::{case['name']}"
 
 
+def _build_params() -> List[Any]:
+    """Wrap each case in pytest.param, attaching xfail marks ONLY to entries
+    that explicitly opt in via ``"expected_to_fail": true`` in the JSON.
+
+    Important: there is no naming-convention fallback. We do NOT silently
+    convert tests whose names contain "documents_gap" or any other pattern.
+    Hiding analyzer bugs behind implicit xfail rules is exactly the failure
+    mode this oracle suite exists to prevent — when the analyzer is wrong,
+    the test must stay loud until either the analyzer is fixed or the
+    fixture author explicitly acknowledges the gap.
+
+    To mark a case xfail, add ``"expected_to_fail": true`` to its JSON
+    object. The case ``comment`` becomes the xfail reason so the gap is
+    self-documenting in the test report.
+    """
+    params: List[Any] = []
+    for fixture, case in CASES:
+        marks: List[Any] = []
+        if case.get("expected_to_fail", False):
+            reason = case.get("comment") or "Documented analyzer gap (xfail)"
+            marks.append(pytest.mark.xfail(reason=reason, strict=False))
+        params.append(
+            pytest.param((fixture, case), id=_case_id((fixture, case)), marks=marks),
+        )
+    return params
+
+
 @pytest.fixture(scope="module")
 def service() -> PatternAnalysisService:
     return PatternAnalysisService()
 
 
-@pytest.mark.parametrize("fixture_and_case", CASES, ids=[_case_id(c) for c in CASES])
+@pytest.mark.parametrize("fixture_and_case", _build_params())
 @pytest.mark.asyncio
 async def test_oracle_progression(
     service: PatternAnalysisService,
