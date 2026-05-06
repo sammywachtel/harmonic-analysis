@@ -74,6 +74,9 @@ AudioAdapter(
     use_bass_chroma: bool = False,
     bass_bonus: float = 0.3,
     min_chroma_norm: float = 0.05,
+    key_detection: str | list[str] | dict[str, float] = "default",
+    show_analysis_details: bool = False,
+    key_ensemble_weights: dict[str, float] | None = None,
 )
 ```
 
@@ -90,6 +93,9 @@ AudioAdapter(
 | `use_bass_chroma` | `bool` | `False` | Enable bass-aware chord estimation using a second chroma extraction focused on low frequencies |
 | `bass_bonus` | `float` | `0.3` | Maximum bonus added to template cosine similarity when the chord root matches the bass chroma peak. Scaled per-window by bass-chroma confidence so noisy bass detections contribute less. Only effective when `use_bass_chroma=True` |
 | `min_chroma_norm` | `float` | `0.05` | Minimum L2 norm threshold for chord detection windows. Windows below this norm are treated as silence and produce no chord label |
+| `key_detection` | `str \| list[str] \| dict[str, float]` | `"default"` | Ensemble preset (`"default"`, `"ks_only"`, `"full"`), explicit list of approach names, or `{name: weight}` dict. See [Key Detection Ensemble](#key-detection-ensemble) below |
+| `show_analysis_details` | `bool` | `False` | When `True`, populates `result.key_analysis_details` with per-approach breakdown for debugging |
+| `key_ensemble_weights` | `dict[str, float] \| None` | `None` | Optional override mapping approach name → weight; replaces preset defaults |
 
 **Raises:** `AudioImportError` if `librosa` or `soundfile` cannot be imported.
 
@@ -119,7 +125,7 @@ The top-level result returned by `analyze_audio` and `AudioAdapter.from_audio`.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `global_key` | `KeyInfo` | Ensemble key estimate over the whole file (was K-S only before iteration 02) |
+| `global_key` | `KeyInfo` | Ensemble key estimate over the whole file |
 | `local_key` | `KeyInfo` | Key estimate over the analyzed segment |
 | `cadences` | `CadenceInfo` | V-I cadence detection result |
 | `region` | `RegionInfo` | Region classification (stable / modulation / modal_shift) |

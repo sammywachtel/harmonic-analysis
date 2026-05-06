@@ -1,84 +1,68 @@
 # Harmonic Analysis Library Documentation
 
-This documentation is organized according to the [Diátaxis framework](https://diataxis.fr/) for better discoverability and usability.
+Documentation organized using the [Diátaxis framework](https://diataxis.fr/).
 
-## 📚 Documentation Structure
+## 📚 Documentation Map
 
-### 🎓 [Tutorials](tutorials/) - *Learning-oriented*
-Step-by-step lessons for getting started and learning core concepts:
-- [Getting Started Guide](tutorials/getting-started.md) - Your first analysis ✅
+### 🎓 [Tutorials](tutorials/) — *Learning-oriented*
 
-### 🔧 [How-to Guides](how-to/) - *Problem-oriented*
-Practical solutions for specific tasks:
-- [API Integration](how-to/api-integration.md) - Integrate the library into your application ✅
-- [music21 Integration](how-to/music21-integration.md) - Analyze MusicXML and MIDI files ✅
-- [Troubleshooting](how-to/troubleshooting.md) - Solve common problems ✅
+Step-by-step lessons that take you from zero to working code.
 
-### 📖 [Reference](reference/) - *Information-oriented*
-Comprehensive reference material:
-- [API Reference](reference/api-reference.md) - Complete API documentation ✅
-- [Pattern DSL Reference](reference/pattern-dsl.md) - Pattern definition language ✅
-- [Musical Terminology](reference/glossary.md) - Terms and definitions ✅
+- [Getting Started](tutorials/getting-started.md) — your first chord progression analysis
+- [Audio Quick Start](tutorials/audio-quickstart.md) — analyze a WAV/MP3 in five minutes (requires `[audio]` extra)
 
-### 🧠 [Explanation](explanation/) - *Understanding-oriented*
-In-depth discussion of concepts and design decisions:
-- [Architecture Overview](explanation/architecture.md) - System design and rationale ✅
-- [Pattern Engine Architecture](explanation/pattern-engine-architecture.md) - Complete pattern engine design ✅
-- [Confidence Calibration Theory](explanation/confidence-calibration.md) - Music theory foundations ✅
-- [Calibration Methods](explanation/calibration-methods.md) - Technical calibration approaches ✅
-- [Corpus Mining System](explanation/corpus-mining.md) - Training data extraction ✅
-- [Glossary System](explanation/glossary-system.md) - Feature enrichment and UI labels ✅
+### 🔧 [How-to Guides](how-to/) — *Problem-oriented*
+
+Practical recipes for specific tasks.
+
+- [API Integration](how-to/api-integration.md) — drop the library into Flask, FastAPI, async apps, or desktop UIs
+- [Audio Analysis](how-to/audio-analysis.md) — recover key, chords, and cadences from recordings; ensemble key detection and diagnostic panel
+- [Music21 Integration](how-to/music21-integration.md) — parse MusicXML and MIDI files
+- [Debugging Patterns](how-to/debugging-patterns.md) — inspect the pattern engine when results surprise you
+- [Troubleshooting](how-to/troubleshooting.md) — common errors and how to fix them
+
+### 📖 [Reference](reference/) — *Information-oriented*
+
+Look-up material: signatures, schemas, glossaries.
+
+- [API Reference](reference/api-reference.md) — full public-API surface for the analysis services
+- [API Quick Reference](reference/api-quick-reference.md) — condensed cheat sheet
+- [Audio API Reference](reference/audio-api.md) — `analyze_audio_async`, `AudioAdapter`, ensemble parameters, result shapes
+- [Pattern DSL](reference/pattern-dsl.md) — schema for defining patterns
+- [Glossary](reference/glossary.md) — musical terminology used throughout the library
+- [Theory References](reference/theory-references.md) — open-access music theory sources cross-referenced to library features
+
+### 🧠 [Explanation](explanation/) — *Understanding-oriented*
+
+Why the system works the way it does.
+
+- [Architecture Overview](explanation/architecture.md) — service layer, pattern engine, audio pipeline
+- [Pattern Engine Architecture](explanation/pattern-engine-architecture.md) — internal design of the unified pattern engine
+- [Audio Analysis Internals](explanation/audio-analysis-internals.md) — chroma, chord recognition, ensemble key detection
+- [Confidence Calibration Theory](explanation/confidence-calibration.md) — music-theory grounding for confidence scores
+- [Calibration Methods](explanation/calibration-methods.md) — technical calibration approaches (Platt, isotonic, identity)
+- [Glossary System](explanation/glossary-system.md) — feature enrichment and UI labels
+- [Corpus Mining](explanation/corpus-mining.md) — training-data extraction pipeline
+
+### 🗂️ [Archive](archive/)
+
+Historical library development notes — design proposals, music21 integration strategy planning, dev workflow guides. Not part of the user-facing surface; preserved for context. See [archive/README](archive/README.md) (if present) or browse the folder.
 
 ## 🚀 Quick Start
 
-**New to the library?** Start with [Getting Started Tutorial](tutorials/getting-started.md)
+**New?** → [Getting Started Tutorial](tutorials/getting-started.md)
 
-**Need to solve a specific problem?** Check [How-to Guides](how-to/)
+**Solving a specific problem?** → [How-to Guides](how-to/)
 
-**Looking for API details?** See [API Reference](reference/api-reference.md)
+**Looking up an API?** → [API Quick Reference](reference/api-quick-reference.md) or [API Reference](reference/api-reference.md)
 
-**Want to understand the system?** Read [Architecture Overview](explanation/architecture.md)
+**Curious how it works?** → [Architecture Overview](explanation/architecture.md)
 
-## 📋 Document Status
+## 🔄 Maintaining These Docs
 
-**Migration Complete**: All legacy documentation has been successfully migrated to the Diátaxis structure.
-
-### Current Documentation
-
-| Category | Document | Status |
-|----------|----------|--------|
-| **Tutorials** | Getting Started | ✅ Complete |
-| **How-to** | API Integration | ✅ Complete |
-| **How-to** | music21 Integration | ✅ Complete |
-| **How-to** | Troubleshooting | ✅ Complete |
-| **Reference** | API Reference | ✅ Complete |
-| **Reference** | Pattern DSL | ✅ Complete |
-| **Reference** | Glossary | ✅ Complete |
-| **Explanation** | Architecture | ✅ Complete |
-| **Explanation** | Pattern Engine | ✅ Complete |
-| **Explanation** | Confidence Calibration | ✅ Complete |
-| **Explanation** | Calibration Methods | ✅ Complete |
-| **Explanation** | Corpus Mining | ✅ Complete |
-| **Explanation** | Glossary System | ✅ Complete |
-
-### Root-Level Guides
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Development workflow and commands
-- [TESTING.md](TESTING.md) - Testing strategy and validation
-- [enhancements-with-music21.md](enhancements-with-music21.md) - music21 integration details
-
-## 🔄 Documentation Maintenance
-
-This documentation follows the **Diátaxis framework** principles:
-- **Tutorials** teach through practice
-- **How-to guides** solve specific problems
-- **Reference** provides facts and details
-- **Explanation** clarifies concepts and context
-
-When updating documentation:
-1. **Always** categorize new content according to Diátaxis
-2. **Continuously update** docs as code changes
-3. **Cross-reference** between categories appropriately
-4. **Maintain** the `/docs/` folder structure consistently
+- **Same-commit rule:** code changes update docs in the same commit. Documentation drift is worse than no documentation.
+- **Diátaxis routing:** new docs go in exactly one of tutorials/how-to/reference/explanation. If unsure, ask: "is this teaching, doing, looking up, or understanding?"
+- **Archive lib-dev artifacts:** design proposals, planning docs, and contributor workflow notes belong in `archive/`, not the user-facing tree.
 
 ---
 

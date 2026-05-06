@@ -94,7 +94,7 @@ for pattern in result.primary.patterns:
     print(f"Span: chords {pattern.start}-{pattern.end}")
 ```
 
-### Scale Analysis (NEW in Iteration 12)
+### Scale Analysis
 
 The unified pattern engine now supports comprehensive scale analysis with automatic mode detection:
 
@@ -144,7 +144,7 @@ for notes, key_hint in modal_scales:
 - **Validation**: Comprehensive error handling for invalid scales or mismatched keys
 - **Pattern Integration**: Uses the same unified pattern engine as chord analysis
 
-### Roman Numeral Analysis (NEW in Iteration 11)
+### Roman Numeral Analysis
 
 Direct roman numeral input is now supported with automatic chord conversion:
 
