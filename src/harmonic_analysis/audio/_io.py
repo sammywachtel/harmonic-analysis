@@ -294,6 +294,117 @@ def extract_local_chroma(
     return local_chroma
 
 
+def extract_local_rms_envelope(
+    filepath: PathLike,
+    *,
+    start_time: float = 0.0,
+    end_time: Optional[float] = None,
+    hop_length: int = 512,
+    frame_length: int = 2048,
+) -> np.ndarray:
+    """Per-frame RMS envelope for the same window as ``extract_local_chroma``.
+
+    Output is frame-aligned with ``chroma_cqt`` at the same ``hop_length``,
+    so callers can index with the same window arithmetic. Used by the chord
+    estimator to gate silent windows by *audio energy* — chroma_cqt's
+    inf-norm output makes its L2 norm useless as a silence proxy (a -55 dBFS
+    noise tail still produces ~unit-norm chroma vectors).
+
+    Same streaming/in-memory split as ``extract_local_chroma``: short
+    segments read in one shot, long segments stream in 5-second blocks.
+
+    Args:
+        filepath: Path to a soundfile-readable audio file.
+        start_time: Segment start in seconds (default 0.0).
+        end_time: Segment end in seconds. ``None`` or beyond file duration
+            clamps to the file end.
+        hop_length: Samples between successive RMS frames. Match this to
+            the chroma extraction's hop_length for frame alignment.
+        frame_length: Window length in samples for each RMS measurement.
+            Default 2048 matches librosa's chroma_cqt default.
+
+    Returns:
+        ``np.ndarray`` shape ``(T,)``, dtype float32. Each element is the
+        RMS amplitude of the corresponding chroma frame. T matches
+        ``chroma_cqt(..., hop_length=hop_length).shape[1]``.
+
+    Raises:
+        ValueError: If the segment is empty (start ≥ end).
+        RuntimeError: Surfaced from soundfile/librosa.
+    """
+    with sf.SoundFile(str(filepath), "r") as f:
+        sr = f.samplerate
+        file_duration_sec = len(f) / float(sr)
+
+    segment_start_sec = float(start_time)
+    if end_time is not None and end_time <= file_duration_sec:
+        segment_end_sec = float(end_time)
+    else:
+        segment_end_sec = file_duration_sec
+    segment_duration_sec = segment_end_sec - segment_start_sec
+
+    if segment_duration_sec <= 0:
+        raise ValueError("The specified segment is empty or out of bounds.")
+
+    start_sample = librosa.time_to_samples(segment_start_sec, sr=sr)
+    end_sample = librosa.time_to_samples(segment_end_sec, sr=sr)
+    num_samples_to_read = int(end_sample - start_sample)
+
+    if num_samples_to_read <= 0:
+        raise ValueError("The specified segment is empty or out of bounds.")
+
+    chunk_size = sr * _CHUNK_SIZE_SECONDS
+    rms_arrays: list[np.ndarray] = []
+
+    if segment_duration_sec > LOCAL_ANALYSIS_STREAMING_THRESHOLD_S:
+        # Stream — long files would otherwise blow up the heap on weak
+        # boxes. RMS itself is cheap, but the underlying audio buffer is
+        # the memory pressure point, not the feature math.
+        with sf.SoundFile(str(filepath), "r") as f:
+            f.seek(int(start_sample))
+            samples_processed = 0
+            while samples_processed < num_samples_to_read:
+                samples_this_chunk = min(
+                    chunk_size, num_samples_to_read - samples_processed
+                )
+                block = f.read(samples_this_chunk, dtype="float32", always_2d=True)
+                if not block.size:
+                    break
+                y_chunk = np.mean(block.T, axis=0)
+                samples_processed += len(block)
+                if len(y_chunk) == 0:
+                    continue
+                # Pad short tails the same way chroma extraction does, so
+                # the frame counts stay aligned across both passes.
+                if len(y_chunk) < MIN_SAMPLES_FOR_CQT:
+                    pad_width = MIN_SAMPLES_FOR_CQT - len(y_chunk)
+                    y_chunk = np.pad(y_chunk, (0, pad_width), "constant")
+                chunk_rms = librosa.feature.rms(
+                    y=y_chunk,
+                    frame_length=frame_length,
+                    hop_length=hop_length,
+                )[0]
+                rms_arrays.append(chunk_rms)
+        if not rms_arrays:
+            raise ValueError("Could not process the local segment (no audio read).")
+        return np.concatenate(rms_arrays).astype(np.float32)
+
+    # Short segment — read whole.
+    with sf.SoundFile(str(filepath), "r") as f:
+        f.seek(int(start_sample))
+        y_segment_frames = f.read(num_samples_to_read, dtype="float32", always_2d=True)
+        y_segment = np.mean(y_segment_frames.T, axis=0)
+        if len(y_segment) < MIN_SAMPLES_FOR_CQT:
+            pad_width = MIN_SAMPLES_FOR_CQT - len(y_segment)
+            y_segment = np.pad(y_segment, (0, pad_width), "constant")
+        rms = librosa.feature.rms(
+            y=y_segment,
+            frame_length=frame_length,
+            hop_length=hop_length,
+        )[0]
+        return np.asarray(rms.astype(np.float32))
+
+
 # C2 is roughly 65 Hz, B3 is roughly 245 Hz — that's two octaves of bass
 # register, which covers electric/acoustic bass guitar, piano left hand,
 # upright bass, kick-drum tonals, and most synth bass voices. Going lower

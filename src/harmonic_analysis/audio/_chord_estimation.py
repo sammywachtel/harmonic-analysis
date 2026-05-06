@@ -38,13 +38,24 @@ from ._types import KeyInfo
 _DEFAULT_BASS_CONF_THRESHOLD = 0.25
 
 # Data-driven chord quality definitions. Each entry is (suffix, intervals).
-# Adding a new quality here (e.g., ("dim", (0, 3, 6))) auto-populates
-# templates for all 12 roots — no code changes needed. But heads up:
-# _TEMPLATE_LABELS ordering is load-bearing for the median smoother,
-# so append-only or retest thoroughly.
+# Adding a new quality here auto-populates templates for all 12 roots — no
+# code changes needed. But heads up: _TEMPLATE_LABELS ordering is load-
+# bearing for the median smoother, so append-only or retest thoroughly.
+#
+# Triads: needed for plain pop/rock chords and as the baseline matcher.
+# 7ths: secondary dominants (V7/x), vii°7, and any music post-Bach really.
+# Without them, a G7 chord in Bach gets called G or Em (3 of 4 notes
+# overlap with each), and a F#dim7 secondary leading-tone chord can't be
+# named at all — it just becomes whichever triad happens to win.
 _CHORD_QUALITY_DEFS: list[tuple[str, tuple[int, ...]]] = [
     ("", (0, 4, 7)),  # major triad
     ("m", (0, 3, 7)),  # minor triad
+    ("dim", (0, 3, 6)),  # diminished triad — vii° in major keys
+    ("7", (0, 4, 7, 10)),  # dominant 7th — V7, V7/x
+    ("m7", (0, 3, 7, 10)),  # minor 7th — common ii7, vi7
+    ("maj7", (0, 4, 7, 11)),  # major 7th — Imaj7 in jazz/pop
+    ("dim7", (0, 3, 6, 9)),  # fully diminished 7th — vii°7 / leading-tone
+    ("m7b5", (0, 3, 6, 10)),  # half-diminished — iiø7 in minor keys
 ]
 
 
@@ -83,6 +94,26 @@ def _build_chord_templates() -> Dict[str, np.ndarray]:
 # Computed once at import time — 24 templates, immutable after this line.
 CHORD_TEMPLATES = _build_chord_templates()
 
+
+def _build_chord_pc_sets() -> Dict[str, frozenset]:
+    """All pitch classes contained in each chord, parallel to CHORD_TEMPLATES.
+
+    Used by the diatonic check to ask "are *all* chord tones in the key?"
+    rather than just "is the root in the key?". Root-only mistakes Cm for
+    diatonic in C major because C is in the key — even though the Eb isn't.
+    """
+    pc_sets: Dict[str, frozenset] = {}
+    for root_idx, root_name in enumerate(PITCH_CLASSES):
+        for suffix, intervals in _CHORD_QUALITY_DEFS:
+            label = f"{root_name}{suffix}"
+            pc_sets[label] = frozenset((root_idx + i) % 12 for i in intervals)
+    return pc_sets
+
+
+# Parallel to CHORD_TEMPLATES — same keys, different value type. Used for
+# the is_diatonic flag and the tonal_bias mask.
+CHORD_PC_SETS = _build_chord_pc_sets()
+
 # Pre-compute the template matrix and ordered label list for vectorized
 # similarity computation. Rows = templates, columns = pitch classes.
 _TEMPLATE_LABELS: List[str] = list(CHORD_TEMPLATES.keys())
@@ -92,15 +123,23 @@ _TEMPLATE_MATRIX: np.ndarray = np.array(
 
 
 def _root_pitch_class(label: str) -> int:
-    """Extract the root pitch class (0-11) from a chord label like 'Am' or 'C#'.
+    """Extract the root pitch class (0-11) from a chord label.
 
-    Strips trailing 'm' (if present) and looks up the remaining name in
-    PITCH_CLASSES. Raises ValueError if the root name is garbage — we'd
-    rather crash than silently return nonsense.
+    Handles every label the template bank can emit: 'C', 'C#', 'Cm',
+    'C#m', 'C7', 'Cm7', 'Cmaj7', 'Cdim', 'Cdim7', 'Cm7b5', etc. The
+    root is always 1 letter (A-G) optionally followed by '#'; whatever
+    comes after is the quality suffix and is ignored here.
+
+    Raises ValueError on empty or unparseable labels — better to crash
+    loudly than silently scramble a key analysis.
     """
-    root_name = label.rstrip("m") if label.endswith("m") else label
-    # Edge case: "Cm" → strip "m" → "C", correct. "C#m" → strip "m" → "C#", correct.
-    # But "Em" → strip "m" → "E", correct. No false positives in PITCH_CLASSES.
+    if not label:
+        raise ValueError(f"Empty chord label: {label!r}")
+    # PITCH_CLASSES is sharps-only (matches the toolkit), so no flat handling.
+    if len(label) >= 2 and label[1] == "#":
+        root_name = label[:2]
+    else:
+        root_name = label[:1]
     return PITCH_CLASSES.index(root_name)
 
 
@@ -117,7 +156,11 @@ def estimate_chord_progression(
     bass_bonus: float = 0.3,
     bass_confidence_threshold: float = _DEFAULT_BASS_CONF_THRESHOLD,
     min_chroma_norm: float = 0.05,
+    rms_frames: Optional[np.ndarray] = None,
+    rms_silence_threshold: float = 0.005,
     median_kernel: int = 3,
+    merge_same_root: bool = True,
+    max_merge_duration_s: float = 4.0,
 ) -> list:
     """Estimate a chord progression from a 2D chroma matrix.
 
@@ -158,14 +201,42 @@ def estimate_chord_progression(
             this, the bass signal is too flat to trust and the window
             falls back to full-spectrum-only matching.
         min_chroma_norm: L2 norm threshold below which a window is
-            treated as silence and skipped entirely. Prevents the
-            template matcher from hallucinating chords out of noise
-            floor. 0.05 is conservative; raise to 0.1+ for noisy
-            recordings with lots of dead air.
+            treated as silence and skipped entirely. Weak as a silence
+            check on its own — librosa's chroma_cqt uses inf-norm
+            normalization, so even -55 dBFS room noise produces a
+            ~unit-norm chroma vector. Pair with ``rms_frames`` for a
+            real silence gate. 0.05 is conservative.
+        rms_frames: Optional shape ``(T,)`` array of per-frame RMS
+            amplitudes, frame-aligned with ``local_chroma_frames``.
+            When provided, windows whose mean RMS is below
+            ``rms_silence_threshold`` are skipped entirely — closes
+            the silent-tail hole that ``min_chroma_norm`` can't.
+            Use ``extract_local_rms_envelope`` to build it.
+        rms_silence_threshold: Mean RMS amplitude below which a window
+            is treated as silence (only effective when ``rms_frames``
+            is supplied). 0.005 ≈ -46 dBFS — drops the decay tail and
+            room-noise floor on typical classical recordings without
+            biting into pp passages. Raise to 0.01 (~-40 dBFS) for
+            heavily compressed pop, lower to 0.002 (~-54 dBFS) if the
+            recording's dynamic range demands it.
         median_kernel: Kernel size for running-median smoothing over
             raw chord labels. Must be odd and >= 1. Larger values
             produce smoother (but laggier) chord sequences. Default
             3 matches original hardcoded behavior.
+        merge_same_root: When ``True`` (default), runs a post-processing
+            pass that consolidates adjacent events sharing the same root
+            but disagreeing on quality (e.g. ``Dm7→D7→Dm7→D7`` collapses
+            to a single event). The matcher can ping-pong like this when
+            sixteenth-note figuration emphasizes different chord tones at
+            different moments within one harmonic area — musically those
+            are the same chord, so we treat them as one.
+        max_merge_duration_s: Upper cap on the merged event's duration.
+            When merging would produce an event longer than this, the
+            merge is skipped — preserves real chord changes across bar
+            lines (a Dm7 in m9 followed by D7 in m10 is a genuine
+            harmonic motion, not ping-pong, and they shouldn't fuse).
+            Default 4.0s is roughly one measure at typical classical
+            tempos. Tune up for slow ballads, down for fast pop.
 
     Returns:
         List of ChordEvent instances, sorted by start_time.
@@ -187,6 +258,13 @@ def estimate_chord_progression(
     win_frames = int(window_size_s * frames_per_sec)
     hop_frames = max(1, int(hop_size_s * frames_per_sec))
 
+    # Use the *actual* frame-derived hop time for timestamps. Multiplying
+    # by the requested hop_size_s instead drifts: int() truncates the
+    # frame count, so 0.25s requested at fps=86.13 becomes 21 frames =
+    # 0.244s real, and ~3s of error pile up over a 2-minute file. Use
+    # this for *all* chord-event timestamps below.
+    frame_hop_seconds = hop_frames / frames_per_sec
+
     if T < win_frames:
         return []
 
@@ -197,12 +275,16 @@ def estimate_chord_progression(
 
     diatonic_pcs = global_key.diatonic_pitch_classes
 
-    # Pre-compute which templates are diatonic (root PC in global key's
-    # diatonic set). This avoids repeating the lookup per window.
-    template_is_diatonic = np.array(
-        [_root_pitch_class(label) in diatonic_pcs for label in _TEMPLATE_LABELS],
-        dtype=np.float64,
+    # Pre-compute which templates are diatonic (ALL chord tones in the
+    # global key's diatonic set). Root-only would call Cm "diatonic in C
+    # major" because C is in the key — even though Eb isn't. Same trap
+    # applies to Gm (Bb), Fm (Ab), Bm (F#). Bites both the bias mask
+    # *and* the output flag, so we share the calculation.
+    template_is_diatonic_bool = np.array(
+        [CHORD_PC_SETS[label].issubset(diatonic_pcs) for label in _TEMPLATE_LABELS],
+        dtype=bool,
     )
+    template_is_diatonic = template_is_diatonic_bool.astype(np.float64)
 
     # Pre-compute each template's root pitch class for the bass-bonus
     # lookup. Indexed by template position in _TEMPLATE_LABELS. Computed
@@ -223,6 +305,14 @@ def estimate_chord_progression(
         and bass_chroma_frames.shape == local_chroma_frames.shape
     )
 
+    # RMS envelope is the proper silence gate. The chroma-norm fallback
+    # below stays in place as a backstop, but it can't see -55 dBFS room
+    # noise — the chroma_cqt inf-norm normalization paints decay tails
+    # and HVAC hum as real chroma vectors. We check shape strictly: a
+    # mismatched length means somebody mixed time axes and we'd rather
+    # ignore the gate than mask the wrong windows.
+    use_rms_gate = rms_frames is not None and rms_frames.shape == (T,)
+
     # --- Sliding window similarity ---
     num_windows = 1 + (T - win_frames) // hop_frames
     raw_labels: List[int] = []  # index into _TEMPLATE_LABELS
@@ -242,7 +332,18 @@ def estimate_chord_progression(
 
         # Record the timestamp BEFORE any skip decision — we need it
         # regardless of whether the window survives the norm check.
-        w_time = w * hop_size_s
+        # Use frame-derived seconds (frame_hop_seconds) not the requested
+        # hop_size_s, otherwise timestamps drift past the audio end.
+        w_time = w * frame_hop_seconds
+
+        # RMS gate first — cheaper than norm + tells us about audio
+        # energy, not about whatever shape librosa's normalization
+        # squeezed the chroma into.
+        if use_rms_gate:
+            assert rms_frames is not None  # mypy hint; use_rms_gate implies this
+            window_rms = float(rms_frames[start:end].mean())
+            if window_rms < rms_silence_threshold:
+                continue
 
         # L2-normalize. If the window is silent (norm below threshold),
         # skip it entirely — no point asking "which chord is this silence?"
@@ -324,14 +425,13 @@ def estimate_chord_progression(
         else:
             # Emit the completed run
             label_str = _TEMPLATE_LABELS[run_label]
-            root_pc = _root_pitch_class(label_str)
             events.append(
                 ChordEvent(
                     start_time=run_start_time,
                     end_time=window_start_times[i],
                     chord_label=label_str,
                     confidence=float(np.mean(run_confidences)),
-                    is_diatonic=root_pc in diatonic_pcs,
+                    is_diatonic=bool(template_is_diatonic_bool[run_label]),
                 )
             )
             run_start_time = window_start_times[i]
@@ -339,17 +439,111 @@ def estimate_chord_progression(
             run_confidences = [raw_confidences[i]]
 
     # Emit the final run. End time extends one hop beyond the last window
-    # start — same semantics as the old index-based calculation.
+    # start — same semantics as the old index-based calculation, but using
+    # frame-derived seconds so it doesn't shoot past the audio end.
     label_str = _TEMPLATE_LABELS[run_label]
-    root_pc = _root_pitch_class(label_str)
     events.append(
         ChordEvent(
             start_time=run_start_time,
-            end_time=window_start_times[-1] + hop_size_s,
+            end_time=window_start_times[-1] + frame_hop_seconds,
             chord_label=label_str,
             confidence=float(np.mean(run_confidences)),
-            is_diatonic=root_pc in diatonic_pcs,
+            is_diatonic=bool(template_is_diatonic_bool[run_label]),
         )
     )
 
+    # Optional post-pass: merge same-root ping-pongs into single events.
+    # Done after consolidation (rather than fused into the median smoother)
+    # so the merge sees actual durations and confidences, not raw frame
+    # counts — the longer event of a pair gets to keep its quality.
+    if merge_same_root:
+        events = _merge_same_root_events(
+            events, max_merge_duration_s=max_merge_duration_s
+        )
+
     return events
+
+
+def _merge_same_root_events(
+    events: list,
+    *,
+    max_merge_duration_s: float = 4.0,
+) -> list:
+    """Collapse adjacent same-root chord events into one.
+
+    The chord matcher can flicker between qualities of the same root
+    (e.g. ``Dm7 → D7 → Dm7 → D7``) when figuration walks through
+    different chord-tone subsets within one harmonic area. Each window
+    sees a different snapshot of the same underlying chord and votes
+    accordingly. Median smoothing helps for runs of width 1, but a
+    longer ping-pong slips through.
+
+    This pass walks the consolidated event list once and merges
+    neighbors that share a root. The longer of the two contributes its
+    quality (and is_diatonic flag) to the merged event; ties go to the
+    higher-confidence side. Confidences are duration-weighted averaged.
+
+    Pure post-processing — doesn't touch the matcher's intermediate
+    state, so disabling via ``merge_same_root=False`` recovers the old
+    behavior bit-identically.
+    """
+    if len(events) < 2:
+        return list(events)
+
+    from harmonic_analysis.integrations.audio_adapter import ChordEvent
+
+    merged: list = [events[0]]
+    for ev in events[1:]:
+        prev = merged[-1]
+        try:
+            prev_root = _root_pitch_class(prev.chord_label)
+            curr_root = _root_pitch_class(ev.chord_label)
+        except ValueError:
+            # Garbage label slipped through — don't merge, keep both.
+            merged.append(ev)
+            continue
+
+        if prev_root != curr_root:
+            merged.append(ev)
+            continue
+
+        prev_dur = prev.end_time - prev.start_time
+        curr_dur = ev.end_time - ev.start_time
+
+        # Skip the merge when the merged event would exceed the cap.
+        # Real chord changes across bar lines (e.g., Dm7 in m9 → D7
+        # in m10) shouldn't fuse just because they share a root.
+        # *Exception*: if the labels are identical, this is just
+        # continuing the same chord (likely after an earlier same-root
+        # merge relabeled neighbors) — never apply the cap to those.
+        same_label = prev.chord_label == ev.chord_label
+        if not same_label and (prev_dur + curr_dur) > max_merge_duration_s:
+            merged.append(ev)
+            continue
+        # Pick the dominant interpretation: longer wins, ties broken by
+        # confidence. This preserves the harmonic intent of the area
+        # rather than letting whichever event happened to come last
+        # define the merged label.
+        prev_wins = prev_dur > curr_dur or (
+            prev_dur == curr_dur and prev.confidence >= ev.confidence
+        )
+        winning_label = prev.chord_label if prev_wins else ev.chord_label
+        winning_diatonic = prev.is_diatonic if prev_wins else ev.is_diatonic
+
+        total_dur = prev_dur + curr_dur
+        if total_dur > 0:
+            avg_conf = (
+                prev.confidence * prev_dur + ev.confidence * curr_dur
+            ) / total_dur
+        else:
+            avg_conf = max(prev.confidence, ev.confidence)
+
+        merged[-1] = ChordEvent(
+            start_time=prev.start_time,
+            end_time=ev.end_time,
+            chord_label=winning_label,
+            confidence=avg_conf,
+            is_diatonic=winning_diatonic,
+        )
+
+    return merged

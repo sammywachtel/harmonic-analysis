@@ -46,8 +46,17 @@ from .._types import KeyInfo
 
 
 def _root_pitch_class(chord_label: str) -> Optional[int]:
-    """Extract pitch-class index from a chord label, or None."""
-    root_name = chord_label.rstrip("m") if chord_label.endswith("m") else chord_label
+    """Extract pitch-class index from a chord label, or None.
+
+    Handles every label the chord estimator can emit: 'C', 'C#', 'Cm',
+    'C7', 'Cm7', 'Cmaj7', 'Cdim7', 'Cm7b5', etc.
+    """
+    if not chord_label:
+        return None
+    if len(chord_label) >= 2 and chord_label[1] == "#":
+        root_name = chord_label[:2]
+    else:
+        root_name = chord_label[:1]
     try:
         return PITCH_CLASSES.index(root_name)
     except ValueError:
@@ -55,8 +64,26 @@ def _root_pitch_class(chord_label: str) -> Optional[int]:
 
 
 def _is_minor_label(chord_label: str) -> bool:
-    """True if the chord is minor (e.g. 'Am', 'Bm', 'F#m')."""
-    return chord_label.endswith("m")
+    """True if the chord cannot function as a major dominant.
+
+    Cadential V→I detection wants to know "is the V chord NOT a major
+    or dominant-7 triad?" — minor V's, diminished V's, half-dim V's
+    don't count as standard authentic cadences. So 'Cm', 'Cm7', 'Cdim',
+    'Cdim7', 'Cm7b5' return True; 'C', 'C7', 'Cmaj7' return False.
+    """
+    if not chord_label:
+        return False
+    suffix = (
+        chord_label[2:]
+        if len(chord_label) >= 2 and chord_label[1] == "#"
+        else chord_label[1:]
+    )
+    if suffix.startswith("maj"):
+        return False  # 'Cmaj7' — major, OK as V
+    if suffix == "" or suffix == "7":
+        return False  # 'C', 'C7' — major or dominant, OK as V
+    # Anything else ('m', 'm7', 'dim', 'dim7', 'm7b5') — not a major V.
+    return True
 
 
 class CadentialApproach(KeyDetectionApproach):

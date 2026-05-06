@@ -74,9 +74,15 @@ def _resolve_rubato(rubato: Union[str, float]) -> Tuple[float, float, int]:
     if isinstance(rubato, str):
         if rubato in _RUBATO_PRESETS:
             return _RUBATO_PRESETS[rubato]
+        # "auto" is a deferred-resolution sentinel — the actual values
+        # depend on detected tempo, which we don't have at __init__ time.
+        # Caller handles tempo detection during analysis and overrides.
+        # We return moderate as a safe stub so __init__ doesn't blow up.
+        if rubato == "auto":
+            return _RUBATO_PRESETS["moderate"]
         raise ValueError(
             f"Unknown rubato preset {rubato!r}. "
-            f"Valid presets: {', '.join(sorted(_RUBATO_PRESETS))}."
+            f"Valid presets: {', '.join(sorted(_RUBATO_PRESETS))} or 'auto'."
         )
 
     # Float path: lerp between strict and free. Clamp silently — if someone
@@ -150,6 +156,10 @@ class AudioAnalysisResult:
             when no segment was specified.
         segment_end: End of the analyzed segment in seconds. Equal to
             file duration when no segment was specified.
+        tempo: Optional tempo information. Populated when ``rubato="auto"``
+            triggers tempo detection, or always when callers want BPM
+            metadata. ``None`` when tempo wasn't computed (saves the
+            librosa cycles when no caller asked for it).
 
     The ``key_hint`` derived property formats ``"<tonic> <mode>"`` from
     the local key, in a form compatible with
@@ -167,6 +177,10 @@ class AudioAnalysisResult:
     # by default to keep production payloads light. Schema documented in
     # docs/reference/audio-api.md and at AC-05.
     key_analysis_details: Optional[Dict[str, Any]] = None
+    # Tempo info — populated when rubato="auto" triggers detection, or
+    # when callers explicitly request it. Carries BPM, confidence, and
+    # (variable-tempo) tempo regions. See _tempo.TempoInfo for schema.
+    tempo: Optional[object] = None  # TempoInfo, quoted to dodge import order
 
     @property
     def key_hint(self) -> str:
@@ -340,8 +354,21 @@ class AudioAdapter:
         # Resolve rubato first — it provides defaults for window/hop/kernel.
         # Explicit chord_window_size_s / chord_hop_size_s override the
         # rubato-derived values, so callers with specific timing needs
-        # aren't locked into presets.
+        # aren't locked into presets. "auto" returns moderate values here
+        # as a stub; the real numbers come from tempo detection at
+        # analysis time (see ``from_audio``).
         rubato_window, rubato_hop, rubato_kernel = _resolve_rubato(rubato)
+
+        # Stash the original choice so from_audio can detect "auto" and
+        # reach for tempo detection. We deliberately don't normalize
+        # this — "auto", a preset name, or a float all flow through and
+        # the analysis method dispatches.
+        self._rubato_setting = rubato
+        # Track whether window/hop/kernel were explicitly pinned by the
+        # caller — those override rubato (including "auto") so a caller
+        # who wants exact control gets it.
+        self._chord_window_explicit = chord_window_size_s is not None
+        self._chord_hop_explicit = chord_hop_size_s is not None
 
         self._include_chords = include_chords
         self._chord_window_size_s = (
@@ -472,6 +499,36 @@ class AudioAdapter:
         )
         local_chroma_1d = local_chroma.mean(axis=1)
 
+        # Step 3b — tempo detection. Always-on when rubato="auto" (we
+        # need the BPM to size the chord window); skipped otherwise to
+        # save the librosa call. Result is surfaced in the final payload
+        # whenever it was computed, so callers who set rubato="auto"
+        # also get BPM metadata for free.
+        from harmonic_analysis.audio._tempo import (
+            TempoInfo,
+            bpm_to_rubato,
+            detect_tempo,
+        )
+
+        tempo_info: Optional[TempoInfo] = None
+        chord_window = self._chord_window_size_s
+        chord_hop = self._chord_hop_size_s
+        chord_kernel = self._median_kernel
+        if self._rubato_setting == "auto" and self._include_chords:
+            tempo_info = detect_tempo(
+                filepath, start_time=resolved_start, end_time=resolved_end
+            )
+            # Explicit window/hop pins from the caller still win — auto
+            # only fills in slots the caller left open.
+            auto_window, auto_hop, auto_kernel = bpm_to_rubato(
+                tempo_info.bpm, tempo_info.confidence
+            )
+            if not self._chord_window_explicit:
+                chord_window = auto_window
+            if not self._chord_hop_explicit:
+                chord_hop = auto_hop
+            chord_kernel = auto_kernel
+
         # Step 4 — STAGE 2: chord estimation, biased by the K-S key.
         # Always extract bass chroma when we'll need it for the ensemble
         # (or when use_bass_chroma is on). We compute it once and reuse
@@ -492,19 +549,28 @@ class AudioAdapter:
             from harmonic_analysis.audio._chord_estimation import (
                 estimate_chord_progression,
             )
+            from harmonic_analysis.audio._io import extract_local_rms_envelope
+
+            # Frame-aligned RMS envelope — the only way to recognize
+            # actual silence in the audio (chroma_cqt's normalization
+            # makes its own norm useless as a silence proxy).
+            rms_envelope = extract_local_rms_envelope(
+                filepath, start_time=resolved_start, end_time=resolved_end
+            )
 
             chords = estimate_chord_progression(
                 local_chroma,
                 ks_key,  # tonal_bias driven by K-S — stage-1 result
                 sr=sr,
                 hop_length=512,
-                window_size_s=self._chord_window_size_s,
-                hop_size_s=self._chord_hop_size_s,
+                window_size_s=chord_window,
+                hop_size_s=chord_hop,
                 tonal_bias=self._tonal_bias,
                 bass_chroma_frames=bass_chroma if self._use_bass_chroma else None,
                 bass_bonus=self._bass_bonus,
                 min_chroma_norm=self._min_chroma_norm,
-                median_kernel=self._median_kernel,
+                rms_frames=rms_envelope,
+                median_kernel=chord_kernel,
             )
 
         # Step 5 — STAGE 3: full ensemble. Run every enabled approach
@@ -578,6 +644,7 @@ class AudioAdapter:
             segment_end=resolved_end,
             chords=chords,
             key_analysis_details=key_analysis_details,
+            tempo=tempo_info,
         )
 
     def _build_analysis_details(
@@ -612,14 +679,22 @@ class AudioAdapter:
 
         approaches_payload = []
         for v in verdicts:
-            top_3 = [
-                {"key": _key_to_dict(k), "score": float(s)} for k, s in v.ranked[:3]
+            # Build top_3 (the human-friendly summary) and top_5 (the
+            # diagnostic-deep-dive view) in one pass. With extended chord
+            # templates, more chord variants emerge per harmonic moment,
+            # so the cadential rankings shift around. Three entries was
+            # enough on the old triad-only matcher; five gives the
+            # diagnostics enough room to expose the dual-credit pattern
+            # even when other tonics climb above on raw count.
+            ranked_dicts = [
+                {"key": _key_to_dict(k), "score": float(s)} for k, s in v.ranked[:5]
             ]
             approaches_payload.append(
                 {
                     "name": v.name,
                     "weight": float(self._approach_weights.get(v.name, 0.0)),
-                    "top_3": top_3,
+                    "top_3": ranked_dicts[:3],
+                    "top_5": ranked_dicts,
                 }
             )
 
