@@ -387,7 +387,7 @@ def extract_local_rms_envelope(
                 rms_arrays.append(chunk_rms)
         if not rms_arrays:
             raise ValueError("Could not process the local segment (no audio read).")
-        return np.concatenate(rms_arrays).astype(np.float32)
+        return np.asarray(np.concatenate(rms_arrays).astype(np.float32))
 
     # Short segment — read whole.
     with sf.SoundFile(str(filepath), "r") as f:
