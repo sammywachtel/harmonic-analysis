@@ -27,10 +27,6 @@ test.describe('Multi-Profile Analysis Flow', () => {
     // Wait for results to appear
     await page.waitForSelector('text=Primary Interpretation', { timeout: 10000 });
 
-    // Check for dominant style badge (may vary based on backend response)
-    // We'll just verify the structure exists
-    const primarySection = page.locator('text=Primary Interpretation').locator('..');
-
     // Verify style confidence section appears
     const styleConfidenceSection = page.getByTestId('style-confidence-section');
     await expect(styleConfidenceSection).toBeVisible();
