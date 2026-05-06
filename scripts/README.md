@@ -92,30 +92,19 @@ python scripts/quality_check.py
 
 **Analysis**: Use `tools/calibration/notebooks/Confidence_Calibration_Analyses.ipynb` for quality diagnostics and calibration readiness assessment.
 
-### 🏭 `generate_comprehensive_multi_layer_tests.py`
-**Purpose**: Comprehensive test case generation system
+### Hand-curated oracle fixtures
 
-**Key Features**:
-- Generates 427+ multi-layer test cases with complete analysis expectations
-- Covers functional harmony, modal analysis, and chromatic analysis
-- Exports to JSON and CSV formats for validation and analysis
-- **FIXED** Roman numeral generation bug (Aug 2025)
+Test expectations are now hand-curated, not generated. The previous
+`generate_comprehensive_multi_layer_tests.py` produced "expected" Roman
+numerals using the same chord-to-roman logic the analyzer uses — so the
+1,637-case suite was a consistency check, not a correctness check, and
+masked systematic bugs (mistitled tritone slot, missing dim detection,
+case-blind mode matching). That generator + its consumer have been removed.
 
-**Usage**:
-```bash
-python scripts/generate_comprehensive_multi_layer_tests.py
-```
-
-**Output Files**:
-- `tests/generated/comprehensive-multi-layer-tests.json` - Complete test data
-- `tests/generated/comprehensive-multi-layer-tests.csv` - Analysis-friendly format
-
-**When to Use**:
-- After fixing bugs in test expectation generation
-- Before major releases to refresh test expectations
-- When updating test coverage or adding new categories
-
-**Critical Fix**: The original version had a broken `chord_to_roman_numeral()` method that returned `"I"` for all major chords and `"ii"` for all minor chords, causing systematic test failures. This has been fixed to properly calculate Roman numerals based on chord root and key center relationships.
+Authoritative test fixtures now live under `tests/fixtures/progressions/`,
+with each expected value backed by either music-theory rationale (in the
+case comment) or an external hand-annotated corpus (DCML — see
+`tests/data/oracles/README.md`).
 
 ## 🚀 Quality Automation Workflows
 
@@ -272,18 +261,7 @@ print('Current correlation status: Expected when r > 0.1 for meaningful calibrat
 "
 
 # 4. Run tests to confirm no degradation
-python -m pytest tests/test_comprehensive_multi_layer_validation.py -v
-```
-
-### Test Regeneration Workflow (After Bug Fixes)
-```bash
-# 1. Generate fresh test data with fixed expectations
-python scripts/generate_comprehensive_multi_layer_tests.py
-
-# 2. Validate against regenerated test data
-python -m pytest tests/test_comprehensive_multi_layer_validation.py -v
-
-# 3. Expected outcome: Much higher success rates due to correct expectations
+python -m pytest tests/integration/test_minor_key_oracle.py -v
 ```
 
 ## 📊 Integration Notes

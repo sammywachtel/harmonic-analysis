@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.1-beta.3] - 2026-05-06
+
+### Added
+
+- **Demo audio analysis tab** — drop a recording, get a time-aligned chord progression, key detection, cadence summary, and an optional pattern-engine pass-through that runs the extracted chords through the same engine Manual entry uses (Roman numerals, cadences, modal characteristics, pattern matches). Includes client-decoded waveform, chord ribbon, zoom-to-segment when a segment is selected, single chord indicator strip above the waveform, live row highlight in the chord table during playback, and keyboard shortcuts (Space toggles play; ←/→ scan ±5s; Shift for ±15s).
+- **Editorial demo reskin across all three tabs** — coral/orange primary palette per the design handoff, Source Serif 4 / Inter / JetBrains Mono typography, hero key card with serif tonic and key-signature glyph, notation-style Roman numeral score-line, eyebrow-led `SectionCard` chrome everywhere. New shared atoms: `SectionCard`, `Tag`, `ConfidenceBar`, `PedagogyNote`, `Eyebrow`, `KeySignatureGlyph`, `DefinitionTooltip`.
+- **Audio endpoint tuning knobs** — `POST /api/analyze/audio` accepts optional form parameters `tonal_bias`, `bass_bonus`, and `use_bass_chroma`. Threaded through to the library only when set, so the calibrated defaults remain the default. Surfaced in the Upload card's advanced disclosure with per-knob descriptions and a "Reset to defaults" button.
+- **Diagnostic run metadata** — when "Show analysis details" is enabled, the diagnostic panel now reports sample rate, channel count (mono/stereo), library version, and wall-clock duration of the analyze request alongside the existing 24-key histogram and ensemble breakdown.
+- **Oracle progression tests** — `tests/data/oracles/`, `tests/fixtures/progressions/{minor_key,modal}.oracle.json`, and `tests/integration/test_oracle_progressions.py` lock in the expected analysis output for canonical minor-key and modal progressions.
+- **Test overview generator** — `scripts/generate_test_overview.py` and `docs/explanation/test-overview.md` provide a pedagogical view of every test scenario (input, source, expected output, actual analyzer output, cadence explanations).
+
+### Fixed
+
+- **Tritone-slot mislabel in minor-mode token conversion** — `TokenConverter` had `bVI` at interval 6 (the tritone), a textbook error: ♭VI lives at interval 8 (the minor sixth). The tritone slot is now `♭v` / `♯iv`, which is what shows up as a half-diminished chord in real minor-mode progressions. Quality-aware case correction also refactored into a single up-front detection pass instead of overlapping conditionals.
+- **Modal signature matching no longer misclassifies minor `iv7` as Dorian.** `UnifiedPatternService` was uppercasing roman tokens before matching against signatures like `"IV"` (Dorian's major-IV signature), which made every minor `iv7` chord look like a Dorian flag. Case-sensitive matching now correctly distinguishes major-IV (Dorian-defining) from minor-iv (just a normal minor subdominant).
+- **Demo timeline overflow at chord-ribbon edges** — when the analyzed segment didn't cover the whole file, chord blocks at the boundaries used to extend slightly past the waveform's painted edge because the canvas had a 1px border + rounded corners while the ribbon below didn't. Both now share a single bordered container, so left and right edges always align.
+- **Demo segment slider start handle was unreachable** — the dual-handle range slider had `pointer-events: auto` on both inputs at `inset-0`, so the end input (rendered second in the DOM) caught every click. Track now ignores pointer events; only the thumb pseudo-elements are interactive.
+- **Demo timeline zooms into the analyzed segment.** When a segment was selected, the chord ribbon used to compress into a tiny strip on the left because it scaled against segment duration while the waveform showed the full file. Timeline now slices the peaks to the segment region and maps positions against the segment span. Snap-into-segment on Play prevents the "press Space, hear nothing" failure where playback started at file t=0 outside the visible region.
+- **Demo audible-chord filter** — chord events whose underlying audio sits at or below the noise floor (peak amplitude < 0.04) get dropped from the timeline ribbon and chord table. Stops chord blocks from stretching over silence and decay tail. The diagnostic panel still reports the raw library-side count.
+- **Demo `AnalysisResults` notes formatting** — engine output like `"Detected patterns: …; Progression: i → V7 → i; Cadence outline: …; Modal accents: …"` now renders as a labeled list (each segment on its own row, label as eyebrow, body as content) with chord progressions formatted as serif-italic Roman tokens with arrow separators instead of being glued together as one paragraph.
+
+### Changed
+
+- **Frontend default ensemble weights now match the library defaults.** Previously the demo's "advanced" panel used `{1.0, 0.5, 0.5, 0.5}` while the library was actually using `{1.0, 0.8, 0.6, 0.7}`. Just opening the panel and clicking Analyze without touching anything would silently override the library's tuned defaults with worse values. The frontend constant is now in sync, with a code comment marking it as a DRY-violation hazard.
+- **Frontend always sends user-tuned weights**, regardless of whether the advanced panel is currently expanded. Previously, opening the panel, modifying a weight, then collapsing the panel would silently lose the override.
+- **Audio playback state** lifted out of `Timeline` into a dedicated `useAudioPlayer` hook so the chord table can subscribe to the same playhead — currently-playing rows now highlight live during playback, and clicking a row seeks the audio.
+- **Audio adapter** shifts chord timestamps to absolute file time at the boundary so downstream components (Timeline, ChordProgression cards, AnalysisDetails) don't have to reason about segment offsets.
+
+### Removed
+
+- **Legacy test scripts and fixtures** — `scripts/generate_comprehensive_multi_layer_tests.py` (2769 lines), `tests/integration/test_comprehensive_analysis.py`, `tests/integration/test_confidence_against_baseline.py`, `tests/utils/test_debug_utils.py`, and `tests/data/stage_c_voice_leading_tests.json` are gone. The new oracle progressions + integration test cover the surface they used to.
+
 ## [0.3.1-beta.2] - 2026-05-05
 
 ### Added

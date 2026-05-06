@@ -15,22 +15,28 @@ repos:
         # quality-adaptive.yml is a Mustache template, not raw YAML — rendered before deploy
         exclude: '^\.github/workflows/quality-adaptive\.yml$'
       - id: check-json
+        # tsconfig*.json files are JSONC (JSON with comments) by Microsoft
+        # convention; the strict JSON parser chokes on them.
+        exclude: '^(.*/)?tsconfig.*\.json$'
 
-  # Frontend hooks (TypeScript/JavaScript)
+  # Frontend hooks (TypeScript/JavaScript). Frontend lives at demo/frontend/
+  # in this repo, NOT at a top-level frontend/ — earlier versions of this
+  # config silently no-op'd because the files: regex never matched anything.
+  # If you change the frontend path, update both `entry:` and `files:`.
   - repo: local
     hooks:
       - id: eslint-check
         name: ESLint Check
-        entry: bash -c 'cd frontend && npm run lint'
+        entry: bash -c 'cd demo/frontend && npm run lint'
         language: system
-        files: '^frontend/.*\.(js|jsx|ts|tsx)$'
+        files: '^demo/frontend/.*\.(js|jsx|ts|tsx)$'
         pass_filenames: false
 
       - id: typescript-check
         name: TypeScript Check
-        entry: bash -c 'cd frontend && npx tsc --noEmit'
+        entry: bash -c 'cd demo/frontend && npx tsc -b --noEmit'
         language: system
-        files: '^frontend/.*\.(ts|tsx)$'
+        files: '^demo/frontend/.*\.(ts|tsx)$'
         pass_filenames: false
 
   # Python hooks
@@ -76,3 +82,16 @@ repos:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
         exclude: package-lock.json
+
+  # CI workflow consistency — runs whenever a workflow YAML or a script
+  # under scripts/ changes. Catches references to deleted scripts before
+  # they hit CI (the v0.3.1-beta.3 release shipped with one such orphan
+  # because pre-commit had no awareness of workflow contents).
+  - repo: local
+    hooks:
+      - id: check-workflow-refs
+        name: Workflow script references
+        entry: bash scripts/check-workflow-refs.sh
+        language: system
+        files: '^(\.github/workflows/.*\.ya?ml|scripts/.*\.(sh|py))$'
+        pass_filenames: false

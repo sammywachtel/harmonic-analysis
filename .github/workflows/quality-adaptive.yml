@@ -299,14 +299,12 @@ jobs:
           fi
           echo "✅ MyPy type checking passed"
 
-      - name: "Phase 2: Generate Comprehensive Test Data"
-        run: |
-          # tests/data/generated/*.json is gitignored — the comprehensive
-          # integration suite imports it at collection time, so we have to
-          # produce it before pytest even sees the test files.
-          echo "🎼 Generating comprehensive multi-layer test data..."
-          python scripts/generate_comprehensive_multi_layer_tests.py
-          ls -la tests/data/generated/ || echo "⚠️  no generated dir found"
+      # The "Generate Comprehensive Test Data" step that used to live here was
+      # tied to scripts/generate_comprehensive_multi_layer_tests.py. That
+      # generator and the integration tests that consumed its output
+      # (test_comprehensive_analysis.py, test_confidence_against_baseline.py)
+      # were retired in v0.3.1-beta.3 in favor of the oracle progressions in
+      # tests/fixtures/progressions/. No fixture-generation step is needed.
 
       - name: "Phase 2: Backend Tests"
         run: |

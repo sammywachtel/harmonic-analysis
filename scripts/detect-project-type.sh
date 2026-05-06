@@ -72,8 +72,20 @@ has_python_dependency() {
 detect_frontend() {
     debug_print "Detecting frontend..."
 
-    # Check for common frontend directory structures
-    if [[ -d "frontend" ]]; then
+    # Check for common frontend directory structures. Order matters — we
+    # prefer specific nested paths (demo/frontend, examples/frontend) over
+    # the generic "found a package.json next to a src/" fallback because the
+    # latter happily mistakes a Python repo's `src/` + a stray root
+    # package.json for a frontend project.
+    if [[ -d "demo/frontend" && -f "demo/frontend/package.json" ]]; then
+        FRONTEND_PATH="demo/frontend"
+        HAS_FRONTEND=true
+        debug_print "Found demo/frontend directory"
+    elif [[ -d "examples/frontend" && -f "examples/frontend/package.json" ]]; then
+        FRONTEND_PATH="examples/frontend"
+        HAS_FRONTEND=true
+        debug_print "Found examples/frontend directory"
+    elif [[ -d "frontend" ]]; then
         FRONTEND_PATH="frontend"
         HAS_FRONTEND=true
         debug_print "Found frontend directory"

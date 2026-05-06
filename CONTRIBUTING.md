@@ -337,12 +337,12 @@ We organize tests by category and scope with **warning-based edge case handling*
 
 ```
 tests/
-├── test_comprehensive_multi_layer_validation.py  # 427 comprehensive test cases
-├── test_edge_case_behavior.py                    # Warning-based edge case tests ⚠️
-├── test_enhanced_modal_analyzer.py               # Modal analysis unit tests
-├── test_functional_harmony.py                    # Functional harmony tests
-├── generated/                                     # Generated test cases from scripts
-├── fixtures/                                      # Test data and fixtures
+├── integration/test_minor_key_oracle.py          # Hand-curated oracle (independent assertions)
+├── integration/test_real_world_progressions.py   # Real-world progression regressions
+├── integration/test_modal_label_overwriting_bug.py  # Modal label regression guards
+├── core/pattern_engine/                          # Pattern engine unit + regression tests
+├── patterns/test_golden_patterns.py              # Golden pattern fixtures (cadences, modal)
+├── fixtures/progressions/                         # Hand-curated test fixtures (.oracle.json, .golden.json)
 └── edge_case_warnings.py                         # Warning utilities for edge cases
 ```
 
@@ -392,7 +392,7 @@ pytest tests/test_edge_case_behavior.py -v     # Edge case warnings
 # Specific test categories
 pytest -m "modal" -v                           # Modal analysis tests
 pytest -m "functional" -v                      # Functional harmony tests
-pytest tests/test_comprehensive_multi_layer_validation.py -v  # Comprehensive
+pytest tests/integration/test_minor_key_oracle.py -v  # Hand-curated minor-key oracle
 ```
 
 ### Test Categories

@@ -432,9 +432,14 @@ class TokenConverter:
             "bVII",
             "VII",
         ]
-        # Minor-mode mapping adjusted so that:
-        # - interval 10 (e.g., G in A minor) maps to ♭VII (subtonic), not VII
-        # - interval 9 (e.g., F# in A minor) maps to ♯VI
+        # Minor-mode mapping. Each slot is the "default" roman for a chord
+        # rooted that many semitones above the tonic; quality-aware case
+        # correction below adjusts uppercase/lowercase based on the chord
+        # symbol's actual triad quality (major / minor / dim / half-dim).
+        #
+        # Slot 6 (tritone) was historically labeled "bVI" — a textbook
+        # mislabel: ♭VI lives at slot 8 (the minor sixth). The tritone
+        # slot is ♭v / ♯iv (most often diminished in real progressions).
         minor_romans = [
             "i",
             "bII",
@@ -442,7 +447,7 @@ class TokenConverter:
             "III",
             "iv",
             "IV",
-            "bVI",
+            "bV",  # tritone (was "bVI" — wrong slot; ♭VI is at index 8)
             "v",
             "VI",
             "♯VI",
@@ -455,50 +460,77 @@ class TokenConverter:
         else:
             base_roman = major_romans[interval]
 
-        # --- Minor-key dominant correction: emit uppercase V when chord
-        # quality is major/dominant.
-        # Dominant is 7 semitones above tonic; if the chord symbol is
-        # clearly major-ish, prefer 'V' over 'v'.
-        if is_minor and interval == 7:
-            name_l = chord.lower()
-            is_majorish = ("maj" in name_l) or (
-                "m" not in name_l
-            )  # no explicit minor marker
-            if is_majorish and base_roman.startswith("v"):
-                base_roman = "V" + base_roman[1:]
-
-        # Add chord quality indicators (triad quality + seventh type)
+        # Detect chord qualities from the symbol. We do all detections up
+        # front, then apply case + suffix in one pass — easier to reason
+        # about than the previous tangle of overlapping conditionals.
         cl = chord.lower()
 
-        # Detect major-7 explicitly (maj7 / ma7 / M7 / Δ / ∆)
+        # Major-7 explicitly (maj7 / ma7 / M7 / Δ / ∆)
         is_maj7 = bool(
             re.search(r"maj7|ma7", cl)
             or re.search(r"\bM7\b", chord)
             or re.search(r"[∆Δ]", chord)
         )
 
-        # Detect a minor triad symbol immediately after the root (avoid matching 'maj')
-        # Examples that should match: Am, Fm7, D#m, Gbm7
-        # Examples that should NOT match: Amaj7, CM7, C∆7
+        # Minor triad: 'm' right after the root letter, NOT followed by 'aj'.
+        # Matches: Am, Fm7, D#m, Gbm7. Skips: Amaj7, CM7, C∆7.
         is_minor_triad = bool(
             re.match(r"^[A-G](?:#|b)?m(?!aj)", chord, flags=re.IGNORECASE)
         )
 
-        # Lowercase base roman for minor triads (e.g., Fm7 in C major -> iv7)
-        if is_minor_triad:
-            base_roman = base_roman.lower()
-
-        # Append seventh quality
-        # Big play: check for half-diminished BEFORE plain seventh
+        # Half-diminished: m7♭5 or ø
         is_half_dim = bool(
             re.search(r"m7[b♭]5", chord, flags=re.IGNORECASE) or "ø" in chord
         )
 
+        # Diminished triad / dim7: 'dim' or '°', but only if NOT half-dim.
+        # The half-dim check above is more specific, so we exclude it.
+        is_dim = (
+            bool(re.search(r"dim", chord, flags=re.IGNORECASE)) or "°" in chord
+        ) and not is_half_dim
+
+        # Quality-aware case correction. Preserves any leading ♭/b/♯/#
+        # prefix and any trailing markers — only flips the alphabetic
+        # roman part (i/ii/iii/iv/v/vi/vii). This is what makes E7 in
+        # E minor render as "I7" instead of "i7": the table emits "i"
+        # by default (because most chords on the tonic ARE minor in a
+        # minor key), but the chord symbol "E7" has a major triad, so
+        # we uppercase.
+        def _set_case(roman: str, *, upper: bool) -> str:
+            match = re.match(r"^([♭b♯#]?)([ivIV]+)(.*)$", roman)
+            if not match:
+                return roman
+            prefix, alpha, rest = match.groups()
+            alpha = alpha.upper() if upper else alpha.lower()
+            return prefix + alpha + rest
+
+        if is_dim:
+            base_roman = _set_case(base_roman, upper=False)
+            # ° goes on the alphabetic part. The table sometimes pre-bakes
+            # it (slot 11 = "vii°"); avoid double-stamping.
+            if "°" not in base_roman:
+                base_roman += "°"
+        elif is_half_dim:
+            base_roman = _set_case(base_roman, upper=False)
+            # ø7 suffix appended below in the seventh-quality block
+        elif is_minor_triad:
+            base_roman = _set_case(base_roman, upper=False)
+        else:
+            # Major-quality triad (no 'm', no 'dim', no 'ø').
+            # Includes plain triads (C), dominants (E7, G7), maj7 (Cmaj7),
+            # and slash-bass major chords. Uppercase regardless of where
+            # the table started: this is how secondary dominants in minor
+            # keys (E7 → I7, A7 → I7) get the right case.
+            base_roman = _set_case(base_roman, upper=True)
+
+        # Append seventh quality (after case + ° already settled).
         if is_half_dim:
             base_roman += "ø7"
         elif is_maj7:
             base_roman += "maj7"
-        elif re.search(r"7(?![+])", chord):  # plain '7' (dominant/minor-7 contexts)
+        elif re.search(r"7(?![+])", chord):
+            # Plain '7' covers dom7, m7, and dim7 (the ° is already on
+            # the base from the dim branch above, giving "°7").
             base_roman += "7"
 
         return base_roman

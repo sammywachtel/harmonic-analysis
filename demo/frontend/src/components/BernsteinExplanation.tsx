@@ -23,7 +23,7 @@ export const BernsteinExplanation: React.FC<BernsteinExplanationProps> = ({ expl
 
       {/* Main section: Breakdown - hierarchical key points */}
       <div>
-        <h4 className="text-lg font-semibold text-slate-900 mb-3">The Essentials</h4>
+        <h4 className="font-serif text-lg font-semibold text-slate-900 mb-3 tracking-tight">The Essentials</h4>
         <div className="space-y-2">
           {explanation.breakdown.map((point, idx) => (
             <div key={idx} className="text-slate-700 leading-relaxed">
@@ -35,7 +35,7 @@ export const BernsteinExplanation: React.FC<BernsteinExplanationProps> = ({ expl
 
       {/* Victory lap: Story - narrative context */}
       <div>
-        <h4 className="text-lg font-semibold text-slate-900 mb-3">The Story</h4>
+        <h4 className="font-serif text-lg font-semibold text-slate-900 mb-3 tracking-tight">The Story</h4>
         <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{explanation.story}</ReactMarkdown>
         </div>
@@ -43,7 +43,7 @@ export const BernsteinExplanation: React.FC<BernsteinExplanationProps> = ({ expl
 
       {/* Time to tackle the tricky bit: Composers - who uses this */}
       <div>
-        <h4 className="text-lg font-semibold text-slate-900 mb-3">In the Hands of Masters</h4>
+        <h4 className="font-serif text-lg font-semibold text-slate-900 mb-3 tracking-tight">In the Hands of Masters</h4>
         <div className="text-slate-700 leading-relaxed">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{explanation.composers}</ReactMarkdown>
         </div>
@@ -51,10 +51,10 @@ export const BernsteinExplanation: React.FC<BernsteinExplanationProps> = ({ expl
 
       {/* Here's where we showcase specific examples */}
       <div>
-        <h4 className="text-lg font-semibold text-slate-900 mb-3">Listen For It Here</h4>
+        <h4 className="font-serif text-lg font-semibold text-slate-900 mb-3 tracking-tight">Listen For It Here</h4>
         <ul className="space-y-2 list-none">
           {explanation.examples.map((example, idx) => (
-            <li key={idx} className="text-slate-700 leading-relaxed pl-4 border-l-2 border-info-300">
+            <li key={idx} className="text-slate-700 leading-relaxed pl-4 border-l-2 border-indigo-200">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{example}</ReactMarkdown>
             </li>
           ))}
@@ -62,7 +62,7 @@ export const BernsteinExplanation: React.FC<BernsteinExplanationProps> = ({ expl
       </div>
 
       {/* Final whistle: Try this - actionable practice */}
-      <div className="bg-success-50 border border-success-200 rounded-lg p-4">
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
         <h4 className="text-lg font-semibold text-slate-900 mb-2">Try This</h4>
         <div className="text-slate-700 leading-relaxed">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{explanation.try_this}</ReactMarkdown>
@@ -85,7 +85,7 @@ export const BernsteinExplanation: React.FC<BernsteinExplanationProps> = ({ expl
             <div className="mt-4 space-y-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
               {explanation.technical_notes.voice_leading && (
                 <div>
-                  <h5 className="text-md font-semibold text-slate-900 mb-2">Voice Leading</h5>
+                  <h5 className="font-serif text-base font-semibold text-slate-900 mb-2 tracking-tight">Voice Leading</h5>
                   <div className="text-slate-700 text-sm leading-relaxed">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {explanation.technical_notes.voice_leading}
@@ -96,7 +96,7 @@ export const BernsteinExplanation: React.FC<BernsteinExplanationProps> = ({ expl
 
               {explanation.technical_notes.theoretical_depth && (
                 <div>
-                  <h5 className="text-md font-semibold text-slate-900 mb-2">Theoretical Depth</h5>
+                  <h5 className="font-serif text-base font-semibold text-slate-900 mb-2 tracking-tight">Theoretical Depth</h5>
                   <div className="text-slate-700 text-sm leading-relaxed">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {explanation.technical_notes.theoretical_depth}
@@ -107,7 +107,7 @@ export const BernsteinExplanation: React.FC<BernsteinExplanationProps> = ({ expl
 
               {explanation.technical_notes.historical_context && (
                 <div>
-                  <h5 className="text-md font-semibold text-slate-900 mb-2">Historical Context</h5>
+                  <h5 className="font-serif text-base font-semibold text-slate-900 mb-2 tracking-tight">Historical Context</h5>
                   <div className="text-slate-700 text-sm leading-relaxed">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {explanation.technical_notes.historical_context}
