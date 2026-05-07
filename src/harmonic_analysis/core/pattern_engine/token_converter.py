@@ -489,6 +489,14 @@ class TokenConverter:
             bool(re.search(r"dim", chord, flags=re.IGNORECASE)) or "°" in chord
         ) and not is_half_dim
 
+        # Augmented triad / aug7 / augmaj7: 'aug' or literal '+' in the symbol.
+        # Surfaced by DCML cases like Beethoven op. 18-4 mvt 2 mm. 213-217
+        # ('Gaug7' was emitting 'V7' instead of 'V+7'). Same shape as dim:
+        # add a '+' suffix; the 7/maj7 quality block runs after.
+        is_aug = bool(re.search(r"aug", chord, flags=re.IGNORECASE)) or (
+            "+" in chord and not is_dim and not is_half_dim
+        )
+
         # Quality-aware case correction. Preserves any leading ♭/b/♯/#
         # prefix and any trailing markers — only flips the alphabetic
         # roman part (i/ii/iii/iv/v/vi/vii). This is what makes E7 in
@@ -510,6 +518,14 @@ class TokenConverter:
             # it (slot 11 = "vii°"); avoid double-stamping.
             if "°" not in base_roman:
                 base_roman += "°"
+        elif is_aug:
+            # Augmented chords have a major triad over a raised 5th — the
+            # alphabetic roman is uppercase (major quality) and we append
+            # '+' to mark the augmented 5. The 7/maj7 quality block runs
+            # after, so 'Caug7' → base 'I+' → final 'I+7'.
+            base_roman = _set_case(base_roman, upper=True)
+            if "+" not in base_roman:
+                base_roman += "+"
         elif is_half_dim:
             base_roman = _set_case(base_roman, upper=False)
             # ø7 suffix appended below in the seventh-quality block

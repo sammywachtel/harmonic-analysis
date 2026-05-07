@@ -187,36 +187,54 @@ def load_pattern_tests() -> list[TestScenario]:
 
 
 def load_dcml_fixtures() -> list[TestScenario]:
-    """Future hook: DCML-derived oracle fixtures.
+    """DCML oracle cases — derived in-memory from the cached corpus.
 
-    Will live at tests/data/oracles/abc/*.oracle.json once task #4 lands.
-    Each case carries source_movement / source_measures / source_commit
-    fields which we'll surface as attribution.
+    Mirrors the MOVEMENTS list in tests/integration/test_dcml_oracle.py.
+    Skipped silently if the corpus can't be fetched (offline dev / no git
+    available); the test file has the same fallback so the two stay in sync.
     """
+    import os as _os
+
+    if _os.environ.get("HA_SKIP_DCML_FETCH") == "1":
+        return []
+    try:
+        from harmonic_analysis.integrations.dcml_loader import (
+            DEFAULT_MOVEMENTS,
+            build_oracle_for_movement,
+        )
+    except ImportError:
+        return []
+
+    cache_dir = REPO_ROOT / "tests" / "data" / "oracles" / "dcml_cache" / "abc"
+    movements = DEFAULT_MOVEMENTS
+
     out: list[TestScenario] = []
-    abc_dir = REPO_ROOT / "tests" / "data" / "oracles" / "abc"
-    if not abc_dir.exists():
-        return out
-    for path in sorted(abc_dir.glob("*.oracle.json")):
-        data = json.loads(path.read_text(encoding="utf-8"))
-        for case in data.get("progressions", []):
-            mvt = case.get("source_movement", "")
+    for mvt in movements:
+        try:
+            doc = build_oracle_for_movement(mvt, cache_dir)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  [warn] DCML fetch failed for {mvt}: {exc}")
+            continue
+        for case in doc.get("progressions", []):
             mm = case.get("source_measures", "")
             sha = case.get("source_commit", "")
-            attribution = f"DCML ABC {mvt}".strip()
+            attribution = f"DCML ABC {mvt}"
             if mm:
                 attribution += f" mm. {mm}"
             if sha:
                 attribution += f" (commit {sha[:8]})"
+            # Synthetic "source file" string for table grouping; not an
+            # actual file on disk (DCML data is fetched, not vendored).
+            source_file = f"<dcml_abc:{mvt}>"
             out.append(
                 TestScenario(
                     name=case["name"],
-                    source_file=_rel(path),
+                    source_file=source_file,
                     source_kind="dcml",
                     attribution=attribution,
                     input_chords=case.get("chords"),
                     profile="classical",
-                    key_hint=case.get("key_hint", case.get("key")),
+                    key_hint=case.get("key_hint"),
                     expected_key=case.get("key"),
                     expected_romans=case.get("roman_numerals"),
                     rationale=case.get("comment", ""),

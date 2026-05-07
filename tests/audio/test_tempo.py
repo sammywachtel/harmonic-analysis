@@ -9,7 +9,17 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from harmonic_analysis.audio._tempo import TempoRegion, _segment_tempo, bpm_to_rubato
+# Module-level skip — ``_tempo`` transitively imports librosa, so the whole
+# module fails to COLLECT (not just skip) on environments without the audio
+# extras installed (the CI Backend Quality job is one). Same pattern used
+# by tests/audio/test_chord_estimation.py.
+librosa = pytest.importorskip("librosa")
+
+from harmonic_analysis.audio._tempo import (  # noqa: E402
+    TempoRegion,
+    _segment_tempo,
+    bpm_to_rubato,
+)
 
 
 class TestBpmToRubato:
