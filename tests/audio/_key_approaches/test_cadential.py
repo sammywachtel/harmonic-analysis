@@ -215,23 +215,90 @@ def test_v_to_capital_i_major_credits_both_modes_equally() -> None:
     assert d_aeolian == 1.0
 
 
-def test_no_v_motion_returns_empty_verdict() -> None:
-    """Negative case: a sequence with NO (major V → any tonic) adjacent
-    pairs must produce an empty verdict with a populated reason. Cadential
-    refuses to fabricate cadences from non-dominant motion.
+def test_minor_v_to_i_credits_aeolian_only() -> None:
+    """F#m → Bm cadence (natural-minor v→i in B Aeolian) credits B Aeolian
+    ONLY, not B Ionian. This is the regression guard for the dusty_wings
+    bug: songs in pure Aeolian (no raised leading tone) used to get zero
+    cadential credit, leaving their tonic to be miscredited to whichever
+    relative-major sibling shared chord transitions.
 
-    Sequence walk-through (each pair must fail the V→tonic test):
-        Am (minor) → Em (minor): a is minor, skipped (only major V's
-            count as dominants).
-        Em (minor) → Am (minor): a is minor, skipped.
-        Am (minor) → Dm (minor): a is minor, skipped.
-    No major-V dominants in the sequence at all → no cadences.
+    A minor v specifically rules out the major-mode reading (Ionian's V
+    is always major), so a single minor-v→i is a strong Aeolian signal
+    — unlike the major-V→I case where parallel modes are ambiguous and
+    we dual-credit.
     """
     events = [
-        _FakeChordEvent("Am"),
-        _FakeChordEvent("Em"),
-        _FakeChordEvent("Am"),
-        _FakeChordEvent("Dm"),
+        _FakeChordEvent("F#m"),  # minor v
+        _FakeChordEvent("Bm"),  # minor i
+    ]
+    ctx = KeyDetectionContext(chroma_1d=_chroma_stub(), chord_events=events)
+
+    verdict = CadentialApproach().detect(ctx)
+
+    b_ionian = _find_score(verdict, "B", "Ionian")
+    b_aeolian = _find_score(verdict, "B", "Aeolian")
+    assert b_aeolian == 1.0, f"Expected B Aeolian @ 1.0 from minor v→i; got {b_aeolian}"
+    assert b_ionian == 0.0, (
+        f"Expected B Ionian @ 0.0 from minor v→i (Ionian's V is always "
+        f"major, so minor v rules it out); got {b_ionian}"
+    )
+
+
+def test_mixed_major_v_and_minor_v_to_same_tonic() -> None:
+    """A song with both F#→Bm AND F#m→Bm cadences gives B Aeolian double
+    credit (one from each branch) but B Ionian only single credit (from
+    the major-V branch). Net result: the song leans Aeolian, which is the
+    correct read for repertoire that mixes raised-leading-tone (harmonic
+    minor V) with natural-minor v.
+    """
+    events = [
+        _FakeChordEvent("F#"),  # major V → credits B Ionian + B Aeolian
+        _FakeChordEvent("Bm"),
+        _FakeChordEvent("F#m"),  # minor v → credits B Aeolian only
+        _FakeChordEvent("Bm"),
+    ]
+    ctx = KeyDetectionContext(chroma_1d=_chroma_stub(), chord_events=events)
+
+    verdict = CadentialApproach().detect(ctx)
+
+    b_ionian = _find_score(verdict, "B", "Ionian")
+    b_aeolian = _find_score(verdict, "B", "Aeolian")
+    # B Aeolian = 2 cadences (1 major + 1 minor), B Ionian = 1 cadence.
+    # Normalized over max=2: Aeolian=1.0, Ionian=0.5.
+    assert b_aeolian == 1.0
+    assert b_ionian == 0.5
+    assert (
+        b_aeolian > b_ionian
+    ), "Aeolian should outscore Ionian when both branches fire"
+
+
+def test_no_v_motion_returns_empty_verdict() -> None:
+    """Negative case: a sequence with NO V→I motions of any kind (neither
+    major-V→I nor minor-v→i) must produce an empty verdict with a
+    populated reason. Cadential refuses to fabricate cadences from
+    non-dominant motion.
+
+    Uses chord pairs whose roots are *not* a fifth apart, so neither
+    branch of cadential's credit logic fires:
+
+        C → D (whole step): not a fifth.
+        D → F# (major third): not a fifth.
+        F# → C (tritone): not a fifth.
+        C → D (back to start): not a fifth.
+
+    All four pairs fail the V→tonic check (a_pc != b_pc + 7), so no
+    cadence credit is awarded for any tonic candidate. Both major and
+    minor cadential branches are exercised by negative — the test
+    documents that *neither* branch fires when there are no fifth
+    relationships, which is what "no V motion" actually means now that
+    minor-v→i is also credited.
+    """
+    events = [
+        _FakeChordEvent("C"),
+        _FakeChordEvent("D"),
+        _FakeChordEvent("F#"),
+        _FakeChordEvent("C"),
+        _FakeChordEvent("D"),
     ]
     ctx = KeyDetectionContext(chroma_1d=_chroma_stub(), chord_events=events)
 

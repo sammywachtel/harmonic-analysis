@@ -156,31 +156,39 @@ class CadentialApproach(KeyDetectionApproach):
             a_pc, a_minor = a
             b_pc, _b_minor = b  # b's quality intentionally ignored — see below
 
-            # 'a' must be a major triad to function as a dominant.
-            # The chord estimator only outputs major/minor triads; minor
-            # dominants are theoretically possible but vanishingly rare
-            # in tonal repertoire and we don't credit them here.
-            if a_minor:
-                continue
-
-            # Walk all 12 tonic candidates; credit equally for both
-            # Ionian and Aeolian when a is the dominant of tonic_pc and
-            # b lands on tonic_pc (regardless of b's quality).
+            # Walk all 12 tonic candidates; credit when a is a fifth
+            # above b (the V→I dominant relationship). The credit
+            # depends on whether a is major or minor:
+            #
+            # - **Major V → I/i** (e.g., F#→Bm or F#→B): canonical
+            #   tonal cadence. Credit BOTH Ionian and Aeolian of the
+            #   tonic equally — a single major-V cadence doesn't
+            #   distinguish parallel modes (B major vs B minor with
+            #   raised leading tone), so let the rest of the ensemble
+            #   vote on mode.
+            #
+            # - **Minor v → i** (e.g., F#m→Bm): the natural-minor /
+            #   Aeolian cadence. Credit ONLY Aeolian of the tonic. A
+            #   minor v specifically rules out the major-mode reading
+            #   (Ionian's V is always major), so it's a strong Aeolian
+            #   signal. Without this case, modal songs that don't
+            #   raise the leading tone (most rock, folk, and a lot of
+            #   contemporary pop) get no cadential credit and lose
+            #   their tonic to whichever relative-major sibling
+            #   happens to share chord transitions.
             for tonic_pc in range(12):
                 expected_dominant_pc = (tonic_pc + 7) % 12
                 if a_pc != expected_dominant_pc or b_pc != tonic_pc:
                     continue
 
-                # Mode-agnostic dual credit. Both Ionian and Aeolian of
-                # the same tonic root get +1 because cadential can't
-                # (and shouldn't) tell parallel-mode apart from a single
-                # V → tonic motion. F#→Bm is a minor authentic cadence;
-                # F#→B is a major authentic cadence; the chord-after-
-                # the-V information alone doesn't distinguish "the piece
-                # is in B" from "the piece is in B major vs B minor."
-                # Let the rest of the ensemble vote on mode.
-                cadence_counts[tonic_pc * 2] += 1  # Ionian slot
-                cadence_counts[tonic_pc * 2 + 1] += 1  # Aeolian slot
+                if a_minor:
+                    # Minor v → i: Aeolian-only credit.
+                    cadence_counts[tonic_pc * 2 + 1] += 1
+                else:
+                    # Major V → I/i: dual credit, modes argued out
+                    # downstream.
+                    cadence_counts[tonic_pc * 2] += 1  # Ionian slot
+                    cadence_counts[tonic_pc * 2 + 1] += 1  # Aeolian slot
 
         max_count = max(cadence_counts)
         if max_count == 0:

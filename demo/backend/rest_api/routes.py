@@ -421,11 +421,24 @@ async def analyze_audio_endpoint(
     start: Optional[float] = Form(None),
     end: Optional[float] = Form(None),
     show_details: bool = Form(False),
+    # ── Key detection (ensemble) ───────────────────────────────────────
     key_detection: str = Form("default"),
     key_ensemble_weights: Optional[str] = Form(None),
+    # ── Timing & tempo ────────────────────────────────────────────────
+    rubato: str = Form("auto"),
+    tempo_region_threshold: Optional[float] = Form(None),
+    # ── Chord matching ────────────────────────────────────────────────
     tonal_bias: Optional[float] = Form(None),
     bass_bonus: Optional[float] = Form(None),
     use_bass_chroma: Optional[bool] = Form(None),
+    bass_confidence_threshold: Optional[float] = Form(None),
+    # ── Silence detection ─────────────────────────────────────────────
+    rms_silence_threshold: Optional[float] = Form(None),
+    trailing_silence_window_s: Optional[float] = Form(None),
+    trailing_silence_ratio: Optional[float] = Form(None),
+    # ── Chord consolidation ───────────────────────────────────────────
+    merge_same_root: Optional[bool] = Form(None),
+    max_merge_duration_s: Optional[float] = Form(None),
 ) -> Dict[str, Any]:
     """
     Analyze an audio file (WAV, MP3, etc.) for key, chords, and cadences.
@@ -454,6 +467,12 @@ async def analyze_audio_endpoint(
         use_bass_chroma: Optional bool. Extract bass-register chroma for
             root-disambiguation; helps separate Am vs C, Bm vs D. Library
             default is ``False``. ``None`` lets the library pick.
+        rubato: Chord-window timing preset. ``"auto"`` (default) detects
+            BPM and sizes the analysis window dynamically — typically the
+            best choice across genres. Static presets (``"strict"``,
+            ``"moderate"``, ``"loose"``, ``"free"``) override auto for
+            callers who want a fixed window grid. A float 0.0–1.0
+            interpolates between strict and free.
     """
     # Import guard — audio deps are optional; fail loudly with install hint
     try:
@@ -528,6 +547,24 @@ async def analyze_audio_endpoint(
         # Build segment tuple if the caller specified a window
         segment = (start, end) if start is not None else None
 
+        # Parse rubato. Accept "auto" plus the static presets and any
+        # float in [0, 1] (passed as a string from the form encoding).
+        # Bad input gets a 400 with a useful message.
+        valid_rubato_presets = {"auto", "strict", "moderate", "loose", "free"}
+        parsed_rubato: Any = rubato
+        if rubato not in valid_rubato_presets:
+            try:
+                parsed_rubato = float(rubato)
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Invalid rubato value {rubato!r}. "
+                        f"Valid presets: {sorted(valid_rubato_presets)} or a "
+                        f"float 0.0-1.0."
+                    ),
+                )
+
         # Build the kwargs dict so we only pass through the optional tuning
         # parameters when the caller actually set them. Letting None hit the
         # library would clobber its calibrated defaults.
@@ -536,13 +573,43 @@ async def analyze_audio_endpoint(
             "key_detection": parsed_key_detection,
             "show_analysis_details": show_details,
             "key_ensemble_weights": parsed_weights,
+            "rubato": parsed_rubato,
         }
+        # Pass through every advanced knob the caller actually set;
+        # leave the rest at library defaults. Grouped by phase below
+        # to mirror the demo UI's organization.
+
+        # Chord matching
         if tonal_bias is not None:
             analyze_kwargs["tonal_bias"] = float(tonal_bias)
         if bass_bonus is not None:
             analyze_kwargs["bass_bonus"] = float(bass_bonus)
         if use_bass_chroma is not None:
             analyze_kwargs["use_bass_chroma"] = bool(use_bass_chroma)
+        if bass_confidence_threshold is not None:
+            analyze_kwargs["bass_confidence_threshold"] = float(
+                bass_confidence_threshold
+            )
+
+        # Silence detection
+        if rms_silence_threshold is not None:
+            analyze_kwargs["rms_silence_threshold"] = float(rms_silence_threshold)
+        if trailing_silence_window_s is not None:
+            analyze_kwargs["trailing_silence_window_s"] = float(
+                trailing_silence_window_s
+            )
+        if trailing_silence_ratio is not None:
+            analyze_kwargs["trailing_silence_ratio"] = float(trailing_silence_ratio)
+
+        # Chord consolidation
+        if merge_same_root is not None:
+            analyze_kwargs["merge_same_root"] = bool(merge_same_root)
+        if max_merge_duration_s is not None:
+            analyze_kwargs["max_merge_duration_s"] = float(max_merge_duration_s)
+
+        # Variable-tempo region detection
+        if tempo_region_threshold is not None:
+            analyze_kwargs["tempo_region_threshold"] = float(tempo_region_threshold)
 
         try:
             result = await analyze_audio_async(temp_file_path, **analyze_kwargs)
@@ -589,6 +656,25 @@ async def analyze_audio_endpoint(
                 "end": result.segment_end,
             },
         }
+
+        # Tempo metadata — populated only when rubato="auto" triggered
+        # detection. Older clients ignore unknown fields, so this is
+        # additive. ``regions`` is empty when the tempo was stable
+        # through the segment (single-region or detection failure).
+        if result.tempo is not None:
+            response["tempo"] = {
+                "bpm": float(result.tempo.bpm),
+                "confidence": float(result.tempo.confidence),
+                "regions": [
+                    {
+                        "start_time": float(r.start_time),
+                        "end_time": float(r.end_time),
+                        "bpm": float(r.bpm),
+                        "confidence": float(r.confidence),
+                    }
+                    for r in result.tempo.regions
+                ],
+            }
 
         # Conditionally include the diagnostic panel. When show_details is
         # off, the response shape is unchanged from the pre-ensemble

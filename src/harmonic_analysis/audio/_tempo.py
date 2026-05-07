@@ -159,22 +159,105 @@ def detect_tempo(
     if tempo_array is None or tempo_array.size == 0:
         return TempoInfo(bpm=0.0, confidence=0.0)
 
-    bpm = float(np.median(tempo_array))
-    # Confidence is 1 minus normalized std. Std of 30 BPM is roughly
-    # "completely free tempo" → confidence 0; std of 0 is rock-steady → 1.
-    std = float(tempo_array.std())
+    # Two-step preprocessing before scoring. librosa's onset tempogram
+    # has two well-known failure modes on pop/electronic material:
+    #
+    # 1. **Octave errors** — different sections lock onto different
+    #    musical multiples of the same beat (e.g., 84 / 112 / 172 BPM
+    #    for the same song). All multiples of each other, but the std
+    #    spikes and the confidence collapses. Fold all values into a
+    #    one-octave canonical range so doubles/halves merge.
+    # 2. **Per-frame jitter** — even within one section, individual
+    #    frames flip between adjacent multiples. A moving median
+    #    suppresses single-frame spikes without smearing real changes.
+    #
+    # Order matters: fold first (so smoothing operates on the canonical
+    # values), then smooth.
+    folded = _fold_octaves(tempo_array)
+    smoothed = _moving_median(folded, kernel_size=43)  # ~0.5s @ 86 fps
+
+    bpm = float(np.median(smoothed))
+    # Confidence is 1 minus normalized std on the *smoothed-and-folded*
+    # curve. Std of 30 BPM is roughly "completely free tempo" →
+    # confidence 0; std of 0 is rock-steady → 1.
+    std = float(smoothed.std())
     confidence = max(0.0, min(1.0, 1.0 - std / 30.0))
 
     regions: List[TempoRegion] = []
-    if detect_regions and tempo_array.size > 1 and confidence > 0.0:
+    if detect_regions and smoothed.size > 1 and confidence > 0.0:
         regions = _segment_tempo(
-            tempo_array,
+            smoothed,
             sr=sr,
             segment_start=float(start_time),
             change_threshold=region_change_threshold,
         )
 
     return TempoInfo(bpm=bpm, confidence=confidence, regions=regions)
+
+
+def _fold_octaves(
+    arr: np.ndarray,
+    low: float = 70.0,
+    high: float = 140.0,
+) -> np.ndarray:
+    """Fold tempo values into a one-octave canonical range.
+
+    Iteratively halves anything above ``high`` and doubles anything
+    below ``low`` until every value sits in ``[low, high]``. The
+    default range ``[70, 140]`` is a perfect octave (140 = 2×70) that
+    spans most musical tempi without splitting any common pop or
+    classical tempo across the boundary.
+
+    Why this matters: librosa's per-frame tempo can lock onto different
+    musical multiples of the same beat in different sections of a song
+    (e.g., 84 in the verse, 168 in the chorus, 112 elsewhere — all the
+    same underlying tempo, just different beat subdivisions). Without
+    folding, the std looks huge and the confidence score collapses.
+    With folding, those values collapse to ~84 / ~84 / ~112 — much
+    tighter, and confidence reflects actual stability.
+
+    The fold preserves real tempo *changes* within the canonical range
+    — a song that genuinely shifts from 95 to 130 BPM still shows that
+    shift after folding.
+    """
+    if arr.size == 0:
+        return arr.copy()
+    out = arr.astype(np.float64).copy()
+    # Bound the loops defensively in case low/high are degenerate.
+    if high <= low or low <= 0:
+        return out
+    # Halve until in range.
+    for _ in range(10):  # 10 octaves covers any realistic input
+        mask = out > high
+        if not np.any(mask):
+            break
+        out[mask] = out[mask] / 2.0
+    # Double until in range.
+    for _ in range(10):
+        mask = out < low
+        if not np.any(mask):
+            break
+        out[mask] = out[mask] * 2.0
+    return out
+
+
+def _moving_median(arr: np.ndarray, kernel_size: int) -> np.ndarray:
+    """Running-median filter over a 1D array, reflecting at edges.
+
+    Used to suppress octave-error spikes in librosa's per-frame tempo
+    curve before std/segmentation. Pure numpy, no scipy. Kernel must
+    be odd; if it isn't, we round up.
+    """
+    if arr.size <= 1 or kernel_size <= 1:
+        return arr.copy()
+    if kernel_size % 2 == 0:
+        kernel_size += 1
+    pad = kernel_size // 2
+    padded = np.pad(arr, pad, mode="reflect")
+    out = np.empty_like(arr, dtype=np.float64)
+    for i in range(arr.size):
+        out[i] = np.median(padded[i : i + kernel_size])
+    return out
 
 
 def _segment_tempo(
@@ -184,6 +267,7 @@ def _segment_tempo(
     segment_start: float,
     change_threshold: float,
     min_region_s: float = 4.0,
+    region_merge_threshold: Optional[float] = None,
 ) -> List[TempoRegion]:
     """Split a per-frame tempo curve into constant-BPM regions.
 
@@ -200,10 +284,24 @@ def _segment_tempo(
         sr: Sample rate of the original audio (for time conversion).
         segment_start: Audio time (seconds) corresponding to the first
             element of ``tempo_array``.
-        change_threshold: Fractional change that triggers a new region.
+        change_threshold: Fractional per-frame divergence from the
+            running region mean that triggers a pass-1 split. Tighter
+            values (0.10) over-segment on performance jitter, looser
+            (0.30) miss real changes.
         min_region_s: Regions shorter than this are merged into the
             longer neighbor. 4 seconds catches single-bar wobble in
             most popular tempos.
+        region_merge_threshold: Pass-3 inter-region mean divergence
+            below which adjacent regions collapse back into one. Should
+            be slightly more lenient than ``change_threshold`` because
+            pass 1 detects single-frame outliers while pass 3 evaluates
+            sustained means — a region with mean 20.5% off its neighbor
+            can be the same musical idea with one outlier frame, but a
+            single frame at 20.5% definitely deserves a new region.
+            Defaults to ``change_threshold + 0.02`` (so 0.20 → 0.22)
+            which empirically resolves Bach's ritardando-at-end (~20.5%
+            inter-region diff, should merge) without losing genuine
+            section-level tempo bumps (typically 22%+).
 
     Returns:
         List of ``TempoRegion`` covering the full duration. Always at
@@ -212,6 +310,12 @@ def _segment_tempo(
     # librosa.feature.tempo's frame rate matches its onset envelope —
     # default hop_length=512 → frames_per_sec = sr/512.
     fps = sr / 512.0
+
+    # Pass 3's threshold defaults to slightly more lenient than pass 1's.
+    # See the docstring for the full rationale; in short: per-frame
+    # outliers shouldn't survive into the final region list.
+    if region_merge_threshold is None:
+        region_merge_threshold = change_threshold + 0.02
 
     # First pass: split on any frame where the current frame deviates
     # from the running region mean by more than the threshold.
@@ -269,6 +373,32 @@ def _segment_tempo(
         else:
             cleaned.append((start, end, mean))
 
+    # Third pass: merge adjacent regions whose means are within wobble
+    # range of each other. Pass 1 starts a new region on a *single*
+    # outlier frame even when the long-run mean stays similar (one
+    # missed onset, librosa double-counting a syncopation, a single
+    # rushed bar). Pass 2 catches the cases where one of the two
+    # neighbors is short. But neighbors that both clear ``min_region_s``
+    # with similar means still escape — a region split should require
+    # a *sustained* tempo change, not a momentary wobble.
+    if len(cleaned) > 1:
+        coalesced: List[tuple[int, int, float]] = [cleaned[0]]
+        for start, end, mean in cleaned[1:]:
+            prev_start, prev_end, prev_mean = coalesced[-1]
+            if prev_mean <= 0:
+                coalesced[-1] = (prev_start, end, mean)
+                continue
+            mean_diff = abs(mean - prev_mean) / prev_mean
+            if mean_diff <= region_merge_threshold:
+                prev_len = prev_end - prev_start
+                curr_len = end - start
+                new_len = prev_len + curr_len
+                new_mean = (prev_mean * prev_len + mean * curr_len) / new_len
+                coalesced[-1] = (prev_start, end, new_mean)
+            else:
+                coalesced.append((start, end, mean))
+        cleaned = coalesced
+
     # Convert frames to seconds and compute per-region confidence.
     out: List[TempoRegion] = []
     for start_f, end_f, mean_bpm in cleaned:
@@ -318,11 +448,27 @@ def bpm_to_rubato(
         as the static rubato presets in ``_profiles.py``.
     """
     if confidence < _MIN_TEMPO_CONFIDENCE or bpm <= 0:
-        # Moderate fallback — same numbers as the static preset.
-        return (0.5, 0.25, 3)
+        # Loose fallback — same numbers as the "loose" static preset.
+        # Material that defeats BPM detection (heavy reverb, free tempo,
+        # busy electronic production) is exactly the material that
+        # produces the most chord-event fragmentation under moderate's
+        # 0.5s window. Loose's 0.75s window + kernel=5 absorbs the
+        # ambiguity better. If the caller wants tight grids despite
+        # detection failure, they can pass an explicit static preset.
+        return (0.75, 0.4, 5)
 
+    # Cap the auto-window at 1.0s. Two beats is the right multiplier at
+    # higher detected tempos (where each "beat" is short), but at slower
+    # tempos like 90 BPM it gives a 1.32s window — wide enough to
+    # over-smooth piano music with chord-per-beat harmonic rhythm.
+    # Brief dominant chords (V before i) get averaged into the
+    # surrounding chords, and cadential loses the V→i evidence it
+    # needs to identify the tonic. 1.0s is the empirical sweet spot:
+    # still catches Bach's sixteenth-note figuration (132 BPM detected
+    # → 0.91s, unchanged) but doesn't smear piano transients
+    # (90 BPM → was 1.32s, now capped to 1.0s).
     window_s = 2.0 * (60.0 / bpm)
-    window_s = max(0.4, min(2.0, window_s))
+    window_s = max(0.4, min(1.0, window_s))
     hop_s = window_s / 2.0
     # Larger window → more figuration averaged in → ping-pong is rarer
     # but when it does happen, a wider median window is the right

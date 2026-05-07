@@ -34,6 +34,23 @@ export interface AudioSegment {
   end: number;
 }
 
+// Tempo metadata — populated when rubato="auto" triggered detection.
+// `regions` is empty for stable-tempo material; multiple entries appear
+// when the music has sustained tempo changes (e.g., accelerando section
+// breaks).
+export interface AudioTempoRegion {
+  start_time: number;
+  end_time: number;
+  bpm: number;
+  confidence: number;
+}
+
+export interface AudioTempo {
+  bpm: number;
+  confidence: number;
+  regions: AudioTempoRegion[];
+}
+
 // Diagnostic panel — only populated when show_details=true was sent.
 export interface KeyApproachCandidate {
   key: AudioGlobalKey;
@@ -68,6 +85,7 @@ export interface AudioAnalysisResponse {
   analysis: AudioCadenceSummary;
   chord_progression: AudioChordEvent[];
   segment: AudioSegment;
+  tempo?: AudioTempo;
   key_analysis_details?: KeyAnalysisDetails;
 }
 
@@ -112,6 +130,9 @@ export interface EnrichedAudioResult {
   };
   chord_progression: EnrichedChordEvent[];
   segment: AudioSegment;
+  /** Tempo info from auto-rubato detection. `undefined` when the caller
+   *  used a static rubato preset (no detection performed). */
+  tempo?: AudioTempo;
   /** When global tonic+mode == local tonic+mode (modulo enharmonic), the
    *  region card calls out "same notes, different tonal center". */
   keysMatch: boolean;
@@ -122,6 +143,7 @@ export interface EnrichedAudioResult {
 
 // ── Audio analyze request options ───────────────────────────────────────────
 export type KeyDetectionPreset = 'default' | 'ks_only' | 'full';
+export type RubatoPreset = 'auto' | 'strict' | 'moderate' | 'loose' | 'free';
 
 export interface AnalyzeAudioOptions {
   start?: number;       // segment start in seconds
@@ -130,6 +152,19 @@ export interface AnalyzeAudioOptions {
   preset?: KeyDetectionPreset;
   /** Optional weight overrides per approach name. */
   weights?: Record<string, number>;
+
+  // ── Timing & tempo ──────────────────────────────────────────────────
+  /** Chord-window timing preset. `"auto"` (default in the demo) detects BPM
+   *  and sizes the analysis window dynamically. Static presets override auto.
+   *  A number 0.0–1.0 interpolates between strict and free. */
+  rubato?: RubatoPreset | number;
+  /** Fractional BPM change above which auto-rubato emits a separate tempo
+   *  region. Library default 0.20 (= 20%). Lower values over-segment;
+   *  higher values miss real tempo changes. Only effective when
+   *  `rubato="auto"`. */
+  tempoRegionThreshold?: number;
+
+  // ── Chord matching ──────────────────────────────────────────────────
   /** Diatonic similarity bonus for chord estimation. Library default 0.15.
    *  Higher values bias chord matching toward in-key chords. */
   tonalBias?: number;
@@ -139,6 +174,33 @@ export interface AnalyzeAudioOptions {
   /** When true, the chord estimator extracts a bass-register chroma layer to
    *  disambiguate roots (Am vs C, Bm vs D). Library default false. */
   useBassChroma?: boolean;
+  /** Minimum bass-chroma peakiness for the bass-bonus to fire. Library
+   *  default 0.25. Higher values restrict the bonus to very clear bass
+   *  signals. Only meaningful when useBassChroma is on. */
+  bassConfidenceThreshold?: number;
+
+  // ── Silence detection ───────────────────────────────────────────────
+  /** Absolute RMS amplitude floor below which a window is treated as
+   *  silence. Library default 0.005 (~-46 dBFS). */
+  rmsSilenceThreshold?: number;
+  /** Length in seconds of the trailing window the adaptive (envelope-
+   *  relative) silence gate uses for context. Library default 3.0s.
+   *  Set to 0 to disable adaptive gating. */
+  trailingSilenceWindowS?: number;
+  /** Threshold for the adaptive gate as a fraction of trailing-window mean
+   *  RMS. Library default 0.10 (current window must be >10% of recent
+   *  loudness, ~20 dB drop). Set to 0 to disable. */
+  trailingSilenceRatio?: number;
+
+  // ── Chord consolidation ─────────────────────────────────────────────
+  /** When true (default), adjacent same-root chord events with different
+   *  qualities are merged into one. Disable to see the raw matcher output. */
+  mergeSameRoot?: boolean;
+  /** Upper cap (seconds) on a merged chord event's duration. Real chord
+   *  changes across bar lines shouldn't fuse just because they share a
+   *  root. Library default 4.0s (≈ one measure at typical tempos). */
+  maxMergeDurationS?: number;
+
   /** When true, the demo also runs the extracted chord labels through the
    *  library's pattern analysis (the same engine Manual entry uses) and
    *  renders the full Roman / cadence / pattern result tree. */

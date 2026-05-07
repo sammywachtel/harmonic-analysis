@@ -122,6 +122,35 @@ _TEMPLATE_MATRIX: np.ndarray = np.array(
 )
 
 
+def _trailing_mean(arr: np.ndarray, window: int) -> np.ndarray:
+    """Trailing-window mean at every index using cumulative sums.
+
+    For index ``i``, returns ``mean(arr[max(0, i - window + 1) : i + 1])``
+    — the average over the preceding ``window`` samples (inclusive of
+    ``i``). Used by the adaptive (envelope-relative) silence gate so
+    each chord-estimation window can compare its own energy to recent
+    context without recomputing the average per window.
+
+    O(n) via cumulative sum. Reflects no-history correctly: index 0's
+    "trailing mean" is just ``arr[0]``, not zero.
+    """
+    n = arr.size
+    if n == 0:
+        return arr.copy().astype(np.float64)
+    w = max(1, window)
+    if w >= n:
+        # Window covers everything — every index gets the prefix mean.
+        csum = np.cumsum(arr.astype(np.float64))
+        counts = np.arange(1, n + 1, dtype=np.float64)
+        return csum / counts
+    csum = np.concatenate([[0.0], np.cumsum(arr.astype(np.float64))])
+    out = np.empty(n, dtype=np.float64)
+    for i in range(n):
+        start = max(0, i - w + 1)
+        out[i] = (csum[i + 1] - csum[start]) / (i + 1 - start)
+    return out
+
+
 def _root_pitch_class(label: str) -> int:
     """Extract the root pitch class (0-11) from a chord label.
 
@@ -158,6 +187,8 @@ def estimate_chord_progression(
     min_chroma_norm: float = 0.05,
     rms_frames: Optional[np.ndarray] = None,
     rms_silence_threshold: float = 0.005,
+    trailing_silence_window_s: float = 3.0,
+    trailing_silence_ratio: float = 0.10,
     median_kernel: int = 3,
     merge_same_root: bool = True,
     max_merge_duration_s: float = 4.0,
@@ -212,13 +243,34 @@ def estimate_chord_progression(
             ``rms_silence_threshold`` are skipped entirely — closes
             the silent-tail hole that ``min_chroma_norm`` can't.
             Use ``extract_local_rms_envelope`` to build it.
-        rms_silence_threshold: Mean RMS amplitude below which a window
+        rms_silence_threshold: Absolute RMS floor below which a window
             is treated as silence (only effective when ``rms_frames``
             is supplied). 0.005 ≈ -46 dBFS — drops the decay tail and
             room-noise floor on typical classical recordings without
             biting into pp passages. Raise to 0.01 (~-40 dBFS) for
             heavily compressed pop, lower to 0.002 (~-54 dBFS) if the
-            recording's dynamic range demands it.
+            recording's dynamic range demands it. Pair with the
+            trailing-window gate below for fade-out detection.
+        trailing_silence_window_s: Length in seconds of the trailing
+            window used by the adaptive (envelope-relative) gate. The
+            gate compares each window's RMS to the mean RMS over the
+            preceding ``trailing_silence_window_s`` seconds — when the
+            current window is much quieter than recent context, it's
+            treated as silence regardless of the absolute floor. 3.0s
+            is the sweet spot for typical pop / classical: long enough
+            to average across a few measures, short enough to react to
+            actual fade-outs within a few seconds. Set to 0.0 to
+            disable adaptive gating (only the absolute floor remains).
+        trailing_silence_ratio: Threshold for the adaptive gate as a
+            fraction of trailing-window mean RMS. A window is gated
+            when ``window_rms < trailing_avg * trailing_silence_ratio``.
+            0.10 = "current window is more than 20 dB below the recent
+            average" — catches fade-out tails that the absolute floor
+            misses, without biting into legitimate quiet passages
+            (which usually sit only 6–15 dB below their context).
+            Lower values (0.05) are stricter; higher values (0.20)
+            cut more aggressively. Set to 0.0 to disable the adaptive
+            gate.
         median_kernel: Kernel size for running-median smoothing over
             raw chord labels. Must be odd and >= 1. Larger values
             produce smoother (but laggier) chord sequences. Default
@@ -313,6 +365,24 @@ def estimate_chord_progression(
     # ignore the gate than mask the wrong windows.
     use_rms_gate = rms_frames is not None and rms_frames.shape == (T,)
 
+    # Adaptive (envelope-relative) gate: pre-compute a trailing-window
+    # mean RMS at every frame so the per-window check below is O(1).
+    # Catches fade-outs that are quiet relative to recent context but
+    # still above the absolute floor — a song mixed at -10 dBFS whose
+    # fade-out drops to -35 dBFS won't trip the static silence threshold
+    # (-46 dBFS), but it IS clearly quieter than recent music. Disabled
+    # when use_rms_gate is off (no RMS to average) or when the trailing
+    # window/ratio params are zeroed (caller opted out).
+    use_trailing_gate = (
+        use_rms_gate and trailing_silence_window_s > 0 and trailing_silence_ratio > 0
+    )
+    trailing_rms_arr: Optional[np.ndarray] = None
+    if use_trailing_gate:
+        assert rms_frames is not None  # mypy hint
+        trailing_rms_arr = _trailing_mean(
+            rms_frames, int(trailing_silence_window_s * frames_per_sec)
+        )
+
     # --- Sliding window similarity ---
     num_windows = 1 + (T - win_frames) // hop_frames
     raw_labels: List[int] = []  # index into _TEMPLATE_LABELS
@@ -338,12 +408,30 @@ def estimate_chord_progression(
 
         # RMS gate first — cheaper than norm + tells us about audio
         # energy, not about whatever shape librosa's normalization
-        # squeezed the chroma into.
+        # squeezed the chroma into. Two thresholds:
+        #   1. Absolute floor (rms_silence_threshold) — catches true
+        #      silence and noise floor.
+        #   2. Adaptive (envelope-relative) — current window must be
+        #      at least trailing_silence_ratio of the trailing average,
+        #      otherwise the chord matcher is averaging across a fade
+        #      where chroma_cqt produces meaningless output.
         if use_rms_gate:
             assert rms_frames is not None  # mypy hint; use_rms_gate implies this
             window_rms = float(rms_frames[start:end].mean())
             if window_rms < rms_silence_threshold:
                 continue
+            if use_trailing_gate:
+                assert trailing_rms_arr is not None  # mypy hint
+                # Reference at the *start* of the window — the trailing
+                # average leading INTO the current window, not including
+                # the current window's own (possibly fading) energy.
+                ref_idx = max(0, start - 1)
+                trailing_avg = float(trailing_rms_arr[ref_idx])
+                if (
+                    trailing_avg > 0
+                    and window_rms < trailing_avg * trailing_silence_ratio
+                ):
+                    continue
 
         # L2-normalize. If the window is silent (norm below threshold),
         # skip it entirely — no point asking "which chord is this silence?"

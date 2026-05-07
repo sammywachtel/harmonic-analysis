@@ -4,7 +4,7 @@
 // same family as the manual-entry hero card; just sized differently to express
 // the global/local hierarchy.
 
-import type { EnrichedAudioResult } from '../../types/audio';
+import type { AudioTempo, EnrichedAudioResult } from '../../types/audio';
 import SectionCard from '../ui/SectionCard';
 import KeySignatureGlyph from '../ui/KeySignatureGlyph';
 import ConfidenceBar from '../ui/ConfidenceBar';
@@ -106,18 +106,30 @@ const HeadlinePanel = ({ result }: HeadlinePanelProps) => {
         </div>
       </div>
 
-      {/* Three-cell meta strip: region · cadence · borrowed tones */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border-t border-slate-200">
-        <RegionCell
-          regionType={l.region_type}
-          regionConfidence={l.region_confidence}
-        />
-        <CadenceCell
-          detected={analysis.cadence_detected}
-          strength={analysis.cadence_strength}
-        />
-        <BorrowedCell labels={borrowedLabels} />
-      </div>
+      {/* Meta strip: region · cadence · borrowed tones (· tempo when detected).
+          Tempo cell only renders when auto-rubato produced a confident BPM —
+          static-rubato analyses skip detection and have no tempo to show. */}
+      {(() => {
+        const showTempo =
+          result.tempo !== undefined && result.tempo.confidence >= 0.3;
+        const cols = showTempo ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3';
+        return (
+          <div className={`grid grid-cols-1 ${cols} divide-y sm:divide-y-0 sm:divide-x divide-slate-200 border-t border-slate-200`}>
+            <RegionCell
+              regionType={l.region_type}
+              regionConfidence={l.region_confidence}
+            />
+            <CadenceCell
+              detected={analysis.cadence_detected}
+              strength={analysis.cadence_strength}
+            />
+            <BorrowedCell labels={borrowedLabels} />
+            {showTempo && result.tempo && (
+              <TempoCell tempo={result.tempo} />
+            )}
+          </div>
+        );
+      })()}
 
       <div className="p-6 border-t border-slate-100 bg-slate-50/40">
         <PedagogyNote title="Reading the panel">
@@ -171,6 +183,27 @@ const BorrowedCell = ({ labels }: { labels: string[] }) => {
       sub={has ? labels.slice(0, 4).join(' · ') + (labels.length > 4 ? ' …' : '') : 'All chords are diatonic'}
     />
   );
+};
+
+const TempoCell = ({ tempo }: { tempo: AudioTempo }) => {
+  const variable = tempo.regions.length > 1;
+  // Color the dot by stability — steady tempo gets emerald, variable
+  // gets indigo (matches the modulation color in the region cell).
+  const dot = variable ? 'bg-indigo-500' : 'bg-emerald-500';
+  // The headline is the global BPM rounded; the sub line either confirms
+  // stability or summarizes the regions.
+  const headline = `${Math.round(tempo.bpm)} BPM`;
+  let sub: string;
+  if (variable) {
+    // Show the BPM range across regions for at-a-glance variation.
+    const bpms = tempo.regions.map((r) => r.bpm);
+    const lo = Math.round(Math.min(...bpms));
+    const hi = Math.round(Math.max(...bpms));
+    sub = `${tempo.regions.length} regions · ${lo}–${hi} BPM`;
+  } else {
+    sub = `Stable · confidence ${(tempo.confidence * 100).toFixed(0)}%`;
+  }
+  return <MetaCell eyebrow="Tempo" headline={headline} dot={dot} sub={sub} />;
 };
 
 const MetaCell = ({

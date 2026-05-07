@@ -271,11 +271,18 @@ class AudioAdapter:
         tonal_bias: float = 0.15,
         use_bass_chroma: bool = False,
         bass_bonus: float = 0.3,
+        bass_confidence_threshold: float = 0.25,
         rubato: Union[str, float] = "moderate",
         min_chroma_norm: float = 0.05,
+        rms_silence_threshold: float = 0.005,
+        trailing_silence_window_s: float = 3.0,
+        trailing_silence_ratio: float = 0.10,
         key_detection: KeyDetectionSpec = _DEFAULT_KEY_DETECTION,
         show_analysis_details: bool = False,
         key_ensemble_weights: Optional[Dict[str, float]] = None,
+        tempo_region_threshold: float = 0.20,
+        merge_same_root: bool = True,
+        max_merge_duration_s: float = 4.0,
     ) -> None:
         """Initialize the adapter.
 
@@ -380,8 +387,19 @@ class AudioAdapter:
         self._tonal_bias = tonal_bias
         self._use_bass_chroma = use_bass_chroma
         self._bass_bonus = bass_bonus
+        self._bass_confidence_threshold = bass_confidence_threshold
         self._median_kernel = rubato_kernel
         self._min_chroma_norm = min_chroma_norm
+        self._rms_silence_threshold = rms_silence_threshold
+        self._trailing_silence_window_s = trailing_silence_window_s
+        self._trailing_silence_ratio = trailing_silence_ratio
+        self._merge_same_root = merge_same_root
+        self._max_merge_duration_s = max_merge_duration_s
+        # Fractional BPM change that triggers a new tempo region during
+        # auto-rubato detection. 20% is loose enough to ignore performance
+        # micro-variation, tight enough to catch deliberate tempo changes
+        # (accelerando, ritardando, sectional speed shifts).
+        self._tempo_region_threshold = tempo_region_threshold
 
         # Resolve key_detection up front. resolve_preset() validates the
         # spec and raises ValueError for bad input — we want the failure
@@ -516,7 +534,15 @@ class AudioAdapter:
         chord_kernel = self._median_kernel
         if self._rubato_setting == "auto" and self._include_chords:
             tempo_info = detect_tempo(
-                filepath, start_time=resolved_start, end_time=resolved_end
+                filepath,
+                start_time=resolved_start,
+                end_time=resolved_end,
+                # Variable-tempo support: ask for region segmentation so
+                # each constant-tempo span can size its own chord window.
+                # Stable-tempo material gets a single region (or none) and
+                # we fall back to global-BPM sizing automatically.
+                detect_regions=True,
+                region_change_threshold=self._tempo_region_threshold,
             )
             # Explicit window/hop pins from the caller still win — auto
             # only fills in slots the caller left open.
@@ -558,20 +584,85 @@ class AudioAdapter:
                 filepath, start_time=resolved_start, end_time=resolved_end
             )
 
-            chords = estimate_chord_progression(
-                local_chroma,
-                ks_key,  # tonal_bias driven by K-S — stage-1 result
-                sr=sr,
-                hop_length=512,
-                window_size_s=chord_window,
-                hop_size_s=chord_hop,
-                tonal_bias=self._tonal_bias,
-                bass_chroma_frames=bass_chroma if self._use_bass_chroma else None,
-                bass_bonus=self._bass_bonus,
-                min_chroma_norm=self._min_chroma_norm,
-                rms_frames=rms_envelope,
-                median_kernel=chord_kernel,
+            # Variable-tempo path: when auto detected multiple tempo
+            # regions AND those regions would actually get different
+            # window sizes from bpm_to_rubato, run chord estimation
+            # independently per region. When all regions would clamp
+            # to the same window (because the cap or floor pins them),
+            # per-region processing adds no benefit — it just slices
+            # the chroma at region boundaries, which introduces
+            # spurious chord events that confuse the cadential vote.
+            # Stable-tempo material and "regions but same window"
+            # material both fall through to the single-pass global path.
+            #
+            # Empirical note: per-region also helps on songs where the
+            # windows are *technically* distinct but very close (e.g.,
+            # dusty_wings with 0.992s vs 1.000s windows). The slicing
+            # itself appears to give the chord matcher beneficial
+            # boundary resets — without it, chord events bleed across
+            # section transitions and confuse the cadential vote. Keep
+            # the per-region path even when the spread looks tiny.
+            from harmonic_analysis.audio._tempo import bpm_to_rubato
+
+            use_per_region = (
+                tempo_info is not None
+                and len(tempo_info.regions) > 1
+                and not self._chord_window_explicit
+                and not self._chord_hop_explicit
             )
+            if use_per_region:
+                assert tempo_info is not None  # mypy hint
+                # Compute per-region window tuples; if they're all
+                # identical, fall through to the global path. (Tiny
+                # numerical differences still count as distinct — see
+                # the empirical note above.)
+                region_windows = {
+                    bpm_to_rubato(r.bpm, r.confidence) for r in tempo_info.regions
+                }
+                if len(region_windows) <= 1:
+                    use_per_region = False
+
+            if use_per_region:
+                assert tempo_info is not None  # mypy hint
+                chords = _estimate_chords_per_region(
+                    local_chroma=local_chroma,
+                    rms_envelope=rms_envelope,
+                    bass_chroma=bass_chroma if self._use_bass_chroma else None,
+                    regions=tempo_info.regions,
+                    segment_start=resolved_start,
+                    ks_key=ks_key,
+                    sr=sr,
+                    tonal_bias=self._tonal_bias,
+                    bass_bonus=self._bass_bonus,
+                    bass_confidence_threshold=self._bass_confidence_threshold,
+                    min_chroma_norm=self._min_chroma_norm,
+                    rms_silence_threshold=self._rms_silence_threshold,
+                    trailing_silence_window_s=self._trailing_silence_window_s,
+                    trailing_silence_ratio=self._trailing_silence_ratio,
+                    merge_same_root=self._merge_same_root,
+                    max_merge_duration_s=self._max_merge_duration_s,
+                )
+            else:
+                chords = estimate_chord_progression(
+                    local_chroma,
+                    ks_key,  # tonal_bias driven by K-S — stage-1 result
+                    sr=sr,
+                    hop_length=512,
+                    window_size_s=chord_window,
+                    hop_size_s=chord_hop,
+                    tonal_bias=self._tonal_bias,
+                    bass_chroma_frames=(bass_chroma if self._use_bass_chroma else None),
+                    bass_bonus=self._bass_bonus,
+                    bass_confidence_threshold=self._bass_confidence_threshold,
+                    min_chroma_norm=self._min_chroma_norm,
+                    rms_frames=rms_envelope,
+                    rms_silence_threshold=self._rms_silence_threshold,
+                    trailing_silence_window_s=self._trailing_silence_window_s,
+                    trailing_silence_ratio=self._trailing_silence_ratio,
+                    median_kernel=chord_kernel,
+                    merge_same_root=self._merge_same_root,
+                    max_merge_duration_s=self._max_merge_duration_s,
+                )
 
         # Step 5 — STAGE 3: full ensemble. Run every enabled approach
         # against a context that now includes chord events from stage 2.
@@ -717,6 +808,114 @@ class AudioAdapter:
         }
 
 
+def _estimate_chords_per_region(
+    *,
+    local_chroma: Any,  # np.ndarray, kept Any to avoid lazy-import dance
+    rms_envelope: Optional[Any],
+    bass_chroma: Optional[Any],
+    regions: list,
+    segment_start: float,
+    ks_key: Any,  # KeyInfo
+    sr: int,
+    tonal_bias: float,
+    bass_bonus: float,
+    bass_confidence_threshold: float = 0.25,
+    min_chroma_norm: float = 0.05,
+    rms_silence_threshold: float = 0.005,
+    trailing_silence_window_s: float = 3.0,
+    trailing_silence_ratio: float = 0.10,
+    merge_same_root: bool = True,
+    max_merge_duration_s: float = 4.0,
+    hop_length: int = 512,
+) -> list:
+    """Run chord estimation independently for each tempo region.
+
+    Variable-tempo path. Each ``TempoRegion`` gets its own
+    ``window/hop/kernel`` derived from its own BPM, then we concatenate
+    the per-region events back into one list (timestamps offset to file
+    time) and run a final same-root merge across the boundaries to
+    consolidate any chord that spans a region edge.
+
+    Beyond the obvious wide-tempo-spread case, the slicing itself
+    appears to give the chord matcher beneficial boundary resets on
+    songs with detected section structure even when the per-region
+    windows are nearly identical — without the resets, chord events
+    bleed across section transitions and confuse the cadential vote.
+    """
+    from harmonic_analysis.audio._chord_estimation import (
+        _merge_same_root_events,
+        estimate_chord_progression,
+    )
+    from harmonic_analysis.audio._tempo import bpm_to_rubato
+
+    fps = sr / hop_length
+    all_events: list[ChordEvent] = []
+
+    for region in regions:
+        region_start_frame = max(0, int((region.start_time - segment_start) * fps))
+        region_end_frame = min(
+            local_chroma.shape[1],
+            int((region.end_time - segment_start) * fps),
+        )
+        if region_end_frame <= region_start_frame:
+            continue
+
+        chroma_slice = local_chroma[:, region_start_frame:region_end_frame]
+        rms_slice = (
+            rms_envelope[region_start_frame:region_end_frame]
+            if rms_envelope is not None
+            else None
+        )
+        bass_slice = (
+            bass_chroma[:, region_start_frame:region_end_frame]
+            if bass_chroma is not None
+            else None
+        )
+
+        window_s, hop_s, kernel = bpm_to_rubato(region.bpm, region.confidence)
+
+        # Defer the merge to the final cross-region pass below.
+        region_events = estimate_chord_progression(
+            chroma_slice,
+            ks_key,
+            sr=sr,
+            hop_length=hop_length,
+            window_size_s=window_s,
+            hop_size_s=hop_s,
+            tonal_bias=tonal_bias,
+            bass_chroma_frames=bass_slice,
+            bass_bonus=bass_bonus,
+            bass_confidence_threshold=bass_confidence_threshold,
+            min_chroma_norm=min_chroma_norm,
+            rms_frames=rms_slice,
+            rms_silence_threshold=rms_silence_threshold,
+            trailing_silence_window_s=trailing_silence_window_s,
+            trailing_silence_ratio=trailing_silence_ratio,
+            median_kernel=kernel,
+            merge_same_root=False,
+        )
+
+        # Offset timestamps from region-local back to file-relative.
+        for ce in region_events:
+            all_events.append(
+                ChordEvent(
+                    start_time=ce.start_time + region.start_time,
+                    end_time=ce.end_time + region.start_time,
+                    chord_label=ce.chord_label,
+                    confidence=ce.confidence,
+                    is_diatonic=ce.is_diatonic,
+                )
+            )
+
+    # Final merge across all boundaries — catches chords that legitimately
+    # span a region edge.
+    if not merge_same_root:
+        return all_events
+    return _merge_same_root_events(
+        all_events, max_merge_duration_s=max_merge_duration_s
+    )
+
+
 def analyze_audio(
     filepath: PathLike,
     *,
@@ -728,11 +927,18 @@ def analyze_audio(
     tonal_bias: float = 0.15,
     use_bass_chroma: bool = False,
     bass_bonus: float = 0.3,
+    bass_confidence_threshold: float = 0.25,
     rubato: Union[str, float] = "moderate",
     min_chroma_norm: float = 0.05,
+    rms_silence_threshold: float = 0.005,
+    trailing_silence_window_s: float = 3.0,
+    trailing_silence_ratio: float = 0.10,
     key_detection: KeyDetectionSpec = _DEFAULT_KEY_DETECTION,
     show_analysis_details: bool = False,
     key_ensemble_weights: Optional[Dict[str, float]] = None,
+    tempo_region_threshold: float = 0.20,
+    merge_same_root: bool = True,
+    max_merge_duration_s: float = 4.0,
 ) -> AudioAnalysisResult:
     """Synchronous convenience wrapper around ``AudioAdapter.from_audio``.
 
@@ -773,11 +979,18 @@ def analyze_audio(
         tonal_bias=tonal_bias,
         use_bass_chroma=use_bass_chroma,
         bass_bonus=bass_bonus,
+        bass_confidence_threshold=bass_confidence_threshold,
         rubato=rubato,
         min_chroma_norm=min_chroma_norm,
+        rms_silence_threshold=rms_silence_threshold,
+        trailing_silence_window_s=trailing_silence_window_s,
+        trailing_silence_ratio=trailing_silence_ratio,
         key_detection=key_detection,
         show_analysis_details=show_analysis_details,
         key_ensemble_weights=key_ensemble_weights,
+        tempo_region_threshold=tempo_region_threshold,
+        merge_same_root=merge_same_root,
+        max_merge_duration_s=max_merge_duration_s,
     )
     return adapter.from_audio(filepath, segment=segment)
 
@@ -793,11 +1006,18 @@ async def analyze_audio_async(
     tonal_bias: float = 0.15,
     use_bass_chroma: bool = False,
     bass_bonus: float = 0.3,
+    bass_confidence_threshold: float = 0.25,
     rubato: Union[str, float] = "moderate",
     min_chroma_norm: float = 0.05,
+    rms_silence_threshold: float = 0.005,
+    trailing_silence_window_s: float = 3.0,
+    trailing_silence_ratio: float = 0.10,
     key_detection: KeyDetectionSpec = _DEFAULT_KEY_DETECTION,
     show_analysis_details: bool = False,
     key_ensemble_weights: Optional[Dict[str, float]] = None,
+    tempo_region_threshold: float = 0.20,
+    merge_same_root: bool = True,
+    max_merge_duration_s: float = 4.0,
 ) -> AudioAnalysisResult:
     """Async convenience wrapper. Offloads librosa work to a worker thread.
 
@@ -839,9 +1059,16 @@ async def analyze_audio_async(
         tonal_bias=tonal_bias,
         use_bass_chroma=use_bass_chroma,
         bass_bonus=bass_bonus,
+        bass_confidence_threshold=bass_confidence_threshold,
         rubato=rubato,
         min_chroma_norm=min_chroma_norm,
+        rms_silence_threshold=rms_silence_threshold,
+        trailing_silence_window_s=trailing_silence_window_s,
+        trailing_silence_ratio=trailing_silence_ratio,
         key_detection=key_detection,
         show_analysis_details=show_analysis_details,
         key_ensemble_weights=key_ensemble_weights,
+        tempo_region_threshold=tempo_region_threshold,
+        merge_same_root=merge_same_root,
+        max_merge_duration_s=max_merge_duration_s,
     )
