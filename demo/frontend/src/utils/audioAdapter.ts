@@ -195,6 +195,7 @@ export const enrichAudioResult = (response: AudioAnalysisResponse): EnrichedAudi
     },
     chord_progression,
     segment: response.segment,
+    tempo: response.tempo,
     keysMatch,
     borrowedLabels,
   };

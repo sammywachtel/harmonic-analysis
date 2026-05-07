@@ -247,6 +247,28 @@ class _SegmentModel(BaseModel):
     end: float
 
 
+class _TempoRegionModel(BaseModel):
+    """One constant-tempo span detected during variable-tempo analysis."""
+
+    start_time: float
+    end_time: float
+    bpm: float
+    confidence: float
+
+
+class _TempoModel(BaseModel):
+    """BPM metadata for the analyzed segment.
+
+    Populated when ``rubato="auto"`` triggered tempo detection. ``regions``
+    is empty for stable-tempo material (one region or detection failure);
+    multiple entries appear when the music has sustained tempo changes.
+    """
+
+    bpm: float
+    confidence: float
+    regions: List[_TempoRegionModel] = []
+
+
 class AudioAnalysisResponse(BaseModel):
     """Shape of the JSON returned by POST /api/analyze/audio.
 
@@ -260,6 +282,7 @@ class AudioAnalysisResponse(BaseModel):
     analysis: _AnalysisModel
     chord_progression: List[ChordEventModel]
     segment: _SegmentModel
+    tempo: Optional[_TempoModel] = None
     key_analysis_details: Optional["KeyAnalysisDetails"] = None
 
     model_config = {"populate_by_name": True}

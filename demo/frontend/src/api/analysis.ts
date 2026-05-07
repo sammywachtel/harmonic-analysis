@@ -70,10 +70,37 @@ export const analyzeAudio = async (
   }
   // Pass the chord-estimation tuning knobs through only when the caller set
   // them. Omitting these lets the library use its calibrated defaults.
+  // Default to "auto" so demo users get tempo-adaptive chord windows
+  // out of the box. Static presets (or a float) override.
+  formData.append('rubato', String(options.rubato ?? 'auto'));
+  if (options.tempoRegionThreshold != null) {
+    formData.append('tempo_region_threshold', String(options.tempoRegionThreshold));
+  }
+  // Chord-matching knobs
   if (options.tonalBias != null) formData.append('tonal_bias', String(options.tonalBias));
   if (options.bassBonus != null) formData.append('bass_bonus', String(options.bassBonus));
   if (options.useBassChroma != null) {
     formData.append('use_bass_chroma', options.useBassChroma ? 'true' : 'false');
+  }
+  if (options.bassConfidenceThreshold != null) {
+    formData.append('bass_confidence_threshold', String(options.bassConfidenceThreshold));
+  }
+  // Silence-detection knobs
+  if (options.rmsSilenceThreshold != null) {
+    formData.append('rms_silence_threshold', String(options.rmsSilenceThreshold));
+  }
+  if (options.trailingSilenceWindowS != null) {
+    formData.append('trailing_silence_window_s', String(options.trailingSilenceWindowS));
+  }
+  if (options.trailingSilenceRatio != null) {
+    formData.append('trailing_silence_ratio', String(options.trailingSilenceRatio));
+  }
+  // Chord-consolidation knobs
+  if (options.mergeSameRoot != null) {
+    formData.append('merge_same_root', options.mergeSameRoot ? 'true' : 'false');
+  }
+  if (options.maxMergeDurationS != null) {
+    formData.append('max_merge_duration_s', String(options.maxMergeDurationS));
   }
 
   const response = await apiClient.post<AudioAnalysisResponse>(

@@ -9,7 +9,7 @@
 // We don't manage results inside this card — the parent Tab3 shows them.
 
 import { useEffect, useState } from 'react';
-import type { AnalyzeAudioOptions, KeyDetectionPreset } from '../../types/audio';
+import type { AnalyzeAudioOptions, KeyDetectionPreset, RubatoPreset } from '../../types/audio';
 import SectionCard from '../ui/SectionCard';
 import Tag from '../ui/Tag';
 import Eyebrow from '../ui/Eyebrow';
@@ -38,12 +38,38 @@ interface AdvancedConfig {
   segStart: number;
   segEnd: number;
   weights: Record<string, number>;
+
+  // Timing & tempo
+  /** Chord-window timing preset. "auto" detects BPM and sizes
+   *  the window dynamically; static presets fix the window grid. */
+  rubato: RubatoPreset;
+  /** Fractional BPM divergence above which auto-rubato emits a separate
+   *  region. null = use library default. */
+  tempoRegionThreshold: number | null;
+
+  // Chord matching
   /** Diatonic similarity bonus, 0–0.5. null = use library default. */
   tonalBias: number | null;
   /** Bass-register root-match bonus, 0–1. null = use library default. */
   bassBonus: number | null;
   /** Whether to extract bass-register chroma. null = use library default. */
   useBassChroma: boolean | null;
+  /** Min bass-chroma peakiness to fire the bonus. null = use default. */
+  bassConfidenceThreshold: number | null;
+
+  // Silence detection
+  /** Absolute RMS floor (linear). null = library default. */
+  rmsSilenceThreshold: number | null;
+  /** Trailing-window length in seconds. null = default. */
+  trailingSilenceWindowS: number | null;
+  /** Threshold as fraction of trailing-window mean RMS. null = default. */
+  trailingSilenceRatio: number | null;
+
+  // Chord consolidation
+  /** Merge adjacent same-root events into one. null = library default. */
+  mergeSameRoot: boolean | null;
+  /** Max merged-event duration (seconds). null = default. */
+  maxMergeDurationS: number | null;
 }
 
 // Library defaults for the chord-estimation tuning knobs. Same DRY caveat as
@@ -52,6 +78,13 @@ const TUNING_DEFAULTS = {
   tonalBias: 0.15,
   bassBonus: 0.3,
   useBassChroma: false,
+  bassConfidenceThreshold: 0.25,
+  tempoRegionThreshold: 0.20,
+  rmsSilenceThreshold: 0.005,
+  trailingSilenceWindowS: 3.0,
+  trailingSilenceRatio: 0.10,
+  mergeSameRoot: true,
+  maxMergeDurationS: 4.0,
 } as const;
 
 // IMPORTANT: keep these in sync with src/harmonic_analysis/audio/_key_ensemble.py
@@ -121,9 +154,17 @@ const UploadCard = ({
     segStart: 0,
     segEnd: 0,
     weights: { ...DEFAULT_WEIGHTS },
+    rubato: 'auto',
+    tempoRegionThreshold: null,
     tonalBias: null,
     bassBonus: null,
     useBassChroma: null,
+    bassConfidenceThreshold: null,
+    rmsSilenceThreshold: null,
+    trailingSilenceWindowS: null,
+    trailingSilenceRatio: null,
+    mergeSameRoot: null,
+    maxMergeDurationS: null,
   });
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
@@ -154,9 +195,17 @@ const UploadCard = ({
       showDetails: config.showDetails,
       preset: config.preset,
       weights: weightsTouched ? config.weights : undefined,
+      rubato: config.rubato,
+      tempoRegionThreshold: config.tempoRegionThreshold ?? undefined,
       tonalBias: config.tonalBias ?? undefined,
       bassBonus: config.bassBonus ?? undefined,
       useBassChroma: config.useBassChroma ?? undefined,
+      bassConfidenceThreshold: config.bassConfidenceThreshold ?? undefined,
+      rmsSilenceThreshold: config.rmsSilenceThreshold ?? undefined,
+      trailingSilenceWindowS: config.trailingSilenceWindowS ?? undefined,
+      trailingSilenceRatio: config.trailingSilenceRatio ?? undefined,
+      mergeSameRoot: config.mergeSameRoot ?? undefined,
+      maxMergeDurationS: config.maxMergeDurationS ?? undefined,
       runPatternAnalysis: config.runPatternAnalysis,
     });
   };
@@ -165,9 +214,17 @@ const UploadCard = ({
     setConfig((c) => ({
       ...c,
       weights: { ...DEFAULT_WEIGHTS },
+      rubato: 'auto',
+      tempoRegionThreshold: null,
       tonalBias: null,
       bassBonus: null,
       useBassChroma: null,
+      bassConfidenceThreshold: null,
+      rmsSilenceThreshold: null,
+      trailingSilenceWindowS: null,
+      trailingSilenceRatio: null,
+      mergeSameRoot: null,
+      maxMergeDurationS: null,
     }));
   };
 
@@ -462,18 +519,78 @@ const UploadCard = ({
                 })}
               </div>
 
-              {/* Chord-estimation tuning: separate from the ensemble-vote
-                  weights above. These shape how the chord-recognition
-                  template-matcher behaves, not how key votes get tallied. */}
+              {/* Below the ensemble-vote weights, the chord-estimation
+                  pipeline is broken into four logical sub-groups. Order
+                  follows the pipeline phases the parameters affect, top
+                  to bottom: timing → matching → consolidation → silence
+                  gates. Most users only ever touch the timing section. */}
+
+              {/* ── Timing & tempo ─────────────────────────────────── */}
               <div className="border-t border-slate-200 pt-3 space-y-3">
                 <div>
                   <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500 mb-1">
-                    Chord estimation
+                    Timing &amp; tempo
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Shapes the chord-recognition template matcher rather than the key vote.
-                    Most users never need these — defaults are calibrated for general-purpose
-                    pop / rock / classical material.
+                    How wide the chord-recognition window is and how the
+                    tempo-region detector splits sections.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-medium text-slate-700">rubato</span>
+                    <span className="text-[10px] font-mono text-slate-400">default auto</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Chord-window timing.{' '}
+                    <strong className="text-slate-700">auto</strong> detects the BPM and
+                    sizes the window to ~2 beats. Move toward{' '}
+                    <strong className="text-slate-700">strict</strong> for fast chord
+                    changes; toward <strong className="text-slate-700">loose</strong>/
+                    <strong className="text-slate-700">free</strong> if chord events look
+                    over-fragmented (slow ballads, busy figuration).
+                  </p>
+                  <select
+                    value={config.rubato}
+                    onChange={(e) =>
+                      setConfig((c) => ({ ...c, rubato: e.target.value as RubatoPreset }))
+                    }
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  >
+                    <option value="auto">auto — detect tempo, size dynamically</option>
+                    <option value="strict">strict — 0.25s window (fast changes)</option>
+                    <option value="moderate">moderate — 0.5s window</option>
+                    <option value="loose">loose — 0.75s window (smoother)</option>
+                    <option value="free">free — 1.0s window (very smooth)</option>
+                  </select>
+                </div>
+
+                <SliderRow
+                  label="tempo_region_threshold"
+                  title="Tempo-region sensitivity"
+                  description="Fractional BPM divergence above which auto-rubato emits a separate region. Lower (0.10) over-segments on performance jitter; higher (0.30) misses real tempo changes. Only effective when rubato='auto'."
+                  value={config.tempoRegionThreshold ?? TUNING_DEFAULTS.tempoRegionThreshold}
+                  defaultValue={TUNING_DEFAULTS.tempoRegionThreshold}
+                  isDefault={config.tempoRegionThreshold === null}
+                  min={0.05}
+                  max={0.50}
+                  step={0.01}
+                  onChange={(v) => setConfig((c) => ({ ...c, tempoRegionThreshold: v }))}
+                  disabled={config.rubato !== 'auto'}
+                  disabledHint="Set rubato='auto' to use this."
+                />
+              </div>
+
+              {/* ── Chord matching ─────────────────────────────────── */}
+              <div className="border-t border-slate-200 pt-3 space-y-3">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500 mb-1">
+                    Chord matching
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    How the template-matcher weighs candidates. Defaults are calibrated for
+                    general-purpose pop / rock / classical material.
                   </p>
                 </div>
 
@@ -488,21 +605,6 @@ const UploadCard = ({
                   max={0.5}
                   step={0.01}
                   onChange={(v) => setConfig((c) => ({ ...c, tonalBias: v }))}
-                />
-
-                <SliderRow
-                  label="bass_bonus"
-                  title="Bass-root bonus"
-                  description="When bass-chroma is on, this is the extra score the chord matcher gives templates whose root matches the bass note. Higher = bass tells you the chord; lower = treat the bass as one voice among many."
-                  value={config.bassBonus ?? TUNING_DEFAULTS.bassBonus}
-                  defaultValue={TUNING_DEFAULTS.bassBonus}
-                  isDefault={config.bassBonus === null}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  onChange={(v) => setConfig((c) => ({ ...c, bassBonus: v }))}
-                  disabled={config.useBassChroma === false}
-                  disabledHint="Enable bass-chroma below to use this."
                 />
 
                 <label className="flex items-start gap-2 cursor-pointer select-none">
@@ -527,23 +629,169 @@ const UploadCard = ({
                     </p>
                   </div>
                 </label>
+
+                <SliderRow
+                  label="bass_bonus"
+                  title="Bass-root bonus"
+                  description="When bass-chroma is on, this is the extra score chord templates whose root matches the bass note receive. Higher = bass tells you the chord; lower = treat the bass as one voice among many."
+                  value={config.bassBonus ?? TUNING_DEFAULTS.bassBonus}
+                  defaultValue={TUNING_DEFAULTS.bassBonus}
+                  isDefault={config.bassBonus === null}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={(v) => setConfig((c) => ({ ...c, bassBonus: v }))}
+                  disabled={config.useBassChroma !== true}
+                  disabledHint="Enable bass-chroma above to use this."
+                />
+
+                <SliderRow
+                  label="bass_confidence_threshold"
+                  title="Bass-bonus gating"
+                  description="Minimum bass-chroma 'peakiness' (max-PC vs mean) for the bonus to fire. Higher restricts the bonus to very clear bass signals; lower lets it fire on noisier basslines."
+                  value={config.bassConfidenceThreshold ?? TUNING_DEFAULTS.bassConfidenceThreshold}
+                  defaultValue={TUNING_DEFAULTS.bassConfidenceThreshold}
+                  isDefault={config.bassConfidenceThreshold === null}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={(v) => setConfig((c) => ({ ...c, bassConfidenceThreshold: v }))}
+                  disabled={config.useBassChroma !== true}
+                  disabledHint="Enable bass-chroma above to use this."
+                />
+              </div>
+
+              {/* ── Chord consolidation ────────────────────────────── */}
+              <div className="border-t border-slate-200 pt-3 space-y-3">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500 mb-1">
+                    Chord consolidation
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Post-processing that fuses ping-pong chord events sharing the same root.
+                  </p>
+                </div>
+
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={config.mergeSameRoot ?? TUNING_DEFAULTS.mergeSameRoot}
+                    onChange={(e) =>
+                      setConfig((c) => ({ ...c, mergeSameRoot: e.target.checked }))
+                    }
+                    className="h-4 w-4 mt-0.5 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm text-slate-700">
+                      merge_same_root{' '}
+                      <span className="text-[10px] font-mono text-slate-400">
+                        default {TUNING_DEFAULTS.mergeSameRoot ? 'on' : 'off'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      Merges adjacent same-root events that disagree on quality (e.g.
+                      Dm7→D7→Dm7 collapses to one). Disable to see raw matcher output.
+                    </p>
+                  </div>
+                </label>
+
+                <SliderRow
+                  label="max_merge_duration_s"
+                  title="Max merge duration"
+                  description="Upper cap (seconds) on a merged event. Real chord changes across bar lines shouldn't fuse just because they share a root. ~1 measure at typical tempos is the sweet spot."
+                  value={config.maxMergeDurationS ?? TUNING_DEFAULTS.maxMergeDurationS}
+                  defaultValue={TUNING_DEFAULTS.maxMergeDurationS}
+                  isDefault={config.maxMergeDurationS === null}
+                  min={0.5}
+                  max={10}
+                  step={0.5}
+                  onChange={(v) => setConfig((c) => ({ ...c, maxMergeDurationS: v }))}
+                  disabled={config.mergeSameRoot === false}
+                  disabledHint="Enable merge_same_root above to use this."
+                />
+              </div>
+
+              {/* ── Silence detection ──────────────────────────────── */}
+              <div className="border-t border-slate-200 pt-3 space-y-3">
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-slate-500 mb-1">
+                    Silence detection
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Two stacked gates: an absolute floor (catches true silence) and an
+                    adaptive trailing-window gate (catches fade-outs that are quiet relative
+                    to recent context).
+                  </p>
+                </div>
+
+                <SliderRow
+                  label="rms_silence_threshold"
+                  title="Absolute silence floor"
+                  description="Windows whose mean RMS amplitude falls below this are skipped. 0.005 ≈ -46 dBFS — drops noise floor without biting into pp passages."
+                  value={config.rmsSilenceThreshold ?? TUNING_DEFAULTS.rmsSilenceThreshold}
+                  defaultValue={TUNING_DEFAULTS.rmsSilenceThreshold}
+                  isDefault={config.rmsSilenceThreshold === null}
+                  min={0}
+                  max={0.05}
+                  step={0.001}
+                  onChange={(v) => setConfig((c) => ({ ...c, rmsSilenceThreshold: v }))}
+                />
+
+                <SliderRow
+                  label="trailing_silence_window_s"
+                  title="Trailing-window length"
+                  description="How far back the adaptive gate looks to compute recent loudness. 3-5s is the sweet spot — long enough for stability, short enough to react to fade-outs."
+                  value={config.trailingSilenceWindowS ?? TUNING_DEFAULTS.trailingSilenceWindowS}
+                  defaultValue={TUNING_DEFAULTS.trailingSilenceWindowS}
+                  isDefault={config.trailingSilenceWindowS === null}
+                  min={0}
+                  max={10}
+                  step={0.5}
+                  onChange={(v) => setConfig((c) => ({ ...c, trailingSilenceWindowS: v }))}
+                />
+
+                <SliderRow
+                  label="trailing_silence_ratio"
+                  title="Adaptive gate ratio"
+                  description="Threshold as a fraction of trailing-window mean RMS. 0.10 = 'current window must be more than 20 dB below recent average to trip the gate'. Set to 0 to disable adaptive gating."
+                  value={config.trailingSilenceRatio ?? TUNING_DEFAULTS.trailingSilenceRatio}
+                  defaultValue={TUNING_DEFAULTS.trailingSilenceRatio}
+                  isDefault={config.trailingSilenceRatio === null}
+                  min={0}
+                  max={0.5}
+                  step={0.01}
+                  onChange={(v) => setConfig((c) => ({ ...c, trailingSilenceRatio: v }))}
+                  disabled={
+                    (config.trailingSilenceWindowS ?? TUNING_DEFAULTS.trailingSilenceWindowS) ===
+                    0
+                  }
+                  disabledHint="Trailing-window length is 0 — adaptive gate is off."
+                />
               </div>
 
               <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-2.5">
                 <div className="text-[11px] text-slate-500 leading-relaxed">
                   <strong className="text-slate-700">Tuning tips:</strong> set a weight to{' '}
-                  <span className="font-mono">0</span> to disable an approach entirely. Numbers
-                  above <span className="font-mono">1</span> amplify its contribution. Changes
-                  only take effect on the next analyze.
+                  <span className="font-mono">0</span> to disable an approach entirely.
+                  Numbers above <span className="font-mono">1</span> amplify its
+                  contribution. Changes only take effect on the next analyze.
                 </div>
                 <button
                   type="button"
                   onClick={resetWeights}
                   disabled={
                     weightsAreDefault(config.weights) &&
+                    config.rubato === 'auto' &&
+                    config.tempoRegionThreshold === null &&
                     config.tonalBias === null &&
                     config.bassBonus === null &&
-                    config.useBassChroma === null
+                    config.useBassChroma === null &&
+                    config.bassConfidenceThreshold === null &&
+                    config.rmsSilenceThreshold === null &&
+                    config.trailingSilenceWindowS === null &&
+                    config.trailingSilenceRatio === null &&
+                    config.mergeSameRoot === null &&
+                    config.maxMergeDurationS === null
                   }
                   className="text-xs font-medium text-primary-700 hover:text-primary-900 disabled:text-slate-400 disabled:cursor-not-allowed whitespace-nowrap"
                 >
