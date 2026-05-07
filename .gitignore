@@ -128,3 +128,6 @@ tools/converted_patterns.json
 # Playwright e2e test artifacts (regenerated on every run)
 playwright-report/
 test-results/
+
+# DCML corpus cache (fetched at test time, never vendored — see tests/data/oracles/README.md)
+tests/data/oracles/dcml_cache/
