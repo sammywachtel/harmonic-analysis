@@ -108,6 +108,96 @@ def _resolve_rubato(rubato: Union[str, float]) -> Tuple[float, float, int]:
 PathLike = Union[str, Path]
 
 
+def _respell_keyinfo_for_display(key_info: Any) -> Any:
+    """Return a copy of ``key_info`` with canonical music-notation spelling.
+
+    Audio's internal ``PITCH_CLASSES`` is sharps-only (so a song in B-flat
+    minor surfaces internally as ``A# Aeolian``). This wraps the K-S
+    output before it reaches the caller so the published ``tonic`` and
+    ``key_signature`` follow the rest of the library's spelling
+    convention (Bb minor, not A# minor; Db major, not C# major; etc.).
+
+    See ``_profiles.canonical_key_spelling`` for the per-PC respell table
+    and the music-notation rationale.
+    """
+    from harmonic_analysis.audio._profiles import canonical_key_spelling
+    from harmonic_analysis.audio._types import KeyInfo
+
+    display_tonic, display_key_sig = canonical_key_spelling(
+        key_info.tonic, key_info.mode
+    )
+    if display_tonic == key_info.tonic and display_key_sig == key_info.key_signature:
+        return key_info
+    return KeyInfo(
+        tonic=display_tonic,
+        mode=key_info.mode,
+        key_signature=display_key_sig,
+        confidence=key_info.confidence,
+    )
+
+
+def _respell_analysis_details(details: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply canonical key spelling to every key reference in the panel.
+
+    The diagnostic panel embeds many KeyInfo-shaped dicts (each approach's
+    top_3 / top_5, the synthesis winner / runner-up, the score table). We
+    walk all of them and rewrite ``tonic`` + ``key_signature`` in-place
+    using the same convention as the surface-level fields.
+    """
+    from harmonic_analysis.audio._profiles import canonical_key_spelling
+
+    def _respell_key_dict(k: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if not k:
+            return k
+        tonic = k.get("tonic")
+        mode = k.get("mode")
+        if not tonic or not mode:
+            return k
+        new_tonic, new_keysig = canonical_key_spelling(tonic, mode)
+        if new_tonic == tonic:
+            return k
+        return {**k, "tonic": new_tonic, "key_signature": new_keysig}
+
+    out = dict(details)
+
+    # Per-approach top_3 / top_5 candidate lists.
+    approaches = out.get("approaches") or []
+    new_approaches = []
+    for a in approaches:
+        new_a = dict(a)
+        for field_name in ("top_3", "top_5"):
+            if field_name in new_a:
+                new_a[field_name] = [
+                    {**entry, "key": _respell_key_dict(entry.get("key"))}
+                    for entry in new_a[field_name]
+                ]
+        new_approaches.append(new_a)
+    out["approaches"] = new_approaches
+
+    # Synthesis winner / runner_up.
+    synth = out.get("synthesis")
+    if synth:
+        new_synth = dict(synth)
+        new_synth["winner"] = _respell_key_dict(synth.get("winner"))
+        if synth.get("runner_up"):
+            new_synth["runner_up"] = _respell_key_dict(synth.get("runner_up"))
+        # Score table keys are "<tonic> <mode>" strings — rewrite them.
+        score_table = synth.get("key_score_table")
+        if score_table:
+            rebuilt = {}
+            for label, score in score_table.items():
+                parts = label.rsplit(" ", 1)
+                if len(parts) == 2:
+                    new_tonic, new_keysig = canonical_key_spelling(*parts)
+                    rebuilt[new_keysig] = score
+                else:
+                    rebuilt[label] = score
+            new_synth["key_score_table"] = rebuilt
+        out["synthesis"] = new_synth
+
+    return out
+
+
 class AudioImportError(ImportError):
     """Raised when ``librosa`` or ``soundfile`` are not installed.
 
@@ -725,6 +815,18 @@ class AudioAdapter:
             key_analysis_details = self._build_analysis_details(
                 verdicts=verdicts, synthesis=synthesis_result
             )
+
+        # Step 9 — canonical key spelling. Internal pipeline uses the
+        # audio module's sharps-only PITCH_CLASSES for pitch-class
+        # arithmetic ("A#", "G#", etc.); the rest of the library and
+        # standard music notation expect flats for most black-key roots
+        # (Bb minor, not A# minor). Apply at the API boundary so the
+        # internal calculations stay consistent but every value the
+        # caller sees follows the canonical convention.
+        ensemble_key = _respell_keyinfo_for_display(ensemble_key)
+        local_key = _respell_keyinfo_for_display(local_key)
+        if key_analysis_details is not None:
+            key_analysis_details = _respell_analysis_details(key_analysis_details)
 
         return AudioAnalysisResult(
             global_key=ensemble_key,

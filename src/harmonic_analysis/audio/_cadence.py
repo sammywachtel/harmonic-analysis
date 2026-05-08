@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ._profiles import PITCH_CLASSES
+from ._profiles import PC_OF_NOTE, PITCH_CLASSES  # noqa: F401
 from ._types import CadenceInfo, KeyInfo
 
 
@@ -50,7 +50,10 @@ def detect_cadences(chroma: np.ndarray, key_info: KeyInfo) -> CadenceInfo:
 
     # First library substitution: integer pitch class via the constant
     # table instead of the upstream theory library's tonic.pitchClass.
-    tonic_pc = PITCH_CLASSES.index(key_info.tonic)
+    # PC_OF_NOTE accepts both sharp and flat spellings — KeyInfo's tonic
+    # may now arrive as "Bb" / "Eb" / "Db" / "Gb" / "Ab" after
+    # canonical-spelling respell at the API boundary.
+    tonic_pc = PC_OF_NOTE[key_info.tonic]
     dominant_pc = (tonic_pc + 7) % 12
 
     # Top-3 most-energetic pitch classes. argsort is ascending, so the

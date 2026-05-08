@@ -4,8 +4,10 @@ Chromatic Harmony Analysis
 Processes chromatic elements detected by functional harmony analysis,
 organizing them into secondary dominants, borrowed chords, and chromatic mediants.
 
-The main chromatic detection logic resides in the FunctionalHarmonyAnalyzer.
-This module processes and categorizes the detected chromatic elements.
+Operates on ``FunctionalAnalysisResult``-shaped inputs and categorizes the
+chromatic elements they carry. Currently has no production callers — kept
+because it's load-bearing reference data for the chromatic taxonomy and
+may be revived once the chromatic-detection path is reintroduced.
 """
 
 from dataclasses import dataclass

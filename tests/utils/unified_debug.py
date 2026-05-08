@@ -24,9 +24,6 @@ src_path = project_root / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
-from harmonic_analysis.core.functional_harmony import (  # noqa: E402
-    FunctionalHarmonyAnalyzer,
-)
 from harmonic_analysis.core.pattern_engine.low_level_events import (  # noqa: E402
     LowLevelEventExtractor,
 )
@@ -59,7 +56,6 @@ class UnifiedDebugger:
     def __init__(self, config: Optional[DebugConfig] = None):
         self.config = config or DebugConfig()
         self.pattern_debugger = PatternDebugger()
-        self.functional_analyzer = FunctionalHarmonyAnalyzer()
         self.token_converter = TokenConverter()
         self.event_extractor = LowLevelEventExtractor()
         self.pattern_service = PatternAnalysisService()
@@ -146,47 +142,28 @@ class UnifiedDebugger:
     async def _analyze_functional_harmony(
         self, chords: List[str], key_hint: Optional[str]
     ) -> Dict[str, Any]:
-        """Detailed functional harmony analysis with Stage B support."""
+        """Detailed functional harmony analysis via the production pattern
+        service.
+
+        Used to call the now-deleted FunctionalHarmonyAnalyzer directly. That
+        class duplicated the heuristic that ``UnifiedPatternService`` runs in
+        production; killing the duplicate meant retargeting this debug
+        method through the same production entry point. The fields returned
+        are best-effort across the new envelope shape — match what the
+        token-format consumers downstream expected.
+        """
         try:
-            # Use FunctionalHarmonyAnalyzer directly for detailed analysis
-            result = await self.functional_analyzer.analyze_functionally(
-                chords, key_hint=key_hint
+            envelope = await self.pattern_service.analyze_with_patterns_async(
+                chords, key_hint=key_hint, profile="classical"
             )
-
-            # Convert to tokens for detailed inspection
-            tokens = self.token_converter.convert_analysis_to_tokens(result, chords)
-
-            # Handle both dict and DTO result types
-            if hasattr(result, "key_center"):
-                # DTO format (FunctionalAnalysisResult)
-                key_center = result.key_center
-                confidence = result.confidence
-                reasoning = (
-                    result.explanation
-                )  # Note: it's 'explanation' not 'reasoning'
-            else:
-                # Dict format
-                key_center = result.get("key_center")
-                confidence = result.get("confidence", 0)
-                reasoning = result.get("reasoning", "")
-
+            primary = envelope.primary
             return {
-                "analysis_result": str(
-                    result
-                ),  # Convert to string to avoid iteration issues
-                "tokens": [
-                    {
-                        "roman": t.roman,
-                        "role": t.role,
-                        "flags": list(getattr(t, "flags", [])),
-                        "mode": getattr(t, "mode", None),
-                        "secondary_of": getattr(t, "secondary_of", None),
-                    }
-                    for t in tokens
-                ],
-                "key_center": key_center,
-                "confidence": confidence,
-                "reasoning": reasoning,
+                "analysis_result": str(envelope),
+                "key_center": getattr(primary, "key_signature", None),
+                "confidence": getattr(primary, "confidence", 0.0),
+                "reasoning": getattr(primary, "reasoning", "") or "",
+                "roman_numerals": list(getattr(primary, "roman_numerals", []) or []),
+                "type": getattr(getattr(primary, "type", None), "value", None),
             }
         except Exception as e:
             return {"error": str(e), "traceback": traceback.format_exc()}
@@ -242,19 +219,25 @@ class UnifiedDebugger:
             is_backdoor = self._is_backdoor_progression(chords)
 
             if is_backdoor:
-                # Detailed backdoor analysis
-                result = await self.functional_analyzer.analyze_functionally(
-                    chords, key_hint=key_hint
+                # Detailed backdoor analysis. Used to introspect tokens via
+                # the now-deleted FunctionalHarmonyAnalyzer; now reports
+                # what the production pattern service says about the same
+                # chords. Token-quality scoring degrades gracefully when
+                # the production envelope doesn't expose Token objects.
+                envelope = await self.pattern_service.analyze_with_patterns_async(
+                    chords, key_hint=key_hint, profile="classical"
                 )
-                tokens = self.token_converter.convert_analysis_to_tokens(result, chords)
-
+                primary = envelope.primary
+                roman_numerals = list(getattr(primary, "roman_numerals", []) or [])
                 return {
                     "is_backdoor": True,
                     "progression_type": "backdoor_ii_V",
                     "expected_progression": "♭iv7-♭VII7-I",
-                    "analysis": result,
-                    "tokens": [{"roman": t.roman, "role": t.role} for t in tokens],
-                    "backdoor_quality": self._assess_backdoor_quality(chords, tokens),
+                    "analysis": str(envelope),
+                    "key_center": getattr(primary, "key_signature", None),
+                    "roman_numerals": roman_numerals,
+                    "backdoor_quality": "n/a (token-level scoring removed "
+                    "with FunctionalHarmonyAnalyzer)",
                 }
             else:
                 return {

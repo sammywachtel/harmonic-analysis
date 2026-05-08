@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Hintless major-key detection on doo-wop loops.** Without a `key_hint`, the analyzer used to flip a textbook progression like `C Am F G C` (I-vi-IV-V-I in C major) to C minor, because the unified pattern service's modal-signature router flagged any minor chord as "Dorian" and routed the result through the minor-key fallback. Now the service detects the 5-chord I-vi-IV-V-I loop and a plain V→I-to-major cadence directly, and the cadence-quality gate (resolving chord's quality settles the mode) prevents B7→Em from being misclassified the same way.
+
+- **Audio API now returns canonical music-notation key spelling.** The audio module's internal `PITCH_CLASSES` is sharps-only for pitch-class arithmetic, which leaked through to the public API: a Bb-minor recording surfaced as `A# Aeolian`, a Db-major recording as `C# major`. The adapter now respells at the API boundary using standard convention — flats for most black-key major roots (Db, Eb, Ab, Bb), pick-by-fewest-accidentals for minor roots (C#m, Ebm, F#m, G#m, Bbm). Internal pitch-class math still uses sharps, so no precision regressions; `_compute_diatonic_pcs` and `_cadence` now accept both spellings via the new `PC_OF_NOTE` lookup. Affects `global_key`, `local_key`, and every key reference inside the diagnostic panel (per-approach top_3/top_5, synthesis winner/runner_up, score-table keys).
+
+- **Demo chord-row highlight no longer lags one row behind on click-to-seek.** Clicking row N in the chord table seeked playback to N's start time, but the active-row picker compared `currentTime >= start_time` strictly — and browsers round audio-element seeks to the nearest decoded frame (typically 10–30 ms before the requested time), so the resulting `currentTime` landed inside row N-1's `[start, end)` window and highlighted the wrong row. A 50 ms look-ahead applied to `currentTime` in both the table picker and the timeline indicator strip puts the comparison reliably on the correct side of every chord boundary; 50 ms is below human visual response so the perceived highlight "leads" playback by an imperceptible amount.
+
+### Removed
+
+- **`FunctionalHarmonyAnalyzer` class deleted from `core/functional_harmony.py`.** The class was a parallel implementation of the same key-detection heuristic that `UnifiedPatternService` runs in production — kept aligned with the production path "by convention" via cross-module docstrings. Empirical tracing during the doo-wop fix confirmed the production path is the only path the failing test reaches; the class had no production callers, only a debug utility (`tests/utils/unified_debug.py`) and the new unit tests touched it. Both have been retargeted through `PatternAnalysisService`. Module now hosts only the dataclasses (`FunctionalChordAnalysis`, `Cadence`, `ChromaticElement`, `FunctionalAnalysisResult`) and lookup tables that other modules consume as type hints.
+
 ## [0.3.1-beta.3] - 2026-05-06
 
 ### Added

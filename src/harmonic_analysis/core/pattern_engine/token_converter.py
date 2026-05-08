@@ -1,8 +1,9 @@
 """
 Token Converter - Bridge between functional analysis and pattern engine.
 
-Converts the output from FunctionalHarmonyAnalyzer into Token objects
-that can be processed by the pattern matching engine.
+Converts ``FunctionalAnalysisResult``-shaped objects (or anything with the
+matching attribute surface — ``key_center``, ``chords``, ``mode``) into
+Token objects that the pattern-matching engine can score.
 """
 
 import re
@@ -576,9 +577,9 @@ class TokenConverter:
                 return "T"
 
 
-# Shared entry point for external callers (e.g., FunctionalHarmonyAnalyzer)
-# to obtain a Roman numeral using the same logic as the pattern engine
-# (including minor subtonic normalization).
+# Shared entry point for external callers to obtain a Roman numeral
+# using the same logic as the pattern engine (including minor subtonic
+# normalization).
 
 
 def romanize_chord(

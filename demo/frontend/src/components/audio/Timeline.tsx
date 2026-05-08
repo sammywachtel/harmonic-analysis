@@ -157,8 +157,17 @@ const Timeline = ({
   // The chord we surface in the indicator strip: hover wins when active,
   // otherwise we show whatever's playing. Computed once so the strip and any
   // playhead label use the same reference.
+  //
+  // 50 ms look-ahead on currentTime compensates for audio-element seek
+  // rounding — browsers land seeks at the nearest decoded frame, typically
+  // 10–30 ms off the requested time. Without it, clicking row N's start
+  // would highlight row N-1 (the seek lands just inside the previous
+  // chord's [start, end) window). Same fix applied in ChordProgression.tsx.
   const playingChord = useMemo(
-    () => chords.find((c) => currentTime >= c.start_time && currentTime < c.end_time) ?? null,
+    () => {
+      const t = currentTime + 0.05;
+      return chords.find((c) => t >= c.start_time && t < c.end_time) ?? null;
+    },
     [chords, currentTime],
   );
   const activeChord = hoveredChord ?? playingChord;
