@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List
 
-from ._profiles import PITCH_CLASSES
+from ._profiles import PC_OF_NOTE, PITCH_CLASSES  # noqa: F401
 
 # Diatonic interval patterns relative to tonic. Major = Ionian, "minor" here
 # means natural minor / Aeolian. Harmonic and melodic minor variants are not
@@ -46,9 +46,9 @@ def _compute_diatonic_pcs(tonic: str, mode: str) -> frozenset[int]:
         # WU3 extends this. Until then, treat as "no diatonic info."
         return frozenset()
 
-    # PITCH_CLASSES.index is fine for the 12-name table; raises if tonic is
-    # garbage, which is exactly what we want — silent fallback hides bugs.
-    tonic_pc = PITCH_CLASSES.index(tonic)
+    # Accept both sharp and flat spellings ("A#" or "Bb"). Raises KeyError
+    # on garbage input, which is what we want — silent fallback hides bugs.
+    tonic_pc = PC_OF_NOTE[tonic]
     return frozenset((tonic_pc + step) % 12 for step in intervals)
 
 

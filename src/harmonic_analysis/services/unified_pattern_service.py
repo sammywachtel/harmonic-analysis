@@ -1183,12 +1183,21 @@ class UnifiedPatternService:
 
     def _detect_functional_major_key(self, chords: List[str]) -> Optional[str]:
         """
-        Iteration 9C: Detect if a minor-opening progression is actually
-        functional in a major key.
+        Iteration 9C: Detect if a progression is functional in a major key.
 
-        Analyzes chord progressions starting with minor chords to determine
-        if they're better understood as functional progressions in a related
-        major key.
+        Originally written to handle minor-opening progressions (vi-ii-V-I,
+        vi-IV-I-V, etc.), this detector now also catches major-opening
+        functional cadences whose only "minor" content is the iconic vi triad
+        — most importantly the I-vi-IV-V-I doo-wop loop. Without that 5-chord
+        detector, a textbook major progression like ``C Am F G C`` got
+        misclassified as a minor key because the over-eager modal-signature
+        flag "any minor chord exists therefore Dorian" routed it through the
+        minor-key fallback.
+
+        The cadence-quality principle: when the resolving chord (the I in
+        these patterns) is a major triad, this is a major key — period. We
+        return the major key signature directly rather than relying on the
+        downstream first-chord heuristic to guess.
 
         Args:
             chords: List of chord symbols
@@ -1205,12 +1214,38 @@ class UnifiedPatternService:
                 chord.split("/")[0].replace("m", "").split("7")[0].split("9")[0].strip()
             )
 
+        # Quality classifier — gate on resolving chord's quality, not just the
+        # V chord's. Minor target = minor key, major target = major key, even
+        # when the V→I interval is identical in both cases (G→C and B7→Em both
+        # have V→I interval = 5 semitones; the resolution quality breaks the tie).
+        def get_quality(chord: str) -> str:
+            base = chord.split("/")[0]
+            lower = base.lower()
+            # Half-diminished / diminished slip into "other" — don't claim them
+            # as major-key tonic candidates.
+            if "dim" in lower or "ø" in chord or "m7b5" in lower:
+                return "other"
+            if "m" in base and "maj" not in lower:
+                return "minor"
+            return "major"
+
         roots = [get_root(chord) for chord in chords]
+        qualities = [get_quality(chord) for chord in chords]
 
         # Common functional patterns starting with minor chords:
         # 1. vi-ii-V-I: minor chord followed by ii-V-I cadence
         # 2. vi-IV-I-V: minor chord followed by plagal motion
         # 3. vi-V-I: minor chord to dominant resolution
+        # Plus the new major-opening doo-wop loop:
+        # 4. I-vi-IV-V-I: the textbook 5-chord loop
+
+        # Most-specific patterns first — the 5-chord I-vi-IV-V-I goes BEFORE
+        # any V-I check so the trailing G-C of `C Am F G C` doesn't trigger the
+        # short pattern and short-circuit the more-confident long match.
+        if len(chords) >= 5:
+            # Pattern: I-vi-IV-V-I (C-Am-F-G-C in C major)
+            if self._matches_I_vi_IV_V_I_pattern(roots, qualities):
+                return f"{roots[0]} major"
 
         # Look for cadential motion patterns
         if len(chords) >= 4:
@@ -1241,7 +1276,141 @@ class UnifiedPatternService:
                 )  # 3 semitones = minor 3rd
                 return f"{minor_third_up} major"
 
+            # Plain V→I authentic cadence resolving to a MAJOR triad. Gated
+            # explicitly on the final chord's quality — V7→Em (B7→Em) must NOT
+            # fire here, because the resolving Em is minor and that's an
+            # E-minor key, not E-major. This is the cadence-quality tie-break:
+            # the resolving chord's quality, not the V chord's, settles the
+            # mode of the key.
+            if self._matches_V_I_major_pattern(roots, qualities):
+                return f"{roots[-1]} major"
+
         return None
+
+    def _matches_I_vi_IV_V_I_pattern(
+        self, roots: List[str], qualities: List[str]
+    ) -> bool:
+        """Check if a 5-chord progression matches I-vi-IV-V-I in some major key.
+
+        The doo-wop loop. If matched, the first and last chord roots agree on
+        the tonic; the second chord is a minor triad on +9 (vi); and IV/V live
+        at +5 and +7 from the tonic. Quality gating is strict — any non-major
+        triad on the I, IV, or V slot disqualifies the match. This prevents
+        weird progressions from being labeled major when one of the would-be
+        major positions is actually minor or diminished.
+        """
+        if len(roots) < 5 or len(qualities) < 5:
+            return False
+
+        try:
+
+            def note_to_semitone(note: str) -> int:
+                notes = {
+                    "C": 0,
+                    "C#": 1,
+                    "DB": 1,
+                    "D": 2,
+                    "D#": 3,
+                    "EB": 3,
+                    "E": 4,
+                    "F": 5,
+                    "F#": 6,
+                    "GB": 6,
+                    "G": 7,
+                    "G#": 8,
+                    "AB": 8,
+                    "A": 9,
+                    "A#": 10,
+                    "BB": 10,
+                    "B": 11,
+                }
+                return notes.get(note.upper(), 0)
+
+            tonic_st = note_to_semitone(roots[0])
+            # First and last chord must share the tonic root.
+            if note_to_semitone(roots[4]) != tonic_st:
+                return False
+            # Interval profile from the tonic: vi=+9, IV=+5, V=+7
+            if (note_to_semitone(roots[1]) - tonic_st) % 12 != 9:
+                return False
+            if (note_to_semitone(roots[2]) - tonic_st) % 12 != 5:
+                return False
+            if (note_to_semitone(roots[3]) - tonic_st) % 12 != 7:
+                return False
+            # Quality gate: I/IV/V/I are major triads, vi is the only minor.
+            if qualities[0] != "major":
+                return False
+            if qualities[1] != "minor":
+                return False
+            if qualities[2] != "major":
+                return False
+            if qualities[3] != "major":
+                return False
+            if qualities[4] != "major":
+                return False
+            return True
+
+        except (KeyError, IndexError):
+            return False
+
+    def _matches_V_I_major_pattern(
+        self, roots: List[str], qualities: List[str]
+    ) -> bool:
+        """Check if the trailing two chords are a V→I cadence resolving to MAJOR.
+
+        Inspects only the last two chords. The V→I interval (root motion of
+        a perfect fourth up = 5 semitones mod 12) is necessary but not
+        sufficient — the resolving chord's quality must also be major. A V7
+        resolving to a minor triad (B7→Em) gives the same interval but a
+        different key, and that case must NOT match here.
+
+        Also requires the V slot to be major or dominant. Plain G→C and G7→C
+        both qualify; m7→I (Gm7→C, an unusual sub-V) does not.
+        """
+        if len(roots) < 2 or len(qualities) < 2:
+            return False
+
+        try:
+
+            def note_to_semitone(note: str) -> int:
+                notes = {
+                    "C": 0,
+                    "C#": 1,
+                    "DB": 1,
+                    "D": 2,
+                    "D#": 3,
+                    "EB": 3,
+                    "E": 4,
+                    "F": 5,
+                    "F#": 6,
+                    "GB": 6,
+                    "G": 7,
+                    "G#": 8,
+                    "AB": 8,
+                    "A": 9,
+                    "A#": 10,
+                    "BB": 10,
+                    "B": 11,
+                }
+                return notes.get(note.upper(), 0)
+
+            v_st = note_to_semitone(roots[-2])
+            i_st = note_to_semitone(roots[-1])
+            # Perfect-fourth-up = 5 semitones mod 12. F→E (11 semitones, the
+            # Andalusian endgame) deliberately fails here.
+            if (i_st - v_st) % 12 != 5:
+                return False
+            # Cadence-quality gate: resolution must be major.
+            if qualities[-1] != "major":
+                return False
+            # V slot must be major or dominant — minor V is not an authentic
+            # cadence into a major key.
+            if qualities[-2] not in ("major",):
+                return False
+            return True
+
+        except (KeyError, IndexError):
+            return False
 
     def _matches_vi_ii_V_I_pattern(self, roots: List[str]) -> bool:
         """Check if roots match vi-ii-V-I pattern in some major key."""

@@ -38,13 +38,22 @@ const FUNCTION_LABELS: Record<ChordFunction, string> = {
   chromatic:    'Chromatic',
 };
 
+// Look-ahead applied to currentTime when picking the active row. Browsers
+// round audio-element seeks to the nearest decoded frame (typically 10–30 ms
+// off the requested time), so a click on row N's start_time often lands a
+// few ms BEFORE that boundary, which falls inside row N-1's [start, end)
+// window. Without compensation, clicking row 10 highlights row 9.
+// 50 ms is below human visual response (~100 ms) so the perceived
+// highlight "leads" playback by an imperceptible amount, while reliably
+// staying on the correct side of every chord boundary.
+const ACTIVE_LOOKAHEAD_S = 0.05;
+
 const ChordProgression = ({ chords, currentTime = 0, onSeek }: ChordProgressionProps) => {
   // Find which chord index is currently playing. Linear scan is fine — these
   // lists are typically <100 entries.
   const activeIndex = useMemo(() => {
-    return chords.findIndex(
-      (c) => currentTime >= c.start_time && currentTime < c.end_time,
-    );
+    const t = currentTime + ACTIVE_LOOKAHEAD_S;
+    return chords.findIndex((c) => t >= c.start_time && t < c.end_time);
   }, [chords, currentTime]);
 
   return (
