@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.1-beta.4] - 2026-05-10
+
+### Changed
+
+- **Minor-key roman numerals now use Convention B (explicit Unicode `♭`).** The `TokenConverter.minor_romans` table mixed conventions — `III`/`VI` (no flat) at slots 3 and 8, ASCII `bVII` at slot 10. All three now emit `♭III`, `♭VI`, `♭VII` with the Unicode flat character, so the label is honest about being flatted relative to parallel major. Downstream consumers string-matching on the old ASCII `bVII` or bare `VI`-in-minor will need to update. Convention chosen for pedagogical explicitness — `♭VII` reads as "flatted relative to G major's leading-tone VII" the moment you see it. Affects `tests/utils/test_romanization.py` (Andalusian assertion), the Andalusian pattern's `roman_seq` in `patterns_unified.json`, and the minor-key + modal oracle fixtures.
+
 ### Fixed
 
 - **Hintless major-key detection on doo-wop loops.** Without a `key_hint`, the analyzer used to flip a textbook progression like `C Am F G C` (I-vi-IV-V-I in C major) to C minor, because the unified pattern service's modal-signature router flagged any minor chord as "Dorian" and routed the result through the minor-key fallback. Now the service detects the 5-chord I-vi-IV-V-I loop and a plain V→I-to-major cadence directly, and the cadence-quality gate (resolving chord's quality settles the mode) prevents B7→Em from being misclassified the same way.
@@ -13,6 +19,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Audio API now returns canonical music-notation key spelling.** The audio module's internal `PITCH_CLASSES` is sharps-only for pitch-class arithmetic, which leaked through to the public API: a Bb-minor recording surfaced as `A# Aeolian`, a Db-major recording as `C# major`. The adapter now respells at the API boundary using standard convention — flats for most black-key major roots (Db, Eb, Ab, Bb), pick-by-fewest-accidentals for minor roots (C#m, Ebm, F#m, G#m, Bbm). Internal pitch-class math still uses sharps, so no precision regressions; `_compute_diatonic_pcs` and `_cadence` now accept both spellings via the new `PC_OF_NOTE` lookup. Affects `global_key`, `local_key`, and every key reference inside the diagnostic panel (per-approach top_3/top_5, synthesis winner/runner_up, score-table keys).
 
 - **Demo chord-row highlight no longer lags one row behind on click-to-seek.** Clicking row N in the chord table seeked playback to N's start time, but the active-row picker compared `currentTime >= start_time` strictly — and browsers round audio-element seeks to the nearest decoded frame (typically 10–30 ms before the requested time), so the resulting `currentTime` landed inside row N-1's `[start, end)` window and highlighted the wrong row. A 50 ms look-ahead applied to `currentTime` in both the table picker and the timeline indicator strip puts the comparison reliably on the correct side of every chord boundary; 50 ms is below human visual response so the perceived highlight "leads" playback by an imperceptible amount.
+
+- **Slot-4 mislabel in `TokenConverter.minor_romans`.** Index 4 (a chord rooted a major third above the minor tonic) used to emit `iv`. That's wrong on two counts: `iv` is the diatonic minor subdominant which lives at slot 5, and a chord at slot 4 is chromatic — typically the raised mediant. Now emits `♯III`. New regression oracle case `slot4_chromatic_mediant_in_e_minor` (E G♯ Am Em → i ♯III iv i) exercises the slot directly so anyone reverting the fix triggers a loud failure.
+
+- **B Aeolian no longer misclassified as B Dorian.** A pure B-Aeolian progression `Bm A G A Bm` (no G♯, so no Dorian raised-6 evidence in the pitches) used to come back tagged Dorian. Three coordinated fixes were required, because the token-table change alone left the contextless heuristic still misfiring:
+  - `minor_romans[8]` now emits `♭VI` instead of bare `VI` (Convention B above), so the natural-minor flat-6 chord stops looking like Dorian's raised-6 to the signature matcher.
+  - `_detect_mode_label`'s Dorian signature dropped its bare `"VI"` catch-all (kept `"♯VI"` which is the real raised-6 evidence — e.g. D Dorian's B-natural on the G chord).
+  - `_detect_modal_signatures` removed the `if minor_chords: signatures.append("dorian")` branch — a contextless heuristic that fired on every minor-key progression. The proper modal labeler `_detect_mode_label` runs later with full romans + parent key and handles Dorian correctly. Side-effect compensation: that bogus tag was accidentally routing some major-opening I-vi-IV-V progressions to a `first_root + minor` inference branch; new first-chord-major vs last-chord-major arbitration in `_infer_key_from_progression` keeps `C Am F G` inferring C major when functional detection returns nothing.
+
+  Oracle case `b_aeolian_pure_natural_minor_documents_dorian_misfire` flipped from `expected_to_fail: true` to a passing regression net. Kept under its original misfire-named identifier so the test is self-documenting if anything drifts back.
 
 ### Removed
 

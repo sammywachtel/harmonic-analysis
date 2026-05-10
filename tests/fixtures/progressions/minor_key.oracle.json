@@ -3,7 +3,7 @@
   "schema_notes": [
     "key: expected key the analyzer should report",
     "key_hint (optional): if present, passed to analyzer as input — use sparingly to isolate roman-numeral logic from key-detection ambiguity",
-    "roman_numerals: exact expected sequence after bug fixes; minor-key convention follows current codebase (III/VI without flats, ♭VII with flat) — convention reform is out of scope",
+    "roman_numerals: exact expected sequence after bug fixes; minor-key convention is Convention B (scope: minor_roman_label_polish, 2026-05-09): ♭III, ♭VI, ♭VII all explicitly carry Unicode ♭ to mark them as flatted relative to parallel major. Slot 4 (major-third above minor tonic) is ♯III, the chromatic mediant — never the bogus 'iv' it used to emit",
     "mode_expected (optional): if present, analyzer must report this exact mode label",
     "mode_must_not_be (optional): list of mode labels the analyzer must NOT report",
     "comment: music-theory rationale for the expected values, written for the next person who has to debug this"
@@ -34,8 +34,8 @@
         "I7",
         "iv7",
         "♭VII7",
-        "IIImaj7",
-        "VImaj7",
+        "♭IIImaj7",
+        "♭VImaj7",
         "iv",
         "V7",
         "♭v°",
@@ -246,10 +246,28 @@
       "roman_numerals": [
         "i",
         "♭VII",
-        "VI",
+        "♭VI",
         "V"
       ],
-      "comment": "Classic Andalusian/flamenco cadence. E (not Em) is the harmonic-minor V. NOTE: codebase emits 'VI' (no flat) at semitone 8 and '♭VII' (with flat) at semitone 10 — that's an internal convention inconsistency, but cleaning it up is out of scope here. Asserting current convention so this test isolates the bugs we ARE fixing."
+      "comment": "Classic Andalusian/flamenco cadence. E (not Em) is the harmonic-minor V. Under Convention B (scope: minor_roman_label_polish), slots 8 and 10 both carry explicit Unicode ♭ — the ♭VII/♭VI pair is now visually consistent and honest about being flatted relative to parallel A major. Resolving the old internal-convention inconsistency was the whole point of this scope."
+    },
+    {
+      "name": "slot4_chromatic_mediant_in_e_minor",
+      "chords": [
+        "Em",
+        "G#",
+        "Am",
+        "Em"
+      ],
+      "key": "E minor",
+      "key_hint": "E minor",
+      "roman_numerals": [
+        "i",
+        "♯III",
+        "iv",
+        "i"
+      ],
+      "comment": "Regression net for the slot-4 mislabel fix (scope: minor_roman_label_polish). G# is rooted a major third above E (4 semitones) — minor_romans[4] used to bogusly emit 'iv' (the diatonic minor subdominant, which actually lives at slot 5). Under Convention B + slot-4 fix, this slot now correctly emits ♯III, the chromatic-mediant reading. Sanity check that exercises the table position directly; if anyone reverts the fix, this case fails loudly."
     },
     {
       "name": "major_basic_authentic_sanity",

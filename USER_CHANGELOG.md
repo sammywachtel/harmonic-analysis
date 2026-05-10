@@ -5,6 +5,29 @@ the good stuff — what you can actually *do* now — lives here.
 
 ---
 
+## [0.3.1-beta.4] - 2026-05-10
+
+### 🎼 Minor-Key Roman Numerals Are Honest About Their Flats Now
+
+🎹 **`♭III`, `♭VI`, `♭VII` now consistently carry their flat marker** in minor-key analysis output. Previously a progression like A-minor's Andalusian cadence (`Am G F E`) came back as `i bVII VI V` — mixing flat and no-flat spellings for chords that are *all* flatted relative to parallel A major. Now you get `i ♭VII ♭VI V`. Same chords, same theory, just labels that don't gaslight you about which degrees are diatonic and which are altered. The Unicode `♭` is the standard music-notation glyph; the old ASCII `bVII` is gone.
+
+🎯 **The "B-minor-looks-like-Dorian" bug is dead.** Drop a pure B-Aeolian progression (`Bm A G A Bm` — chords pulled straight from B natural minor with no raised-6 anywhere) into the analyzer, and it used to come back tagged B Dorian. Three layers of the analyzer were conspiring against the obvious answer — they're now all on the same page. Aeolian gets called Aeolian, no Dorian heuristics quietly hijacking results in the background.
+
+🐛 **Slot-4 in minor keys no longer fabricates a phantom `iv`.** A chord rooted a major-third above the minor tonic (the chromatic mediant — think G♯ over E minor) used to label itself `iv`, but the diatonic `iv` is the minor subdominant a *perfect-fourth* above. Now it correctly emits `♯III`. A tucked-away bug nobody had stumbled into yet, plugged with a regression test before they could.
+
+### 🔄 Heads-Up for Downstream Consumers
+
+If any of your code does string-matching against the analyzer's roman numeral output, the changed tokens are:
+
+- `bVII` → `♭VII` (ASCII flat replaced with Unicode flat)
+- `VI` (in minor keys) → `♭VI`
+- `III` (in minor keys) → `♭III`
+- `iv` at slot 4 → `♯III` (this was a bug fix; if your code relied on the old behavior, it was already wrong)
+
+The major-key roman table is unchanged. The library's public Python API surface is unchanged — same methods, same signatures, just different (more accurate) string content inside the result objects.
+
+---
+
 ## [0.3.1-beta.2] - 2026-05-05
 
 ### 🔧 Fixed: The "Minor Key Identity Crisis" Is Over

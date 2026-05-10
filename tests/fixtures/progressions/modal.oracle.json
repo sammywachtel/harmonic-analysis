@@ -243,13 +243,12 @@
       "roman_numerals": [
         "i",
         "♭VII",
-        "VI",
+        "♭VI",
         "♭VII",
         "i"
       ],
       "mode_expected": "B Aeolian",
-      "comment": "EXPECTED-FAIL bug ticket. Chord pitches are pure B Aeolian (B C♯ D E F♯ G A — no G♯ which would be Dorian's raised 6). But the analyzer reports 'B Dorian' because the Dorian signature ['VI', '♯VI', 'II', 'IV'] matches the bare 'VI' token in the romans. The 'VI' here is the codebase's label for the chord on natural ♭6 (G in B minor) — but the Dorian matcher reads it as raised-6 evidence. This is the concrete functional consequence of the convention ambiguity tracked in task #9: 'VI' (without ♭) is overloaded across modes. Fix is either (a) emit '♭VI' at slot 8 (cascades into other oracle cases), or (b) make the Dorian matcher check actual chord pitches, not just roman tokens. Either fix would unblock this case.",
-      "expected_to_fail": true
+      "comment": "Pure B Aeolian: chord pitches are B C♯ D E F♯ G A — no G♯, so no Dorian raised 6. Now passes (scope: minor_roman_label_polish): Convention B emits '♭VI' at slot 8, the Dorian signature in _detect_mode_label dropped its bare 'VI' catch-all, and the redundant 'if minor_chords: append(\"dorian\")' branch in _detect_modal_signatures was removed. Both fixes were required — the token-table change alone left the contextless heuristic still misfiring. Kept under its original misfire-named case so the regression net is self-documenting if the matcher ever drifts back."
     },
     {
       "name": "modal_too_short_to_commit",
