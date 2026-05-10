@@ -548,7 +548,7 @@
         "roman_seq": [
           "i",
           "♭VII",
-          "VI",
+          "♭VI",
           "V"
         ],
         "mode": "minor",
@@ -572,7 +572,7 @@
           "flamenco"
         ],
         "priority": 90,
-        "description": "Andalusian/Flamenco progression in Aeolian form i-♭VII-VI-V",
+        "description": "Andalusian/Flamenco progression in Aeolian form i-♭VII-♭VI-V (Convention B; scope: minor_roman_label_polish)",
         "aliases": [
           "andalusian"
         ]

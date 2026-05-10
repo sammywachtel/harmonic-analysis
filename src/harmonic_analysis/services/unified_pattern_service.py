@@ -700,11 +700,16 @@ class UnifiedPatternService:
         mode_signatures = {
             "mixolydian": ["♭VII", "BVII"],
             "dorian": [
-                "VI",
+                # Bare "VI" used to live here as a catch-all, but under
+                # Convention B (scope: minor_roman_label_polish) the diatonic
+                # minor sixth emits as "♭VI" — an Aeolian/Phrygian/Locrian
+                # signature, not Dorian. "♯VI" already structurally covers
+                # Dorian's actual raised-6 evidence (D Dorian's B-natural
+                # in Dm-G shows up as ♯VI on the G chord).
                 "♯VI",
                 "II",
                 "IV",
-            ],  # Natural 6, raised 2 (IV not iv for uppercase)
+            ],  # Raised 6, raised 2 (IV not iv for uppercase)
             "phrygian": ["♭II", "BII", "♭III"],  # Fixed case consistency
             "lydian": ["♭V", "BV", "♯IV", "#IV"],
             "aeolian": ["V", "♭VI", "♭VII"],  # Natural minor characteristics (V not v)
@@ -1126,7 +1131,25 @@ class UnifiedPatternService:
                 last_chord = chords[-1] if len(chords) > 1 else chords[0]
                 last_root, last_quality = extract_root_and_quality(last_chord)
 
-                if last_root in common_keys and last_quality == "major":
+                # Prefer first-chord-major over last-chord-major when both
+                # are major. (scope: minor_roman_label_polish.) Removing
+                # the bogus `if minor_chords: append("dorian")` heuristic
+                # exposed a brittle preference here: progressions like
+                # I-vi-IV-V (C-Am-F-G) end on V, not I, but the old
+                # last-chord-major rule picked V as the tonic. The first
+                # chord is much more often the tonic for a major-opening
+                # progression than the last chord is — and when both are
+                # major, the first chord wins absent stronger functional
+                # evidence (which `_detect_functional_major_key` would
+                # have already picked up).
+                if (
+                    first_root in common_keys
+                    and first_quality == "major"
+                    and last_root in common_keys
+                    and last_quality == "major"
+                ):
+                    inferred_key = f"{first_root} major"
+                elif last_root in common_keys and last_quality == "major":
                     # Final chord heuristic for functional progressions
                     inferred_key = f"{last_root} major"
                 elif first_root in common_keys:
@@ -1166,11 +1189,30 @@ class UnifiedPatternService:
         ):
             signatures.append("mixolydian")
 
-        # Dorian signatures: natural 6 in minor context
-        minor_chords = [c for c in chords if "m" in c and "maj" not in c.lower()]
-        if minor_chords:
-            signatures.append("dorian")
-
+        # Dorian detection lived here as `if minor_chords: append("dorian")`
+        # — fired on every minor-key progression and was the independent
+        # root cause of the b-Aeolian Dorian misfire (scope:
+        # minor_roman_label_polish). Real Dorian detection requires
+        # raised-6 pitch evidence, which this contextless key-inference
+        # heuristic can't see (it only has chord symbols, no parent key
+        # or romans). The proper modal labeler `_detect_mode_label` runs
+        # later with full context and handles Dorian correctly.
+        #
+        # Side-effect callout: the sole caller `_infer_key_from_progression`
+        # used the bogus "dorian" tag as a side-effect signal to push
+        # major-opening progressions with a vi chord (e.g. C-Am-F-G,
+        # I-vi-IV-V) into a `first_root + minor` inference branch that
+        # downstream layers then corrected. With the bogus tag gone, that
+        # accidental routing also goes — so the conventional-fallback
+        # heuristic below the `else:` block at lines 1119+ has to do its
+        # own work. Specifically: when both first and last chords are
+        # major and `_detect_functional_major_key` returns None, the
+        # last-chord-major heuristic prefers the last root, which is
+        # wrong for I-vi-IV-V style loops ending on V. Iteration plan
+        # accepts this trade because the prior "right answer for the
+        # wrong reason" was a maintenance landmine — see results.md
+        # under "Implementation Notes" for the call-site fix.
+        #
         # Phrygian signatures: b2 intervals
         if any(
             pair in [("AM", "BB"), ("DM", "EB")]

@@ -441,18 +441,26 @@ class TokenConverter:
         # Slot 6 (tritone) was historically labeled "bVI" — a textbook
         # mislabel: ♭VI lives at slot 8 (the minor sixth). The tritone
         # slot is ♭v / ♯iv (most often diminished in real progressions).
+        #
+        # Convention B (scope: minor_roman_label_polish, 2026-05-09):
+        # Use Unicode flat (♭) explicitly for ♭III / ♭VI / ♭VII so the
+        # label is honest about being flatted relative to parallel major.
+        # Slot 4 was previously the bogus "iv" (the minor subdominant lives
+        # at slot 5); the actual chromatic-mediant degree is ♯III.
+        # See `andalusian_in_a_minor` and `user_em_progression_full`
+        # oracle cases for end-to-end coverage.
         minor_romans = [
             "i",
             "bII",
             "ii",
-            "III",
-            "iv",
+            "♭III",  # Convention B: explicit ♭ vs. parallel major's III
+            "♯III",  # chromatic mediant (was "iv" — wrong slot; iv is at 5)
             "IV",
             "bV",  # tritone (was "bVI" — wrong slot; ♭VI is at index 8)
             "v",
-            "VI",
+            "♭VI",  # Convention B: explicit ♭ vs. parallel major's VI
             "♯VI",
-            "bVII",
+            "♭VII",  # Convention B: Unicode-normalized (was ASCII "bVII")
             "vii°",
         ]
 
