@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Demo Tab 1 ("Manual entry") reskinned as a fixed-height two-column "workbench" layout.** The shipping page stacked vertically — intro paragraph, input form, Python snippet card, then results — which pushed the analysis below the laptop fold on most viewports. The new layout pins a 340-px input panel to the left edge (chord textarea, four quick-example chips including the new `Mixolydian ♭VII → G F C G`, key + profile selects, educational-notes checkbox, primary Analyze button + "View as Python" link) and gives the right column its own scroll for the full `AnalysisResults` block. The page itself no longer scrolls — only the right column does — so the user can edit chords and re-analyze without losing track of where they are. Four new presentational components carry the structure: `WorkbenchLayout`, `InputPanel`, `EmptyAnalysisState`, and `CodeModal`. The page-level Python `SectionCard` moved into `CodeModal`, which now offers a 3 × 3 matrix of feature (Manual / Notation / Audio) × language (Python / CLI / curl) snippets with copy-to-clipboard, JSX-tokenized syntax highlighting (no raw HTML injection), and three-way dismiss (Escape, backdrop click, ×). Implements Proposal D from the design handoff. Affects only the demo frontend; library code and APIs unchanged.
+
 ## [0.3.1-beta.4] - 2026-05-10
 
 ### Changed
